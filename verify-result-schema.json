@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Foundry App Verification Report",
+  "description": "Schema for browser verification results after testing Falcon Foundry apps",
+  "properties": {
+    "apps": {
+      "type": "array",
+      "description": "Verification results for each app tested",
+      "items": {
+        "type": "object",
+        "properties": {
+          "app_name": {
+            "type": "string",
+            "description": "Name of the Foundry app verified"
+          },
+          "run": {
+            "type": "integer",
+            "description": "Run number (1-based) from the A/B test"
+          },
+          "install": {
+            "type": "string",
+            "enum": ["PASS", "FAIL"],
+            "description": "Whether the app installed successfully with credential prompt"
+          },
+          "ui": {
+            "type": "string",
+            "enum": ["PASS", "FAIL", "SKIP"],
+            "description": "Whether the UI extension rendered correctly on the detection details page"
+          },
+          "workflow": {
+            "type": "string",
+            "enum": ["PASS", "FAIL", "SKIP"],
+            "description": "Whether the on-demand workflow executed successfully"
+          },
+          "uninstall": {
+            "type": "string",
+            "enum": ["PASS", "FAIL"],
+            "description": "Whether the app uninstalled cleanly"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Any issues, warnings, or observations during verification"
+          }
+        },
+        "required": ["app_name", "run", "install", "ui", "workflow", "uninstall"],
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "string",
+      "description": "Overall summary of verification results"
+    }
+  },
+  "required": ["apps", "summary"],
+  "additionalProperties": false
+}

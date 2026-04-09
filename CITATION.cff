@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+title: 'Falcon Foundry Skills'
+message: >-
+  If you use this software, and wish to cite the origins,
+  please use metadata from this file.
+type: software
+authors:
+  - given-names:
+    family-names: CrowdStrike
+    email: oss-questions@crowdstrike.com
+repository-code: 'https://github.com/CrowdStrike/foundry-skills'
+url: 'https://www.crowdstrike.com'
+abstract: >-
+  Falcon Foundry Skills is a community-driven, open source project
+  providing AI coding assistant skills for building CrowdStrike
+  Falcon Foundry apps.
+keywords:
+  - crowdstrike
+  - crowdstrike-foundry
+  - falcon-foundry
+  - ai-skills
+  - claude-code
+license: MIT
