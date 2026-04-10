@@ -14,7 +14,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 - **Authentication**: Run `foundry login` to authenticate
 - **AI Coding Assistant**: Claude Code, Cursor, Gemini CLI, Codex, OpenCode, Copilot CLI, or any tool that supports loading reference documentation
 
-### Claude Code
+### Claude Code (Tested)
 
 Install as a plugin from the [Anthropic Plugin Marketplace](https://docs.anthropic.com/en/docs/claude-code/plugins):
 
@@ -39,7 +39,7 @@ The `--plugin-dir` flag loads the plugin for that session. To make it permanent,
 
 Changes to skill files take effect on the next Claude Code session — no reinstall needed.
 
-### Cursor
+### Cursor (Experimental)
 
 Add a rule file to your project's `.cursor/rules/` directory:
 
@@ -59,7 +59,7 @@ EOF
 
 Cursor activates the rule automatically when your prompt matches the description.
 
-### Gemini CLI
+### Gemini CLI (Experimental)
 
 Link the skills so Gemini discovers them as native Agent Skills:
 
@@ -72,7 +72,7 @@ This creates symlinks in `~/.gemini/skills/` so all skills are available in ever
 
 Gemini activates the right skill on demand based on your prompt. No `GEMINI.md` changes needed.
 
-### Codex (OpenAI)
+### Codex (Experimental)
 
 Add to your `AGENTS.md` or project instructions:
 
