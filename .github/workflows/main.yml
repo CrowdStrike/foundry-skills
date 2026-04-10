@@ -1,0 +1,116 @@
+name: Foundry Skills CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Install ShellCheck
+        run: command -v shellcheck || sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+      - name: Run ShellCheck
+        run: |
+          shellcheck hooks/*.sh scripts/*.sh
+          shellcheck --severity=error *.sh
+
+  test-hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install pyyaml
+      - name: Run hook tests
+        run: |
+          source .venv/bin/activate
+          ./test-hooks.sh
+      - name: Run spec adaptation tests
+        run: |
+          source .venv/bin/activate
+          python scripts/test-adapt-spec.py
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Validate hooks.json
+        run: python -m json.tool hooks/hooks.json > /dev/null
+      - name: Validate plugin.json
+        run: python -m json.tool .claude-plugin/plugin.json > /dev/null
+      - name: Validate SKILL.md frontmatter
+        run: |
+          fail=0
+          for skill in skills/*/SKILL.md; do
+            for field in name description version; do
+              if ! head -20 "$skill" | grep -q "^${field}:"; then
+                echo "FAIL: $skill missing '$field' in frontmatter"
+                fail=1
+              fi
+            done
+          done
+          exit $fail
+      - name: Validate hook scripts exist
+        run: |
+          fail=0
+          for script in hooks/*.sh; do
+            [ -x "$script" ] || { echo "FAIL: $script is not executable"; fail=1; }
+          done
+          exit $fail
+      - name: Validate version consistency
+        run: |
+          fail=0
+          plugin_version=$(jq -r '.version' .claude-plugin/plugin.json)
+          marketplace_version=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
+          echo "plugin.json version: $plugin_version"
+          echo "marketplace.json plugins[0].version: $marketplace_version"
+
+          # marketplace.json must match plugin.json
+          if [ "$marketplace_version" != "$plugin_version" ]; then
+            echo "FAIL: marketplace.json plugins[0].version '$marketplace_version' != plugin.json '$plugin_version'"
+            fail=1
+          fi
+
+          # All SKILL.md versions must match plugin.json
+          for skill in skills/*/SKILL.md; do
+            skill_version=$(sed -n 's/^version: *//p' "$skill")
+            if [ "$skill_version" != "$plugin_version" ]; then
+              echo "FAIL: $skill version '$skill_version' != plugin.json '$plugin_version'"
+              fail=1
+            fi
+          done
+
+          # CHANGELOG must have an entry for this version
+          if ! grep -q "## \[${plugin_version}\]" CHANGELOG.md; then
+            echo "FAIL: CHANGELOG.md missing entry for version $plugin_version"
+            fail=1
+          fi
+
+          # README badge must match
+          if ! grep -q "version-${plugin_version}-blue" README.md; then
+            echo "FAIL: README.md badge doesn't match version $plugin_version"
+            fail=1
+          fi
+
+          [ $fail -eq 0 ] && echo "All versions consistent: $plugin_version"
+          exit $fail
+
+  markdownlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        with:
+          node-version: 22
+      - name: Run markdownlint
+        run: npx markdownlint-cli2 "**/*.md"

@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Foundry App Build Result",
+  "description": "Schema for structured result summary after building a Falcon Foundry app",
+  "properties": {
+    "app_name": {
+      "type": "string",
+      "description": "Name of the Foundry app created"
+    },
+    "deploy_status": {
+      "type": "string",
+      "enum": ["SUCCESS", "FAILED"],
+      "description": "Whether the app deployed successfully"
+    },
+    "deployment_id": {
+      "type": "string",
+      "description": "Deployment ID returned by foundry apps deploy, or NONE if deploy failed"
+    },
+    "spec_source": {
+      "type": "string",
+      "enum": ["DOWNLOADED", "WRITTEN_FROM_SCRATCH"],
+      "description": "Whether the OpenAPI spec was downloaded from vendor or written manually"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of capabilities created (API integration, workflow, UI extension, etc.)"
+    },
+    "errors": {
+      "type": "string",
+      "description": "Any errors encountered during the build, or NONE"
+    }
+  },
+  "required": [
+    "app_name",
+    "deploy_status",
+    "deployment_id",
+    "spec_source",
+    "capabilities",
+    "errors"
+  ],
+  "additionalProperties": false
+}
