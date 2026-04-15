@@ -65,6 +65,9 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RESULT_SCHEMA=$(cat "$SCRIPT_DIR/test-result-schema.json")
 
+# Ensure headless mode for all Foundry CLI commands in this script
+export FOUNDRY_UI_HEADLESS_MODE=true
+
 PROMPT="Create a Falcon Foundry app for me that has an Okta API integration with openapi. Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results. Pick a reasonable app name and proceed without asking me any questions.
 
 When done, respond with valid JSON matching this schema:
@@ -574,7 +577,7 @@ check_deploy_status() {
     # Agent reported success — verify with list-deployments
     for attempt in 1 2 3 4 5 6; do
       local deploy_out
-      deploy_out=$(cd "$app_dir" && FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments 2>&1)
+      deploy_out=$(cd "$app_dir" && foundry apps list-deployments 2>&1)
       if echo "$deploy_out" | grep -q "Successful"; then
         echo "DEPLOYED_VERIFIED"; return
       elif echo "$deploy_out" | grep -qE "progress|Deploying|Building"; then
@@ -585,7 +588,7 @@ check_deploy_status() {
     done
     # Agent said SUCCESS but can't confirm — trust it
     local deploy_out
-    deploy_out=$(cd "$app_dir" && FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments 2>&1)
+    deploy_out=$(cd "$app_dir" && foundry apps list-deployments 2>&1)
     if echo "$deploy_out" | grep -q "DEPLOYMENT ID"; then
       echo "DEPLOYED_EXISTS"; return
     fi
@@ -594,7 +597,7 @@ check_deploy_status() {
 
   # No agent summary or agent reported failure
   local deploy_out
-  deploy_out=$(cd "$app_dir" && FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments 2>&1)
+  deploy_out=$(cd "$app_dir" && foundry apps list-deployments 2>&1)
   if echo "$deploy_out" | grep -q "Successful"; then
     echo "DEPLOYED"; return
   elif echo "$deploy_out" | grep -q "DEPLOYMENT ID"; then

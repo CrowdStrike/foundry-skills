@@ -55,8 +55,8 @@ Commands that prompt for user input support `--no-prompt` to suppress prompts an
 |---------|---------------------|
 | `foundry apps create` | `foundry apps create --name "app" --description "desc" --no-prompt --no-git` |
 | `foundry apps delete` | `foundry apps delete --force-delete --no-prompt` |
-| `foundry apps deploy` | `FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type minor --change-log "description" --no-prompt` |
-| `foundry apps release` | `FOUNDRY_FF_ENHANCED_UI=false foundry apps release --deployment-id <id> --change-type minor --notes "notes"` |
+| `foundry apps deploy` | `foundry apps deploy --change-type minor --change-log "description" --no-prompt` |
+| `foundry apps release` | `foundry apps release --deployment-id <id> --change-type minor --notes "notes"` |
 | `foundry profile create` | `foundry profile create --name <n> --api-client-id <id> --api-client-secret <s> --cid <c> --cloud-region <r> --no-prompt` |
 | `foundry profile activate` | `foundry profile activate --name "profile-name"` |
 | `foundry profile delete` | `foundry profile delete --name "profile-name" --no-prompt` |
@@ -85,12 +85,12 @@ Error: could not open a new TTY: open /dev/tty: device not configured
 
 or hang and produce garbled output.
 
-**Fix: Always prepend `FOUNDRY_FF_ENHANCED_UI=false`** to commands that trigger the TUI:
+**Fix:** The plugin's SessionStart hook sets `FOUNDRY_UI_HEADLESS_MODE=true` automatically for all Bash commands. If running outside the plugin (CI/CD, scripts), set the env var manually:
 
 ```bash
-FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Patch --change-log "description"
-FOUNDRY_FF_ENHANCED_UI=false foundry apps release --deployment-id <id> --change-type Patch --notes "notes"
-FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments
+foundry apps deploy --change-type Patch --change-log "description"
+foundry apps release --deployment-id <id> --change-type Patch --notes "notes"
+foundry apps list-deployments
 ```
 
 This disables the TUI progress monitor and falls back to plain text output suitable for non-interactive environments.
@@ -115,7 +115,7 @@ When operating as a CLI agent:
 3. **Never run `foundry login` without user confirmation:** The browser flow will hang in headless environments
 4. **Always pass all required flags:** Never rely on interactive prompts — always include `--no-prompt` where supported
 5. **Use `--no-git` on `foundry apps create`:** Prevents git init prompts in environments where git may not be configured
-6. **Prepend `FOUNDRY_FF_ENHANCED_UI=false`** to `deploy`, `release`, and `list-deployments` commands to disable the TUI progress monitor
+6. **`FOUNDRY_UI_HEADLESS_MODE=true`** is set automatically by the plugin's SessionStart hook. For standalone scripts/CI, export it manually.
 
 ## Counter-Rationalizations for Interactive Mode
 

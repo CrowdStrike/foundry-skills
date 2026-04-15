@@ -157,8 +157,8 @@ foundry profile activate --name <name>     # Switch between environments
 # App Development Lifecycle
 foundry apps create --name "X" --no-prompt --no-git  # Create new app
 foundry apps run                           # Start full app locally in dev mode
-FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
-FOUNDRY_FF_ENHANCED_UI=false foundry apps release --change-type Patch --deployment-id <id> --notes "notes"  # Release to app catalog
+foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
+foundry apps release --change-type Patch --deployment-id <id> --notes "notes"  # Release to app catalog
 foundry ui run                             # Local UI development server
 
 # Scaffolding Commands (ALWAYS use --no-prompt)
