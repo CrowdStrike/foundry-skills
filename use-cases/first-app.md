@@ -23,9 +23,9 @@ User wants to create their first Falcon Foundry app, scaffold a new app from scr
    - Page: `foundry ui pages create --name "X" --from-template React --no-prompt`
    - Then add navigation: `foundry ui navigation add --name "X" --path / --ref pages.xxx`
 4. **Run locally**: `foundry ui run` starts local dev server on port 25678. Enable Development mode in Falcon console via the `</>` icon.
-5. **Deploy**: `FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Major --change-log "Initial deployment" --no-prompt`
+5. **Deploy**: `foundry apps deploy --change-type Major --change-log "Initial deployment" --no-prompt`
 6. **Preview**: Toggle Preview mode on in the `</>` Developer tools to verify deployed app before release.
-7. **Release**: `FOUNDRY_FF_ENHANCED_UI=false foundry apps release --change-type Major --deployment-id <id> --notes "Initial release" --no-prompt`
+7. **Release**: `foundry apps release --change-type Major --deployment-id <id> --notes "Initial release" --no-prompt`
 8. **Install**: Go to Foundry > App catalog, find the app, and Install.
 
 ### Path B: Deploy a Pre-Built Template
@@ -53,9 +53,9 @@ foundry ui extensions create --name "My Extension" \
 foundry ui run
 
 # Deploy, release, install
-FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy \
+foundry apps deploy \
   --change-type Major --change-log "Initial deployment" --no-prompt
-FOUNDRY_FF_ENHANCED_UI=false foundry apps release \
+foundry apps release \
   --change-type Major --deployment-id <id> --notes "v1.0" --no-prompt
 ```
 

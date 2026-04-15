@@ -11,7 +11,9 @@
 # 2. Running ui extensions create without --sockets (interactive picker hangs)
 # 3. Using mkdir/touch to create app structure (causes invalid manifests)
 # 4. Creating resources without user confirmation of the name
-# 5. Running deploy/release/list-deployments without FOUNDRY_FF_ENHANCED_UI=false (TUI hangs)
+# 5. Running deploy/release/list-deployments without FOUNDRY_UI_HEADLESS_MODE=true (TUI hangs)
+#    Note: The SessionStart hook (set-foundry-env.sh) sets this env var automatically.
+#    This guard is a fallback for edge cases where the env var isn't set.
 #
 # Receives JSON on stdin with hook_event_name and tool-specific fields.
 # Outputs JSON with additionalContext (advisory nudge, not blocking).
@@ -94,16 +96,16 @@ if echo "$COMMAND" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
   fi
 fi
 
-# Check for foundry apps deploy/release/list-deployments without FOUNDRY_FF_ENHANCED_UI=false
+# Check for foundry apps deploy/release/list-deployments without FOUNDRY_UI_HEADLESS_MODE=true
+# Normally the SessionStart hook sets this env var, but this guard catches edge cases.
 # The enhanced UI (TUI progress monitor) requires a TTY and hangs in non-interactive environments.
-# Some developers set FOUNDRY_FF_ENHANCED_UI=true; future CLI versions may default to true.
-# Skip advisory only when the env var is explicitly "false" — unset or "true" both need the prefix.
+# Skip advisory only when the env var is explicitly "true" — unset or "false" both need the prefix.
 if echo "$COMMAND" | grep -qE 'foundry\s+apps\s+(deploy|release|list-deployments)\b'; then
-  if [ "${FOUNDRY_FF_ENHANCED_UI:-}" != "false" ] && ! echo "$COMMAND" | grep -qF 'FOUNDRY_FF_ENHANCED_UI=false'; then
+  if [ "${FOUNDRY_UI_HEADLESS_MODE:-}" != "true" ] && ! echo "$COMMAND" | grep -qF 'FOUNDRY_UI_HEADLESS_MODE=true'; then
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "The command is missing FOUNDRY_FF_ENHANCED_UI=false. The enhanced UI (TUI progress monitor) requires a TTY and will hang in Claude Code. Prepend FOUNDRY_FF_ENHANCED_UI=false to the command. Example: FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Patch --change-log \"msg\""
+        additionalContext: "The command is missing FOUNDRY_UI_HEADLESS_MODE=true. The enhanced UI (TUI progress monitor) requires a TTY and will hang in Claude Code. Prepend FOUNDRY_UI_HEADLESS_MODE=true to the command. Example: FOUNDRY_UI_HEADLESS_MODE=true foundry apps deploy --change-type Patch --change-log \"msg\""
       }
     }'
     exit 0

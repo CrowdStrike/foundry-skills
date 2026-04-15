@@ -3,8 +3,9 @@
 # test-hooks.sh — Unit tests for hook scripts
 #
 # Tests foundry-skill-router.sh (UserPromptSubmit + PreToolUse),
-# superpowers-foundry-bridge.sh (Skill interception), and
-# foundry-cli-guard.sh (--no-prompt enforcement).
+# superpowers-foundry-bridge.sh (Skill interception),
+# foundry-cli-guard.sh (--no-prompt enforcement), and
+# set-foundry-env.sh (SessionStart env injection).
 #
 # Usage: ./test-hooks.sh
 #
@@ -917,7 +918,7 @@ assert_empty "$OUTPUT" "6.2  apps create with --no-prompt → pass"
 # 6.3 — foundry apps deploy (no --no-prompt needed) → no output
 # deploy works non-interactively when --change-type/--change-log are provided
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_UI_HEADLESS_MODE=true foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.3  apps deploy → pass (no --no-prompt needed)"
 
@@ -973,7 +974,7 @@ assert_empty "$OUTPUT" "6.11 foundry login → pass (no --no-prompt needed)"
 # 6.12 — foundry apps release with --no-prompt → no output
 # release requires --no-prompt for non-interactive operation
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_FF_ENHANCED_UI=false foundry apps release --deployment-id abc123 --change-type Patch --notes \"initial release\" --no-prompt"}}')
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_UI_HEADLESS_MODE=true foundry apps release --deployment-id abc123 --change-type Patch --notes \"initial release\" --no-prompt"}}')
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.12 apps release with --no-prompt → pass"
 
@@ -1031,49 +1032,49 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.18c valid socket xdr.cases.panel → pass"
 
-printf "\n${BOLD}Section 6 (cont): CLI Guard — FOUNDRY_FF_ENHANCED_UI Enforcement${RESET}\n\n"
+printf "\n${BOLD}Section 6 (cont): CLI Guard — FOUNDRY_UI_HEADLESS_MODE Enforcement${RESET}\n\n"
 
-# 6.19 — foundry apps deploy without FOUNDRY_FF_ENHANCED_UI=false → advisory
+# 6.19 — foundry apps deploy without FOUNDRY_UI_HEADLESS_MODE=true → advisory
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(env -u FOUNDRY_FF_ENHANCED_UI bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_FF_ENHANCED_UI=false" "6.19 deploy without FOUNDRY_FF_ENHANCED_UI → advisory"
+OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.19 deploy without FOUNDRY_UI_HEADLESS_MODE → advisory"
 
-# 6.20 — foundry apps deploy with inline FOUNDRY_FF_ENHANCED_UI=false (env unset) → pass
+# 6.20 — foundry apps deploy with inline FOUNDRY_UI_HEADLESS_MODE=true (env unset) → pass
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(env -u FOUNDRY_FF_ENHANCED_UI bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_empty "$OUTPUT" "6.20 deploy with inline FOUNDRY_FF_ENHANCED_UI=false → pass"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_UI_HEADLESS_MODE=true foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
+OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.20 deploy with inline FOUNDRY_UI_HEADLESS_MODE=true → pass"
 
-# 6.21 — foundry apps deploy with env FOUNDRY_FF_ENHANCED_UI=false → pass (env-aware)
-cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(FOUNDRY_FF_ENHANCED_UI=false run_hook "$GUARD" "$JSON")
-assert_empty "$OUTPUT" "6.21 deploy with env FOUNDRY_FF_ENHANCED_UI=false → pass"
-
-# 6.22 — foundry apps deploy with env FOUNDRY_FF_ENHANCED_UI=true → advisory
+# 6.21 — foundry apps deploy with env FOUNDRY_UI_HEADLESS_MODE=true → pass (env-aware)
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(FOUNDRY_FF_ENHANCED_UI=true run_hook "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_FF_ENHANCED_UI=false" "6.22 deploy with env FOUNDRY_FF_ENHANCED_UI=true → advisory"
+OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=true run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.21 deploy with env FOUNDRY_UI_HEADLESS_MODE=true → pass"
 
-# 6.23 — foundry apps release without FOUNDRY_FF_ENHANCED_UI=false → advisory
+# 6.22 — foundry apps deploy with env FOUNDRY_UI_HEADLESS_MODE=false → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
+OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=false run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.22 deploy with env FOUNDRY_UI_HEADLESS_MODE=false → advisory"
+
+# 6.23 — foundry apps release without FOUNDRY_UI_HEADLESS_MODE=true → advisory
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps release --deployment-id abc123 --change-type Patch --notes \"v1\" --no-prompt"}}')
-OUTPUT=$(env -u FOUNDRY_FF_ENHANCED_UI bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_FF_ENHANCED_UI=false" "6.23 release without FOUNDRY_FF_ENHANCED_UI → advisory"
+OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.23 release without FOUNDRY_UI_HEADLESS_MODE → advisory"
 
-# 6.24 — foundry apps list-deployments without FOUNDRY_FF_ENHANCED_UI=false → advisory
+# 6.24 — foundry apps list-deployments without FOUNDRY_UI_HEADLESS_MODE=true → advisory
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps list-deployments"}}')
-OUTPUT=$(env -u FOUNDRY_FF_ENHANCED_UI bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_FF_ENHANCED_UI=false" "6.24 list-deployments without FOUNDRY_FF_ENHANCED_UI → advisory"
+OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.24 list-deployments without FOUNDRY_UI_HEADLESS_MODE → advisory"
 
-# 6.25 — foundry apps list-deployments with env FOUNDRY_FF_ENHANCED_UI=false → pass
+# 6.25 — foundry apps list-deployments with env FOUNDRY_UI_HEADLESS_MODE=true → pass
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps list-deployments"}}')
-OUTPUT=$(FOUNDRY_FF_ENHANCED_UI=false run_hook "$GUARD" "$JSON")
-assert_empty "$OUTPUT" "6.25 list-deployments with env FOUNDRY_FF_ENHANCED_UI=false → pass"
+OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=true run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.25 list-deployments with env FOUNDRY_UI_HEADLESS_MODE=true → pass"
 
 # =============================================
 # Section 7: Skill Description Validation
@@ -1168,7 +1169,7 @@ assert_empty "$OUTPUT" "8.4  FOUNDRY_SKIP_NAME_CONFIRM=1 → no advisory"
 # 8.5 — foundry apps deploy (no --name) → no confirmation
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"fix\""}}')
-OUTPUT=$(FOUNDRY_FF_ENHANCED_UI=false run_hook "$GUARD" "$JSON")
+OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=true run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "8.5  apps deploy → no name confirmation"
 
 # 8.6 — foundry workflows create with --name → name confirmation advisory
@@ -1258,6 +1259,58 @@ JSON=$(jq -n --arg cmd "foundry apps create --name='' --no-prompt" \
   '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "8.18 --name='' (empty) → no confirmation"
+
+# =============================================
+# Section 9: SessionStart Hook — set-foundry-env.sh
+# =============================================
+printf "\n${BOLD}--- Section 9: SessionStart Hook — set-foundry-env.sh ---${RESET}\n\n"
+
+ENV_HOOK="./hooks/set-foundry-env.sh"
+
+# 9.1 — Writes FOUNDRY_UI_HEADLESS_MODE=true to CLAUDE_ENV_FILE
+cleanup
+ENV_TMP=$(mktemp)
+CLAUDE_ENV_FILE="$ENV_TMP" bash "$ENV_HOOK"
+OUTPUT=$(cat "$ENV_TMP")
+TOTAL=$((TOTAL + 1))
+if echo "$OUTPUT" | grep -qF 'export FOUNDRY_UI_HEADLESS_MODE=true'; then
+  PASS=$((PASS + 1))
+  printf "${GREEN}  PASS${RESET} 9.1  writes FOUNDRY_UI_HEADLESS_MODE=true to CLAUDE_ENV_FILE\n"
+else
+  FAIL=$((FAIL + 1))
+  printf "${RED}  FAIL${RESET} 9.1  expected FOUNDRY_UI_HEADLESS_MODE=true in env file, got: %s\n" "$OUTPUT"
+fi
+rm -f "$ENV_TMP"
+
+# 9.2 — Does nothing when CLAUDE_ENV_FILE is unset
+cleanup
+OUTPUT=$(env -u CLAUDE_ENV_FILE bash "$ENV_HOOK" 2>&1)
+TOTAL=$((TOTAL + 1))
+if [ $? -eq 0 ]; then
+  PASS=$((PASS + 1))
+  printf "${GREEN}  PASS${RESET} 9.2  exits cleanly when CLAUDE_ENV_FILE is unset\n"
+else
+  FAIL=$((FAIL + 1))
+  printf "${RED}  FAIL${RESET} 9.2  should exit 0 when CLAUDE_ENV_FILE is unset\n"
+fi
+
+# 9.3 — Appends (does not overwrite) existing env file content
+cleanup
+ENV_TMP=$(mktemp)
+echo 'export EXISTING_VAR=hello' > "$ENV_TMP"
+CLAUDE_ENV_FILE="$ENV_TMP" bash "$ENV_HOOK"
+OUTPUT=$(cat "$ENV_TMP")
+TOTAL=$((TOTAL + 1))
+HAS_EXISTING=$(echo "$OUTPUT" | grep -c 'EXISTING_VAR=hello' || true)
+HAS_HEADLESS=$(echo "$OUTPUT" | grep -c 'FOUNDRY_UI_HEADLESS_MODE=true' || true)
+if [ "$HAS_EXISTING" -ge 1 ] && [ "$HAS_HEADLESS" -ge 1 ]; then
+  PASS=$((PASS + 1))
+  printf "${GREEN}  PASS${RESET} 9.3  appends without overwriting existing content\n"
+else
+  FAIL=$((FAIL + 1))
+  printf "${RED}  FAIL${RESET} 9.3  should preserve existing content and append new var\n"
+fi
+rm -f "$ENV_TMP"
 
 # ---------- Cleanup and Summary ----------
 

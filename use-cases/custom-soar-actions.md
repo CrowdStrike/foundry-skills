@@ -78,7 +78,7 @@ cd okta-demo
 foundry api-integrations create --name "Okta" --spec okta-api.json --no-prompt
 
 # Deploy after API integration is added
-FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy \
+foundry apps deploy \
   --change-type Minor --change-log "Okta API integration" --no-prompt
 ```
 
