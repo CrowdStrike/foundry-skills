@@ -30,13 +30,8 @@ metadata:
 >
 > **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`, but may still prompt interactively in some CLI versions — delete via Falcon App Manager UI if it hangs), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
-> **CRITICAL: `FOUNDRY_FF_ENHANCED_UI=false` is required for non-TTY environments.**
-> The enhanced UI (TUI progress monitor) requires a TTY and will hang or fail in Claude Code, CI/CD pipelines, and headless environments. **Always prepend `FOUNDRY_FF_ENHANCED_UI=false` to these commands:**
-> - `foundry apps deploy`
-> - `foundry apps release`
-> - `foundry apps list-deployments`
->
-> Example: `FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Patch --change-log "msg"`
+> **NOTE: `FOUNDRY_UI_HEADLESS_MODE=true` is set automatically** by the plugin's SessionStart hook.
+> You do not need to prefix `deploy`, `release`, or `list-deployments` commands with it.
 >
 > **Superpowers skills MAY supplement** (TDD discipline, code review) but MUST NOT replace this workflow.
 
@@ -127,7 +122,7 @@ foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/
 foundry collections create --name "my_col" --schema /tmp/my_schema.json --description "desc" --no-prompt
 
 # 3. DEPLOY EARLY — fail fast if specs or schemas are bad
-FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --no-prompt --change-type Patch --change-log "Backend capabilities"
+foundry apps deploy --no-prompt --change-type Patch --change-log "Backend capabilities"
 # Poll with list-deployments — if still in progress, sleep 5 and retry
 # If deploy fails, STOP. Fix the spec/schema — do not build UI on a broken backend.
 # The adapt script should handle spec issues. If it didn't, improve the script.
@@ -166,12 +161,12 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 cd ui/pages/my-page && npm install && npm run build && cd ../../..
 
 # Final deploy (run ONCE, never re-deploy to check status)
-FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --no-prompt --change-type Patch --change-log "Complete app"
+foundry apps deploy --no-prompt --change-type Patch --change-log "Complete app"
 
 # Poll deployment status — run immediately, do NOT prepend sleep
-FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments
+foundry apps list-deployments
 # If still in progress, wait 5s then poll again:
-# sleep 5 && FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments
+# sleep 5 && foundry apps list-deployments
 
 # Local UI development (deploy first if UI calls backend capabilities)
 foundry ui run
@@ -181,7 +176,7 @@ foundry ui run
 
 ```bash
 # Release (run ONCE after deploy succeeds)
-FOUNDRY_FF_ENHANCED_UI=false foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes"
+foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes"
 ```
 
 **Note:** There is no `list-releases` command. After `release`, check status via the App Manager URL printed in the output, or wait ~30s and proceed to testing.
@@ -215,7 +210,7 @@ To deploy the same app to multiple clouds (US-1, US-2, EU-1, etc.):
 
 When `manifest.yml` already exists, work is primarily editing existing files. Use CLI only for:
 - `foundry apps run` / `foundry ui run` — local development
-- `FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy` / `FOUNDRY_FF_ENHANCED_UI=false foundry apps release` — deployment
+- `foundry apps deploy` / `foundry apps release` — deployment
 - `foundry api-integrations create` etc. — adding new capabilities
 
 ## Testing an Existing App Locally
@@ -225,11 +220,11 @@ When running e2e tests against an existing app:
 1. **Update manifest name** if needed (to match `APP_NAME` in `e2e/.env`)
 2. **Deploy and release:**
    ```bash
-   FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type patch --change-log "e2e testing" --no-prompt
+   foundry apps deploy --change-type patch --change-log "e2e testing" --no-prompt
    # Poll until successful
-   FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments
+   foundry apps list-deployments
    # Release
-   FOUNDRY_FF_ENHANCED_UI=false foundry apps release --deployment-id <id> --change-type patch --notes "e2e testing" --no-prompt
+   foundry apps release --deployment-id <id> --change-type patch --notes "e2e testing" --no-prompt
    ```
 3. **Run tests:** `cd e2e && npx playwright test`
 4. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)

@@ -40,7 +40,7 @@
 
 ```bash
 # For apps with backend dependencies: deploy first, then iterate on UI
-FOUNDRY_FF_ENHANCED_UI=false foundry apps deploy --change-type Patch --change-log "Initial deployment" --no-prompt
+foundry apps deploy --change-type Patch --change-log "Initial deployment" --no-prompt
 foundry ui run
 
 # For pure UI work (no API integration/collection/function calls): no deploy needed

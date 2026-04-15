@@ -36,6 +36,9 @@ FALCON_URL="${FALCON_URL:-https://falcon.us-2.crowdstrike.com}"
 SKIP_RELEASE="${SKIP_RELEASE:-0}"
 SKIP_BROWSER="${SKIP_BROWSER:-0}"
 
+# Ensure headless mode for all Foundry CLI commands in this script
+export FOUNDRY_UI_HEADLESS_MODE=true
+
 # ── Argument parsing ──────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -104,7 +107,7 @@ for run_dir in "${RUN_DIRS[@]}"; do
   # Extract deployment info
   # Header line: "Deployments for App: name (app_id)"
   # Table row:   "| deployment_id | version | state |"
-  DEPLOY_OUT=$(cd "$APP_DIR" && FOUNDRY_FF_ENHANCED_UI=false foundry apps list-deployments 2>&1) || true
+  DEPLOY_OUT=$(cd "$APP_DIR" && foundry apps list-deployments 2>&1) || true
   APP_ID=$(echo "$DEPLOY_OUT" | grep -oE '\([0-9a-f]{32}\)' | tr -d '()' | head -1 || echo "")
   DEPLOYMENT_ID=$(echo "$DEPLOY_OUT" | grep '^|' | grep -oE '[0-9a-f]{32}' | head -1 || echo "")
   DEPLOY_STATE=$(echo "$DEPLOY_OUT" | grep -oE 'Successful|Failed|In Progress' | head -1 || echo "Unknown")
@@ -155,7 +158,7 @@ for run_dir in "${RUN_DIRS[@]}"; do
     printf "  Release:       ${RED}skipped (no deployment)${RESET}\n"
   else
     printf "  Releasing...   "
-    RELEASE_OUT=$(cd "$APP_DIR" && FOUNDRY_FF_ENHANCED_UI=false foundry apps release --change-type Patch --deployment-id "$DEPLOYMENT_ID" --notes "Automated release from verify-apps.sh" 2>&1) || true
+    RELEASE_OUT=$(cd "$APP_DIR" && foundry apps release --change-type Patch --deployment-id "$DEPLOYMENT_ID" --notes "Automated release from verify-apps.sh" 2>&1) || true
     if echo "$RELEASE_OUT" | grep -qi "success\|release.*in progress\|released\|complete\|already.*released"; then
       RELEASED=true
       printf "${GREEN}done${RESET}\n"
