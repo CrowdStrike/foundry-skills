@@ -173,20 +173,40 @@ if [ "$NO_SKILL" != "1" ]; then
     git -C "$REPO_ROOT" archive "$BASELINE_REF" | tar -x -C "$MAIN_EXTRACT_DIR"
   fi
 
-  if diff -q "$MAIN_EXTRACT_DIR/skills/foundry-workflows-development/SKILL.md" \
-             "$REPO_ROOT/skills/foundry-workflows-development/SKILL.md" >/dev/null 2>&1; then
-    echo "ERROR: Local skills are identical to main branch."
+  PREFLIGHT_DIFF=0
+  for dir in skills hooks use-cases; do
+    if [ -d "$MAIN_EXTRACT_DIR/$dir" ] || [ -d "$REPO_ROOT/$dir" ]; then
+      if ! diff -rq "$MAIN_EXTRACT_DIR/$dir" "$REPO_ROOT/$dir" >/dev/null 2>&1; then
+        PREFLIGHT_DIFF=1
+        break
+      fi
+    fi
+  done
+  # Also check top-level files that affect plugin behavior
+  for f in CLAUDE.md hooks.json; do
+    if [ -f "$MAIN_EXTRACT_DIR/$f" ] || [ -f "$REPO_ROOT/$f" ]; then
+      if ! diff -q "$MAIN_EXTRACT_DIR/$f" "$REPO_ROOT/$f" >/dev/null 2>&1; then
+        PREFLIGHT_DIFF=1
+        break
+      fi
+    fi
+  done
+  if [ "$PREFLIGHT_DIFF" = "0" ]; then
+    echo "ERROR: Local plugin files are identical to $BASELINE_REF."
     echo ""
     echo "  The A/B test compares baseline ref ($BASELINE_REF) skills (RED) vs local skills (GREEN)."
     echo "  If they're the same, the test is meaningless."
     echo ""
+    echo "  Directories checked: skills/, hooks/, use-cases/"
+    echo "  Files checked: CLAUDE.md, hooks.json"
+    echo ""
     echo "  Common causes:"
-    echo "  - Working tree was reset to $BASELINE_REF"
-    echo "    - Branch has no skill changes"
+    echo "    - Working tree was reset to $BASELINE_REF"
+    echo "    - Branch has no skill/hook changes"
     echo ""
     exit 1
   fi
-  echo "Pre-flight: local skills differ from $BASELINE_REF. Good."
+  echo "Pre-flight: local plugin files differ from $BASELINE_REF. Good."
   echo ""
 fi
 
