@@ -1,3 +1,5 @@
+![CrowdStrike Falcon](/images/cs-logo.png?raw=true)
+
 # Falcon Foundry Skills
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
@@ -12,7 +14,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 - **Foundry CLI**: Install with `brew tap crowdstrike/foundry-cli && brew install foundry` (macOS/Linux) or [download for Windows](https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip)
 - **CrowdStrike Account**: With Falcon Foundry access
 - **Authentication**: Run `foundry login` to authenticate
-- **AI Coding Assistant**: Claude Code, Cursor, Gemini CLI, Codex, OpenCode, Copilot CLI, or any tool that supports loading reference documentation
+- **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Gemini CLI, or any tool that supports loading reference documentation
 
 ### Claude Code (Tested)
 
@@ -38,6 +40,30 @@ The `--plugin-dir` flag loads the plugin for that session. To make it permanent,
 ```
 
 Changes to skill files take effect on the next Claude Code session — no reinstall needed.
+
+### Codex (Experimental)
+
+Codex discovers skills from `~/.agents/skills/`. Clone and symlink:
+
+```bash
+git clone https://github.com/CrowdStrike/foundry-skills.git
+mkdir -p ~/.agents/skills
+ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+```
+
+Restart Codex to discover the skills. See the [Codex skills docs](https://developers.openai.com/codex/skills) for details.
+
+### Copilot CLI (Experimental)
+
+Copilot CLI shares the `~/.agents/skills/` discovery directory with Codex:
+
+```bash
+git clone https://github.com/CrowdStrike/foundry-skills.git
+mkdir -p ~/.agents/skills
+ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+```
+
+Restart Copilot CLI to discover the skills.
 
 ### Cursor (Experimental)
 
@@ -71,16 +97,6 @@ gemini skills link /path/to/foundry-skills/skills --scope user
 This creates symlinks in `~/.gemini/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.gemini/skills/` instead. Verify with `gemini skills list` or `/skills list` inside a session.
 
 Gemini activates the right skill on demand based on your prompt. No `GEMINI.md` changes needed.
-
-### Codex (Experimental)
-
-Add to your `AGENTS.md` or project instructions:
-
-```markdown
-## Foundry Development
-Reference the Falcon Foundry skills in /path/to/foundry-skills/skills/ for building Foundry apps.
-The primary orchestrator is foundry-development-workflow/SKILL.md.
-```
 
 ### Other Tools
 
