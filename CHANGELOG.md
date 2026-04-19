@@ -29,3 +29,11 @@ Initial public release of Falcon Foundry Skills — AI coding assistant skills f
 ### Use Cases
 
 12 real-world implementation patterns extracted from [CrowdStrike Tech Hub](https://www.crowdstrike.com/tech-hub/ng-siem/) blog posts covering API pagination, detection enrichment, LogScale ingestion, custom SOAR actions, collections, and more.
+
+### Multi-Tool Support
+
+- **`AGENTS.md`** — Canonical AI agent instruction file with tool-agnostic Foundry development guidance (CLI commands, skills ecosystem, quality guidelines, contribution conventions).
+- **`CLAUDE.md`** — Claude Code-specific plugin additions (hooks, superpowers integration, safety enforcement). References `AGENTS.md` for the full development guide.
+- **`.github/copilot-instructions.md`** — Redirect for GitHub Copilot.
+- **`GEMINI.md`** — Redirect for Gemini CLI.
+- **`.cursorrules`** — Redirect for Cursor.

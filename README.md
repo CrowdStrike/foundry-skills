@@ -5,7 +5,7 @@
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 [![CI](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml)
 
-AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, and collections — all scaffolded with the Foundry CLI and deployed to the Falcon console.
+AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, and collections — all scaffolded with the Foundry CLI and deployed to the Falcon console.
 
 ## Getting Started
 
@@ -18,7 +18,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 ### Claude Code (Tested)
 
-Install as a plugin from the [Anthropic Plugin Marketplace](https://docs.anthropic.com/en/docs/claude-code/plugins):
+Install as a plugin from the [Anthropic Plugin Marketplace](https://github.com/anthropics/claude-plugins-official):
 
 ```
 /plugin install CrowdStrike/foundry-skills
@@ -96,11 +96,11 @@ gemini skills link /path/to/foundry-skills/skills --scope user
 
 This creates symlinks in `~/.gemini/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.gemini/skills/` instead. Verify with `gemini skills list` or `/skills list` inside a session.
 
-Gemini activates the right skill on demand based on your prompt. No `GEMINI.md` changes needed.
+Gemini activates the right skill on demand based on your prompt.
 
 ### Other Tools
 
-These skills are plain markdown files. Any AI coding assistant that can read local files can use them. Point it at the `skills/` directory and start with `foundry-development-workflow/SKILL.md` as the entry point.
+These skills are plain markdown files. Any AI coding assistant that can read local files can use them. See `AGENTS.md` for the full development guide, or point your tool at the `skills/` directory and start with `foundry-development-workflow/SKILL.md` as the entry point.
 
 ## Usage
 
