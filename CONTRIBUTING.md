@@ -68,6 +68,13 @@ The aim of this repository is:
 This repository has a [code of conduct](CODE_OF_CONDUCT.md), we will
 remove things that do not respect it.
 
+## AI-Assisted Contributions
+
+AI coding assistants are welcome for developing contributions to this project.
+If your tool needs project context, see [`AGENTS.md`](AGENTS.md) for orientation
+or [`CLAUDE.md`](CLAUDE.md) for Claude Code-specific plugin guidance. The bar for
+pull requests is the same regardless of how code was written.
+
 ---
 
 <p align="center"><img src="/images/cs-logo-footer.png"><br/><img width="300px" src="/images/turbine-panda.png"></p>
