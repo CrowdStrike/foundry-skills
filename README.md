@@ -24,6 +24,13 @@ Install as a plugin from the [Anthropic Plugin Marketplace](https://github.com/a
 /plugin install CrowdStrike/foundry-skills
 ```
 
+Or install from the CrowdStrike marketplace. Register the marketplace first, then install:
+
+```
+/plugin marketplace add CrowdStrike/foundry-skills
+/plugin install foundry@foundry-skills
+```
+
 Or install from a local clone for development:
 
 ```bash
