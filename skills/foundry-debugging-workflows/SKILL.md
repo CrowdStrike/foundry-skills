@@ -202,9 +202,3 @@ Before seeking external help:
 - [ ] Reviewed CLI error messages
 - [ ] Attempted recovery procedures
 - [ ] Documented reproduction steps
-
-## Reference Files
-
-| Topic | Reference |
-|-------|-----------|
-| Performance optimization, support resources, escalation paths | [references/advanced-patterns.md](references/advanced-patterns.md) |

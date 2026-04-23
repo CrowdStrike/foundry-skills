@@ -22,7 +22,6 @@ metadata:
 > 2. Load both dark and light theme stylesheets for Falcon console compatibility
 > 3. Coordinate with `foundry ui run` for live development
 > 4. Apply iframe security patterns for all extensions
-> 5. **ALWAYS use `--no-prompt` flag on CLI commands** — Claude Code operates in non-interactive mode
 
 Falcon Foundry UI pages and extensions use React or Vue with the Shoelace design system (Falcon-themed) and the Foundry-JS SDK for platform integration.
 

@@ -17,7 +17,7 @@ metadata:
 >
 > You MUST implement API integrations by downloading vendor OpenAPI specs, adapting them for Foundry, and properly configuring authentication schemes.
 >
-> **CRITICAL: `--no-prompt` is supported by nearly all Foundry CLI commands.** Always add `--no-prompt` to: `apps create`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. For `api-integrations create`, also include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
+> **Note:** For `api-integrations create`, always include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
 
 This skill covers exposing external APIs (third-party services or CrowdStrike Falcon APIs) to the Falcon Foundry platform via OpenAPI/Swagger specifications. These integrations make API operations available to Falcon Fusion SOAR workflows, Foundry UI extensions, Foundry Functions, and other Foundry capabilities.
 
@@ -229,7 +229,6 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 | Download commands, structural fixes, server URL examples | [references/spec-adaptation-examples.md](references/spec-adaptation-examples.md) |
 | Vendor-specific auth examples | [references/auth-examples.md](references/auth-examples.md) |
 | Python/Go/UI calling patterns | [references/calling-patterns.md](references/calling-patterns.md) |
-| Counter-rationalizations, red flags, cross-skill integration | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
 
