@@ -20,7 +20,7 @@ User wants to integrate a third-party API (Okta, ServiceNow, Jira, etc.) as cust
    - API key: specify parameter name, location (header/query), and prefix (e.g., `SSWS` for Okta).
 4. Test each operation against the live API using a temporary configuration.
 5. Fix response schemas: copy test response body > Response > Response body > Generate schema.
-6. **Deploy the app** immediately after adding the API integration (catches spec issues early).
+6. **Validate** immediately after adding the API integration (`foundry apps validate --no-prompt`).
 
 ### 2. Share Operations with Fusion SOAR
 
@@ -77,7 +77,10 @@ foundry apps create --name "Okta Demo" --no-prompt --no-git
 cd okta-demo
 foundry api-integrations create --name "Okta" --spec okta-api.json --no-prompt
 
-# Deploy after API integration is added
+# Validate after API integration is added (catches spec issues in seconds)
+foundry apps validate --no-prompt
+
+# Deploy later after all capabilities are built
 foundry apps deploy \
   --change-type Minor --change-log "Okta API integration" --no-prompt
 ```

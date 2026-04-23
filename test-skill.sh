@@ -65,9 +65,6 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RESULT_SCHEMA=$(cat "$SCRIPT_DIR/test-result-schema.json")
 
-# Ensure headless mode for all Foundry CLI commands in this script
-export FOUNDRY_UI_HEADLESS_MODE=true
-
 PROMPT="Create a Falcon Foundry app for me that has an Okta API integration with openapi. Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results. Pick a reasonable app name and proceed without asking me any questions.
 
 When done, respond with valid JSON matching this schema:
@@ -75,11 +72,6 @@ ${RESULT_SCHEMA}
 
 Example:
 {\"app_name\":\"okta-user-manager\",\"deploy_status\":\"SUCCESS\",\"deployment_id\":\"6b0f9a6c6ec841b8bcaffefc2b5a25aa\",\"spec_source\":\"DOWNLOADED\",\"capabilities\":[\"Okta API integration (listUsers shared with Falcon Fusion SOAR)\",\"On-demand workflow (list-okta-users)\",\"UI extension (okta-users on activity.detections.details)\"],\"errors\":\"NONE\"}"
-
-# TODO: When `foundry apps validate` ships, add to PROMPT before the deploy step:
-#   "Before deploying, run `foundry apps validate`. If validation fails,
-#    skip the deploy, report DEPLOY_STATUS: FAILED, and stop immediately."
-# This will cut no-skill baseline runs from ~30 min to ~5 min.
 
 # Build --plugin-dir flags (empty array = no plugin loaded)
 if [ "$NO_PLUGIN" = "1" ]; then
@@ -155,6 +147,7 @@ for i in $(seq 1 $RUNS); do
   RUN_DIR="$BASE_DIR/run-$i"
   mkdir -p "$RUN_DIR"
   LOG_FILE="$BASE_DIR/run-$i.log"
+  ELAPSED_FILE="$BASE_DIR/run-$i.elapsed"
   RUN_PROMPT="${PROMPT//RUN_NUMBER/$i}"
 
   echo "========================================="
@@ -208,6 +201,7 @@ for i in $(seq 1 $RUNS); do
   kill "$TIMER_PID" 2>/dev/null || true
   wait "$TIMER_PID" 2>/dev/null || true
   RUN_ELAPSED=$(( $(date +%s) - RUN_START ))
+  echo "$RUN_ELAPSED" > "$ELAPSED_FILE"
   printf "\r  ⏱  %d:%02d total                \n" $((RUN_ELAPSED/60)) $((RUN_ELAPSED%60))
 
   # Verify skills loaded from --plugin-dir, not from installed cache
@@ -223,7 +217,7 @@ for i in $(seq 1 $RUNS); do
         echo ""
         echo "  The installed marketplace plugin overrides --plugin-dir."
         echo "  Fix: disable the installed plugin before running tests."
-        echo "     Disable any installed Foundry plugin that overrides --plugin-dir"
+        echo "     claude plugin disable foundry@ai-plugin-marketplace"
         echo ""
         exit 1
       elif ! echo "$SKILL_SOURCE" | grep -q "$RESOLVED_PLUGIN_DIR"; then
@@ -362,12 +356,6 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
   echo ""
   echo "Anti-pattern checks:"
 
-  if grep -qi "foundry apps validate" "$TEXT_FILE" "$TOOLS_FILE" 2>/dev/null; then
-    echo "  ❌ Tried 'foundry apps validate' (does not exist)"
-  else
-    echo "  ✅ Did not try 'foundry apps validate'"
-  fi
-
   if grep -qi "foundry apps init" "$TEXT_FILE" "$TOOLS_FILE" 2>/dev/null; then
     echo "  ❌ Tried 'foundry apps init' (does not exist)"
   else
@@ -442,7 +430,7 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
   MANUAL_MKDIR=false
   if [ -s "$TOOLS_FILE" ]; then
     if grep -qE 'mkdir.*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null; then
-      echo "  ❌ Used mkdir for app structure (should use foundry CLI)"
+      echo "  ❌ Used mkdir for app structure (should use Foundry CLI)"
       MANUAL_MKDIR=true
     fi
   fi
@@ -454,7 +442,7 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
   MANUAL_MANIFEST=false
   if [ -s "$TOOLS_FILE" ]; then
     if grep -qE 'touch manifest\.yml|echo.*>.*manifest\.yml|cat.*>.*manifest\.yml' "$TOOLS_FILE" 2>/dev/null; then
-      echo "  ❌ Manually created manifest.yml (should use foundry CLI)"
+      echo "  ❌ Manually created manifest.yml (should use Foundry CLI)"
       MANUAL_MANIFEST=true
     fi
   fi
@@ -490,7 +478,7 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
     echo "Generated file checks:"
 
     # Check OpenAPI spec server variables
-    SPEC_FILES=$(find "$APP_DIR/api-integrations" -name "*.yaml" -o -name "*.yml" -o -name "*.json" 2>/dev/null)
+    SPEC_FILES=$(find "$APP_DIR/api-integrations" -name "*.yaml" -o -name "*.yml" -o -name "*.json" 2>/dev/null || true)
     if [ -n "$SPEC_FILES" ]; then
       SPEC_OK=true
       for spec in $SPEC_FILES; do
@@ -525,7 +513,7 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
     fi
 
     # Check workflow YAML for email issues
-    WF_FILES=$(find "$APP_DIR/workflows" -name "*.yaml" -o -name "*.yml" 2>/dev/null)
+    WF_FILES=$(find "$APP_DIR/workflows" -name "*.yaml" -o -name "*.yml" 2>/dev/null || true)
     if [ -n "$WF_FILES" ]; then
       WF_OK=true
       for wf in $WF_FILES; do
@@ -617,12 +605,6 @@ for i in $(seq 1 $RUNS); do
   TOTAL=$((TOTAL + 1))
   APP_DIR=$(find_app_dir "$RUN_DIR")
   if [ "$APP_DIR" != "NOT FOUND" ] && [ -d "$APP_DIR" ]; then
-    # TODO: When `foundry apps validate` ships, validate before checking deployments:
-    #   VALIDATE_OUT=$(cd "$APP_DIR" && foundry apps validate 2>&1) || true
-    #   if echo "$VALIDATE_OUT" | grep -qi "error\|invalid"; then
-    #     echo "  Run $i: ❌ INVALID MANIFEST"
-    #     continue
-    #   fi
 
     TEXT_FILE="$BASE_DIR/run-$i.text"
     STATUS=$(check_deploy_status "$APP_DIR" "$TEXT_FILE")
@@ -664,6 +646,7 @@ echo "Full logs: $BASE_DIR/run-*.log"
 
 # Build results JSON
 TOKENS_JSON=""
+ELAPSED_JSON=""
 REFS_JSON=""
 SKILLS_JSON=""
 LSP_JSON=""
@@ -680,6 +663,12 @@ for i in $(seq 1 $RUNS); do
   read -r IT OT <<< "$(get_tokens "$LOG_FILE")"
   SEP=""; [ "$i" -lt "$RUNS" ] && SEP=","
   TOKENS_JSON="${TOKENS_JSON}    {\"run\": $i, \"input\": ${IT}, \"output\": ${OT}, \"total\": $(( IT + OT ))}${SEP}
+"
+
+  # Elapsed time per run
+  ELAPSED_FILE="$BASE_DIR/run-$i.elapsed"
+  ELAPSED_S=$(cat "$ELAPSED_FILE" 2>/dev/null || echo "0")
+  ELAPSED_JSON="${ELAPSED_JSON}    {\"run\": $i, \"seconds\": ${ELAPSED_S}}${SEP}
 "
 
   # Reference file reads per run
@@ -713,7 +702,6 @@ for i in $(seq 1 $RUNS); do
   # Count anti-patterns per run
   AP_COUNT=0
   if [ -s "$TEXT_FILE" ] || [ -s "$TOOLS_FILE" ]; then
-    grep -qi "foundry apps validate" "$TEXT_FILE" "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qi "foundry apps init" "$TEXT_FILE" "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qi "switching.*oauth\|changed.*auth\|switch.*clientCredentials" "$TEXT_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qi "replace.*subdomain\|replace.*your-org\|replace.*okta\.com.*with" "$TEXT_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
@@ -752,6 +740,8 @@ RESULTS_JSON=$(cat <<ENDJSON
   "deploy_rate": "$(echo "scale=0; $PASS * 100 / $TOTAL" | bc)%",
   "tokens": [
 ${TOKENS_JSON}  ],
+  "elapsed": [
+${ELAPSED_JSON}  ],
   "reference_reads": {
 ${REFS_JSON}  },
   "skill_invocations": {
@@ -789,12 +779,14 @@ if [ -n "$BASELINE_FILE" ]; then
   B_AVG_AP=$(jq -r '[.anti_pattern_counts[]] | add / length' "$BASELINE_FILE" 2>/dev/null || echo "?")
   B_AVG_SQ=$(jq -r '[.spec_quality_counts[]] | add / length' "$BASELINE_FILE" 2>/dev/null || echo "?")
   B_REF_RUNS=$(jq -r '[.reference_reads | to_entries[] | select(.value | length > 0)] | length' "$BASELINE_FILE" 2>/dev/null || echo "?")
+  B_AVG_ELAPSED=$(jq -r 'if .elapsed then [.elapsed[].seconds] | add / length | floor else "?" end' "$BASELINE_FILE" 2>/dev/null || echo "?")
 
   C_TOTAL_TOKENS=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].total] | add' 2>/dev/null || echo "?")
   C_AVG_TOKENS=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].total] | add / length | floor' 2>/dev/null || echo "?")
   C_AVG_AP=$(echo "$RESULTS_JSON" | jq -r '[.anti_pattern_counts[]] | add / length' 2>/dev/null || echo "?")
   C_AVG_SQ=$(echo "$RESULTS_JSON" | jq -r '[.spec_quality_counts[]] | add / length' 2>/dev/null || echo "?")
   C_REF_RUNS=$(echo "$RESULTS_JSON" | jq -r '[.reference_reads | to_entries[] | select(.value | length > 0)] | length' 2>/dev/null || echo "?")
+  C_AVG_ELAPSED=$(echo "$RESULTS_JSON" | jq -r 'if .elapsed then [.elapsed[].seconds] | add / length | floor else "?" end' 2>/dev/null || echo "?")
 
   printf "  %-24s %-15s %-15s\n" "" "Baseline" "Current"
   printf "  %-24s %-15s %-15s\n" "---" "---" "---"
@@ -802,6 +794,16 @@ if [ -n "$BASELINE_FILE" ]; then
   printf "  %-24s %-15s %-15s\n" "Deploys" "$B_DEPLOYS/$B_RUNS" "$PASS/$TOTAL"
   printf "  %-24s %-15s %-15s\n" "Total tokens" "$B_TOTAL_TOKENS" "$C_TOTAL_TOKENS"
   printf "  %-24s %-15s %-15s\n" "Avg tokens/run" "$B_AVG_TOKENS" "$C_AVG_TOKENS"
+  # Format elapsed as m:ss
+  B_ELAPSED_FMT="?"
+  C_ELAPSED_FMT="?"
+  if [ "$B_AVG_ELAPSED" != "?" ]; then
+    B_ELAPSED_FMT="$(printf "%d:%02d" $((B_AVG_ELAPSED/60)) $((B_AVG_ELAPSED%60)))"
+  fi
+  if [ "$C_AVG_ELAPSED" != "?" ]; then
+    C_ELAPSED_FMT="$(printf "%d:%02d" $((C_AVG_ELAPSED/60)) $((C_AVG_ELAPSED%60)))"
+  fi
+  printf "  %-24s %-15s %-15s\n" "Avg time/run" "$B_ELAPSED_FMT" "$C_ELAPSED_FMT"
   printf "  %-24s %-15s %-15s\n" "Avg anti-patterns/run" "$B_AVG_AP" "$C_AVG_AP"
   printf "  %-24s %-15s %-15s\n" "Avg spec quality/run" "$B_AVG_SQ" "$C_AVG_SQ"
   printf "  %-24s %-15s %-15s\n" "Runs w/ ref reads" "$B_REF_RUNS" "$C_REF_RUNS"

@@ -143,8 +143,8 @@ if [ "$NO_SKILL" = "1" ]; then
   echo "  Baseline timeout: ${BASELINE_TIMEOUT}s"
   echo ""
   echo "  No-skill mode runs 1 vs 1 since the no-skill run is"
-  echo "     expected to fail. Increase runs when foundry apps validate"
-  echo "     is available for faster fail-fast detection."
+  echo "     expected to fail. With foundry apps validate, the"
+  echo "     no-skill run may still fail but will fail faster."
 else
   echo "========================================="
   if [ "$SKIP_RED" = "1" ]; then

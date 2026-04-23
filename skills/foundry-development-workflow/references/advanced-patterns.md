@@ -79,11 +79,10 @@ Use CLI scaffolding commands to generate artifacts. The CLI creates directories,
 
 **Continuous Validation:**
 - Use `npx @redocly/cli lint` to validate OpenAPI specs — do NOT use Python, Ruby, or other language-specific YAML parsers
-- There is no local validator for manifest.yml — validation happens server-side on `foundry apps deploy`
+- Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying
 - Use `foundry apps run` to validate the manifest on startup
 - Restart `foundry ui run` when permissions change
 - Test capability integration with minimal viable examples
-- Deploy early and often to catch environment-specific issues
 
 ## CLI State Management
 

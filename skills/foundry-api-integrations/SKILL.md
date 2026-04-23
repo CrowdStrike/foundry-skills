@@ -17,7 +17,7 @@ metadata:
 >
 > You MUST implement API integrations by downloading vendor OpenAPI specs, adapting them for Foundry, and properly configuring authentication schemes.
 >
-> **CRITICAL: `--no-prompt` is supported by nearly all Foundry CLI commands.** Always add `--no-prompt` to: `apps create`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. For `api-integrations create`, also include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
+> **CRITICAL: `--no-prompt` is supported by nearly all Foundry CLI commands.** Always add `--no-prompt` to: `apps create`, `apps validate`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. For `api-integrations create`, also include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
 
 This skill covers exposing external APIs (third-party services or CrowdStrike Falcon APIs) to the Falcon Foundry platform via OpenAPI/Swagger specifications. These integrations make API operations available to Falcon Fusion SOAR workflows, Foundry UI extensions, Foundry Functions, and other Foundry capabilities.
 
@@ -82,7 +82,7 @@ foundry api-integrations create --name "VendorApi" --description "Vendor API" --
 
 > **Always include `--description`** with `api-integrations create`. Even with `--no-prompt`, the CLI still interactively prompts for the optional description if omitted, causing `Error: EOF`.
 
-**Done.** For most integrations, this is all you need. Deploy immediately after registering.
+**Done.** For most integrations, this is all you need. Validate immediately after registering (`foundry apps validate --no-prompt`).
 
 Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose operations to workflows, or a UI extension / workflow in the app needs a specific endpoint. See [Expose Operations to Workflows](#expose-operations-to-workflows) below.
 
