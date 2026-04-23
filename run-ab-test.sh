@@ -210,6 +210,25 @@ if [ "$NO_SKILL" != "1" ]; then
   echo ""
 fi
 
+# ── Fresh run: prompt for tenant cleanup ─────────────────────
+if [ "$FRESH" = "1" ]; then
+  echo "⚠️  Fresh run requested. Delete all test apps from the Falcon console"
+  echo "   (Foundry → App manager) to avoid name collisions."
+  echo ""
+  # Clean up apps from any existing phase directories before deleting them
+  if [ -d "$RED_DIR" ]; then
+    echo "  Cleaning up RED phase apps..."
+    cleanup_phase_apps "$RED_DIR"
+  fi
+  if [ -d "$GREEN_DIR" ]; then
+    echo "  Cleaning up GREEN phase apps..."
+    cleanup_phase_apps "$GREEN_DIR"
+  fi
+  echo ""
+  read -p "  Press Enter when ready (or Ctrl+C to abort)... "
+  echo ""
+fi
+
 # ── Disable installed Foundry plugins ─────────────────────────
 # --plugin-dir adds a plugin, but installed marketplace plugins take priority.
 # Disable them so --plugin-dir is the only source of Foundry skills/hooks.

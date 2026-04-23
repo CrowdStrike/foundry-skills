@@ -16,8 +16,6 @@ metadata:
 > If you are loading this skill, your role is **Foundry data modeling specialist**.
 >
 > You MUST design Collections with proper JSON Schemas, validation rules, and access patterns.
->
-> **🚫 CRITICAL: Always use `--no-prompt` flag on CLI commands** — Claude Code operates in non-interactive mode. Commands without this flag will fail with `Error: EOF`.
 
 Falcon Foundry Collections are NoSQL document stores with JSON Schema validation. They provide persistent storage for app data with CRUD operations, FQL queries, and schema enforcement.
 

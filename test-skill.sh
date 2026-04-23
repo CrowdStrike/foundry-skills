@@ -71,7 +71,7 @@ When done, respond with valid JSON matching this schema:
 ${RESULT_SCHEMA}
 
 Example:
-{\"app_name\":\"okta-user-manager\",\"deploy_status\":\"SUCCESS\",\"deployment_id\":\"6b0f9a6c6ec841b8bcaffefc2b5a25aa\",\"spec_source\":\"DOWNLOADED\",\"capabilities\":[\"Okta API integration (listUsers shared with Falcon Fusion SOAR)\",\"On-demand workflow (list-okta-users)\",\"UI extension (okta-users on activity.detections.details)\"],\"errors\":\"NONE\"}"
+{\"app_name\":\"okta-users-run-RUN_NUMBER\",\"deploy_status\":\"SUCCESS\",\"deployment_id\":\"6b0f9a6c6ec841b8bcaffefc2b5a25aa\",\"spec_source\":\"DOWNLOADED\",\"capabilities\":[\"Okta API integration (listUsers shared with Falcon Fusion SOAR)\",\"On-demand workflow (list-okta-users)\",\"UI extension (okta-users on activity.detections.details)\"],\"errors\":\"NONE\"}"
 
 # Build --plugin-dir flags (empty array = no plugin loaded)
 if [ "$NO_PLUGIN" = "1" ]; then

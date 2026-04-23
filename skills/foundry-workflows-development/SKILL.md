@@ -21,7 +21,6 @@ metadata:
 > 1. Use Fusion YAML syntax for ALL workflow definitions
 > 2. Validate step dependencies before workflow execution
 > 3. Implement onError blocks for every multi-step workflow
-> 4. **Always use `--no-prompt` with `workflows create`** to prevent interactive prompts that cause `Error: EOF`
 
 Falcon Foundry Workflows are YAML-defined automation units executed by the Falcon Fusion engine. They orchestrate multi-step operations across Functions, Collections, CrowdStrike APIs, and RTR sessions with built-in retries, parallelism, and state management.
 

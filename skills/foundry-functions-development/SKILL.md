@@ -21,7 +21,6 @@ metadata:
 > 1. Use CrowdStrike SDKs (gofalcon/falconpy) for ALL API interactions
 > 2. Implement structured JSON responses with proper status codes
 > 3. Apply input validation before processing any request
-> 4. **ALWAYS use `--no-prompt` flag on CLI commands** — Claude Code operates in non-interactive mode
 
 Falcon Foundry Functions are serverless handlers in Go or Python, executed inside the Foundry FaaS runtime. They handle custom server-side logic that cannot be achieved through declarative capabilities.
 
@@ -43,7 +42,6 @@ This skill is split across multiple files. Consult these for full examples:
 | Python handler, collection CRUD, error class, batch processing, LogScale ingestion | [references/python-patterns.md](references/python-patterns.md) |
 | Go FDK handler, Falcon client auth, collection CRUD, alerts handler | [references/go-patterns.md](references/go-patterns.md) |
 | Go/Python tests, local testing, Docker vs direct, config file patterns | [references/testing-patterns.md](references/testing-patterns.md) |
-| Counter-rationalizations table, red flags / anti-patterns | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Resource Limits
 
