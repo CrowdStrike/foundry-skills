@@ -138,8 +138,7 @@ find_app_dir() {
 # API health check: send a minimal request to verify connectivity before burning tokens
 check_api_health() {
   # Use claude with a trivial prompt — just check if it exits successfully
-  env -u CLAUDECODE claude -p "Reply with OK" \
-    --model haiku > /dev/null 2>&1
+  env -u CLAUDECODE claude -p "Reply with OK" > /dev/null 2>&1
   return $?
 }
 
