@@ -28,10 +28,7 @@ metadata:
 > 3. Delegate capability-specific content to Foundry sub-skills
 > 4. Hand-write ONLY what the CLI cannot generate (OpenAPI content, workflow logic, UI code)
 >
-> **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`, but may still prompt interactively in some CLI versions — delete via Falcon App Manager UI if it hangs), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
->
-> **NOTE: `FOUNDRY_UI_HEADLESS_MODE=true` is set automatically** by the plugin's SessionStart hook.
-> You do not need to prefix `deploy`, `release`, or `list-deployments` commands with it.
+> **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`, but may still prompt interactively in some CLI versions — delete via Falcon App Manager UI if it hangs), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
 > **Superpowers skills MAY supplement** (TDD discipline, code review) but MUST NOT replace this workflow.
 
@@ -121,10 +118,9 @@ foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/
 # 2. Collections (names: letters, numbers, underscores ONLY)
 foundry collections create --name "my_col" --schema /tmp/my_schema.json --description "desc" --no-prompt
 
-# 3. DEPLOY EARLY — fail fast if specs or schemas are bad
-foundry apps deploy --no-prompt --change-type Patch --change-log "Backend capabilities"
-# Poll with list-deployments — if still in progress, sleep 5 and retry
-# If deploy fails, STOP. Fix the spec/schema — do not build UI on a broken backend.
+# 3. VALIDATE EARLY — fail fast if specs or schemas are bad
+foundry apps validate --no-prompt
+# If validation fails, STOP. Fix the spec/schema — do not build UI on a broken backend.
 # The adapt script should handle spec issues. If it didn't, improve the script.
 
 # 4. Functions
@@ -139,10 +135,11 @@ foundry ui pages create --name "my-page" --description "desc" --from-template Re
 foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 
 # 6b. UI extensions (sidebar widgets embedded in detection/host/incident pages)
+# Run `foundry ui extensions list-sockets` to see available socket IDs
 foundry ui extensions create --name "my-ext" --description "desc" --from-template React --sockets "activity.detections.details" --no-prompt
 ```
 
-**Fail fast:** Deploy right after API integrations and collections. If the spec is broken, you find out in 2 minutes instead of 10. Don't manually fix spec issues — improve `adapt-spec-for-foundry.py` instead.
+**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt-spec-for-foundry.py` instead.
 
 ### Step 6: Write Domain-Specific Content
 
@@ -181,7 +178,7 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 **Note:** There is no `list-releases` command. After `release`, check status via the App Manager URL printed in the output, or wait ~30s and proceed to testing.
 
-`foundry ui run` only serves UI locally — backend capabilities (API integrations, functions, collections) resolve from the cloud. Deploy those first. A `foundry apps validate` command is in development but not yet released; validation currently happens server-side on deploy.
+`foundry ui run` only serves UI locally — backend capabilities (API integrations, functions, collections) resolve from the cloud. Deploy those first.
 
 ## Multi-Cloud Deployment
 
@@ -245,8 +242,7 @@ Two approaches:
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
 - OAuth scopes are auto-managed for CLI-created artifacts — MUST NOT manually add `api-integrations:read`
 - Use `npx @redocly/cli lint` for OpenAPI validation (not Python/Ruby YAML parsers)
-- No local manifest validator yet (`foundry apps validate` is in development) — validation happens server-side on `foundry apps deploy`
-- Deploy early and often to catch environment-specific issues
+- Validate early with `foundry apps validate --no-prompt` after adding API integrations and collections — but don't validate right before deploy (deploy runs the same checks plus more)
 
 ## Reading Guide
 

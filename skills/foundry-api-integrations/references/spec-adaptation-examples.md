@@ -47,7 +47,7 @@ curl -o /tmp/VendorApi.yaml https://raw.githubusercontent.com/vendor/repo/main/o
 
 **Do NOT run spec linters (redocly, spectral, etc.) before importing.** Foundry's import handles vendor specs with lint errors (duplicate `required` arrays, etc.). Linting wastes tokens and tempts the agent to trim the spec to fix lint errors, which is worse than importing the full spec as-is.
 
-**Deploy immediately after `api-integrations create`, before writing other code.** This validates the spec against Foundry's server-side parser early. Spec size does not cause failures -- invalid spec structure does.
+**Validate immediately after `api-integrations create`** (`foundry apps validate --no-prompt`), before writing other code. This catches spec issues in seconds without a full deploy.
 
 ## Autocomplete Dropdown Patterns
 

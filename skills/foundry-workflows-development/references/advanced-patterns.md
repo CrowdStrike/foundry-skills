@@ -81,7 +81,7 @@ foundry workflows executions view
 npx @redocly/cli lint api-integrations/MyApi.yaml
 ```
 
-> **Note:** There is no local validator for manifest.yml or workflow YAML semantics — validation happens server-side on `foundry apps deploy`. Use `npx @redocly/cli lint` for OpenAPI spec validation. Do NOT use Python/Ruby YAML parsers — they only check syntax, not OpenAPI structure.
+> **Note:** Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy. Use `npx @redocly/cli lint` for OpenAPI spec validation. Do NOT use Python/Ruby YAML parsers — they only check syntax, not OpenAPI structure.
 
 ## Timeout Configuration
 

@@ -281,7 +281,7 @@ window.addEventListener('message', (event: MessageEvent) => {
 
 ## Extension Socket Locations
 
-Use the **technical ID** (not human-readable name) with `--sockets`:
+Run `foundry ui extensions list-sockets` to get the current list of available sockets. Use the **technical ID** (not human-readable name) with `--sockets`:
 
 | Display Name | Technical ID for `--sockets` |
 |-------------|------------------------------|
@@ -296,7 +296,7 @@ Use the **technical ID** (not human-readable name) with `--sockets`:
 
 - **NEVER edit manifest.yml `path` or `entrypoint` values.** The CLI sets these correctly. The format `ui/extensions/my-ext/src/dist/index.html` is NOT a doubled path — it is correct. If you see a deploy path error, you likely changed `vite.config.js` — revert your changes.
 - **NEVER modify `vite.config.js`.** The blueprint is turnkey. Do not change `base: './'` to `''` or anything else. Do not change `root: 'src'`. Do not remove `noAttr()`. Just edit your React/JS code and deploy.
-- **Omitting `--sockets` on extension create.** This launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"` on the command line. Use ONLY the exact technical IDs from the Extension Socket Locations table — do not guess or fabricate socket names.
+- **Omitting `--sockets` on extension create.** This launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"` on the command line. Run `foundry ui extensions list-sockets` to see available sockets — do not guess or fabricate socket names.
 - **Importing vanilla Shoelace themes.** Use `@crowdstrike/falcon-shoelace` for Falcon console styling.
 - **Loading only light theme.** The Falcon console supports dark mode — users see broken styling without both themes.
 - **Hardcoding colors.** Use `var(--sl-*)` design tokens so the UI adapts to theme changes.

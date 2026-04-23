@@ -8,7 +8,7 @@ Below are Claude Code-specific additions for this plugin.
 
 This plugin includes four hooks that run automatically:
 
-- **SessionStart**: `set-foundry-env.sh` initializes the Foundry environment
+- **SessionStart**: `foundry-session-start.sh` checks CLI version and initializes the Foundry environment
 - **UserPromptSubmit**: `foundry-skill-router.sh` routes user intents to the appropriate skill
 - **PreToolUse (Bash)**: `foundry-cli-guard.sh` validates all Bash commands to ensure Foundry CLI commands include `--no-prompt` and blocks manual directory/file creation for app structure
 - **PreToolUse (Skill)**: `superpowers-foundry-bridge.sh` intercepts `superpowers:brainstorming` and redirects to the Foundry development workflow skill

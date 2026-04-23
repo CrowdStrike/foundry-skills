@@ -5,7 +5,7 @@
 # Tests foundry-skill-router.sh (UserPromptSubmit + PreToolUse),
 # superpowers-foundry-bridge.sh (Skill interception),
 # foundry-cli-guard.sh (--no-prompt enforcement), and
-# set-foundry-env.sh (SessionStart env injection).
+# foundry-session-start.sh (SessionStart version check).
 #
 # Usage: ./test-hooks.sh
 #
@@ -918,7 +918,7 @@ assert_empty "$OUTPUT" "6.2  apps create with --no-prompt → pass"
 # 6.3 — foundry apps deploy (no --no-prompt needed) → no output
 # deploy works non-interactively when --change-type/--change-log are provided
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_UI_HEADLESS_MODE=true foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.3  apps deploy → pass (no --no-prompt needed)"
 
@@ -974,7 +974,7 @@ assert_empty "$OUTPUT" "6.11 foundry login → pass (no --no-prompt needed)"
 # 6.12 — foundry apps release with --no-prompt → no output
 # release requires --no-prompt for non-interactive operation
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_UI_HEADLESS_MODE=true foundry apps release --deployment-id abc123 --change-type Patch --notes \"initial release\" --no-prompt"}}')
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps release --deployment-id abc123 --change-type Patch --notes \"initial release\" --no-prompt"}}')
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.12 apps release with --no-prompt → pass"
 
@@ -1032,49 +1032,17 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.18c valid socket xdr.cases.panel → pass"
 
-printf "\n${BOLD}Section 6 (cont): CLI Guard — FOUNDRY_UI_HEADLESS_MODE Enforcement${RESET}\n\n"
-
-# 6.19 — foundry apps deploy without FOUNDRY_UI_HEADLESS_MODE=true → advisory
+# 6.19 — foundry apps validate without --no-prompt → advisory
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.19 deploy without FOUNDRY_UI_HEADLESS_MODE → advisory"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.19 apps validate without --no-prompt → advisory"
 
-# 6.20 — foundry apps deploy with inline FOUNDRY_UI_HEADLESS_MODE=true (env unset) → pass
+# 6.20 — foundry apps validate with --no-prompt → no output
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "FOUNDRY_UI_HEADLESS_MODE=true foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_empty "$OUTPUT" "6.20 deploy with inline FOUNDRY_UI_HEADLESS_MODE=true → pass"
-
-# 6.21 — foundry apps deploy with env FOUNDRY_UI_HEADLESS_MODE=true → pass (env-aware)
-cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=true run_hook "$GUARD" "$JSON")
-assert_empty "$OUTPUT" "6.21 deploy with env FOUNDRY_UI_HEADLESS_MODE=true → pass"
-
-# 6.22 — foundry apps deploy with env FOUNDRY_UI_HEADLESS_MODE=false → advisory
-cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"bugfix\""}}')
-OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=false run_hook "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.22 deploy with env FOUNDRY_UI_HEADLESS_MODE=false → advisory"
-
-# 6.23 — foundry apps release without FOUNDRY_UI_HEADLESS_MODE=true → advisory
-cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps release --deployment-id abc123 --change-type Patch --notes \"v1\" --no-prompt"}}')
-OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.23 release without FOUNDRY_UI_HEADLESS_MODE → advisory"
-
-# 6.24 — foundry apps list-deployments without FOUNDRY_UI_HEADLESS_MODE=true → advisory
-cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps list-deployments"}}')
-OUTPUT=$(env -u FOUNDRY_UI_HEADLESS_MODE bash -c 'echo "$1" | "$0" 2>/dev/null || true' "$GUARD" "$JSON")
-assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "6.24 list-deployments without FOUNDRY_UI_HEADLESS_MODE → advisory"
-
-# 6.25 — foundry apps list-deployments with env FOUNDRY_UI_HEADLESS_MODE=true → pass
-cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps list-deployments"}}')
-OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=true run_hook "$GUARD" "$JSON")
-assert_empty "$OUTPUT" "6.25 list-deployments with env FOUNDRY_UI_HEADLESS_MODE=true → pass"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.20 apps validate with --no-prompt → pass"
 
 # =============================================
 # Section 7: Skill Description Validation
@@ -1169,7 +1137,7 @@ assert_empty "$OUTPUT" "8.4  FOUNDRY_SKIP_NAME_CONFIRM=1 → no advisory"
 # 8.5 — foundry apps deploy (no --name) → no confirmation
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"fix\""}}')
-OUTPUT=$(FOUNDRY_UI_HEADLESS_MODE=true run_hook "$GUARD" "$JSON")
+OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "8.5  apps deploy → no name confirmation"
 
 # 8.6 — foundry workflows create with --name → name confirmation advisory
@@ -1261,56 +1229,143 @@ OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "8.18 --name='' (empty) → no confirmation"
 
 # =============================================
-# Section 9: SessionStart Hook — set-foundry-env.sh
+# Section 9: SessionStart Hook — foundry-session-start.sh
 # =============================================
-printf "\n${BOLD}--- Section 9: SessionStart Hook — set-foundry-env.sh ---${RESET}\n\n"
+printf "\n${BOLD}--- Section 9: SessionStart Hook — foundry-session-start.sh ---${RESET}\n\n"
 
-ENV_HOOK="./hooks/set-foundry-env.sh"
+ENV_HOOK="./hooks/foundry-session-start.sh"
 
-# 9.1 — Writes FOUNDRY_UI_HEADLESS_MODE=true to CLAUDE_ENV_FILE
+# 9.1 — Warns when CLI version is below minimum
 cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 1.9.3 (git: abc123) build_date: 2026-01-01T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_contains "$OUTPUT" "IMPORTANT" "9.1  warns when CLI version is below minimum (1.9.3 < 2.0.1)"
+rm -rf "$FAKE_BIN"
+
+# 9.2 — No warning when CLI version meets minimum
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 2.0.1 (git: abc123) build_date: 2026-04-14T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_empty "$OUTPUT" "9.2  no warning when CLI version meets minimum (2.0.1 = 2.0.1)"
+rm -rf "$FAKE_BIN"
+
+# 9.3 — No warning when CLI version exceeds minimum
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 2.1.0 (git: abc123) build_date: 2026-06-01T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_empty "$OUTPUT" "9.3  no warning when CLI version exceeds minimum (2.1.0 > 2.0.1)"
+rm -rf "$FAKE_BIN"
+
+# 9.4 — Warning includes upgrade instructions
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 1.5.0 (git: abc123) build_date: 2025-06-01T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_contains "$OUTPUT" "brew upgrade" "9.4  warning includes brew upgrade instructions"
+rm -rf "$FAKE_BIN"
+
+# 9.5 — Warning includes Windows download URL
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 1.5.0 (git: abc123) build_date: 2025-06-01T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_contains "$OUTPUT" "Windows" "9.5  warning includes Windows download instructions"
+rm -rf "$FAKE_BIN"
+
+# 9.6 — Warning instructs Claude to prompt user
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 1.5.0 (git: abc123) build_date: 2025-06-01T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_contains "$OUTPUT" "AskUserQuestion" "9.6  warning instructs Claude to prompt user"
+rm -rf "$FAKE_BIN"
+
+# 9.7 — No error when Foundry CLI is not installed
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+exit 1
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+EXIT_CODE=$?
+TOTAL=$((TOTAL + 1))
+if [ "$EXIT_CODE" -eq 0 ]; then
+  PASS=$((PASS + 1))
+  printf "${GREEN}  PASS${RESET} 9.7  exits cleanly when Foundry CLI is not installed\n"
+else
+  FAIL=$((FAIL + 1))
+  printf "${RED}  FAIL${RESET} 9.7  should exit 0 even when Foundry CLI is not installed\n"
+fi
+rm -rf "$FAKE_BIN"
+
+# 9.8 — Warns for 2.0.0 (below 2.0.1 minimum)
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 2.0.0 (git: abc123) build_date: 2026-04-14T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_contains "$OUTPUT" "IMPORTANT" "9.8  warns for 2.0.0 (below 2.0.1 minimum)"
+rm -rf "$FAKE_BIN"
+
+# 9.9 — Sets FOUNDRY_UI_HEADLESS_MODE for older CLIs
+cleanup
+FAKE_BIN=$(mktemp -d)
 ENV_TMP=$(mktemp)
-CLAUDE_ENV_FILE="$ENV_TMP" bash "$ENV_HOOK"
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 1.9.3 (git: abc123) build_date: 2026-01-01T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+PATH="$FAKE_BIN:$PATH" CLAUDE_ENV_FILE="$ENV_TMP" bash "$ENV_HOOK" 2>/dev/null
 OUTPUT=$(cat "$ENV_TMP")
-TOTAL=$((TOTAL + 1))
-if echo "$OUTPUT" | grep -qF 'export FOUNDRY_UI_HEADLESS_MODE=true'; then
-  PASS=$((PASS + 1))
-  printf "${GREEN}  PASS${RESET} 9.1  writes FOUNDRY_UI_HEADLESS_MODE=true to CLAUDE_ENV_FILE\n"
-else
-  FAIL=$((FAIL + 1))
-  printf "${RED}  FAIL${RESET} 9.1  expected FOUNDRY_UI_HEADLESS_MODE=true in env file, got: %s\n" "$OUTPUT"
-fi
-rm -f "$ENV_TMP"
+assert_contains "$OUTPUT" "FOUNDRY_UI_HEADLESS_MODE=true" "9.9  sets FOUNDRY_UI_HEADLESS_MODE for older CLIs"
+rm -rf "$FAKE_BIN" "$ENV_TMP"
 
-# 9.2 — Does nothing when CLAUDE_ENV_FILE is unset
+# 9.10 — Does NOT set FOUNDRY_UI_HEADLESS_MODE for 2.0.1+
 cleanup
-OUTPUT=$(env -u CLAUDE_ENV_FILE bash "$ENV_HOOK" 2>&1)
-TOTAL=$((TOTAL + 1))
-if [ $? -eq 0 ]; then
-  PASS=$((PASS + 1))
-  printf "${GREEN}  PASS${RESET} 9.2  exits cleanly when CLAUDE_ENV_FILE is unset\n"
-else
-  FAIL=$((FAIL + 1))
-  printf "${RED}  FAIL${RESET} 9.2  should exit 0 when CLAUDE_ENV_FILE is unset\n"
-fi
-
-# 9.3 — Appends (does not overwrite) existing env file content
-cleanup
+FAKE_BIN=$(mktemp -d)
 ENV_TMP=$(mktemp)
-echo 'export EXISTING_VAR=hello' > "$ENV_TMP"
-CLAUDE_ENV_FILE="$ENV_TMP" bash "$ENV_HOOK"
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 2.0.1 (git: abc123) build_date: 2026-04-14T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+PATH="$FAKE_BIN:$PATH" CLAUDE_ENV_FILE="$ENV_TMP" bash "$ENV_HOOK" 2>/dev/null
 OUTPUT=$(cat "$ENV_TMP")
-TOTAL=$((TOTAL + 1))
-HAS_EXISTING=$(echo "$OUTPUT" | grep -c 'EXISTING_VAR=hello' || true)
-HAS_HEADLESS=$(echo "$OUTPUT" | grep -c 'FOUNDRY_UI_HEADLESS_MODE=true' || true)
-if [ "$HAS_EXISTING" -ge 1 ] && [ "$HAS_HEADLESS" -ge 1 ]; then
-  PASS=$((PASS + 1))
-  printf "${GREEN}  PASS${RESET} 9.3  appends without overwriting existing content\n"
-else
-  FAIL=$((FAIL + 1))
-  printf "${RED}  FAIL${RESET} 9.3  should preserve existing content and append new var\n"
-fi
-rm -f "$ENV_TMP"
+assert_empty "$OUTPUT" "9.10 does NOT set FOUNDRY_UI_HEADLESS_MODE for 2.0.1+"
+rm -rf "$FAKE_BIN" "$ENV_TMP"
 
 # ---------- Cleanup and Summary ----------
 

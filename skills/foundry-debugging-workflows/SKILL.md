@@ -79,7 +79,7 @@ foundry workflows executions view <execution_id>
 
 ### Deployment Diagnostics
 
-Deployment is two-phase: validation (checks manifest and schemas) then artifact build. A `foundry apps validate` command is in development but not yet released — validation currently only happens on `foundry apps deploy` or `foundry apps run`.
+Deployment is two-phase: validation (checks manifest and schemas) then artifact build. Use `foundry apps validate --no-prompt` to dry-run the validation phase after adding API integrations or collections (catches spec/schema issues in seconds). Don't validate right before deploy — deploy runs the same validation plus workflow semantics and name uniqueness checks.
 
 ## CLI Troubleshooting
 
@@ -101,7 +101,7 @@ foundry login                                    # Re-authenticate
 
 ### Manifest Validation
 
-There is no local manifest validator yet (`foundry apps validate` is in development). Validation happens server-side on `foundry apps deploy`. For OpenAPI specs, use `npx @redocly/cli lint` to validate structure locally.
+Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. For OpenAPI specs, use `npx @redocly/cli lint` to validate structure locally.
 
 If deploy fails with validation errors:
 1. Check the error message — validation errors appear first
@@ -150,7 +150,7 @@ active_profile: ci-profile
 
 ### Command Hangs Waiting for Input
 
-Add `--no-prompt` to prevent interactive prompts. Nearly all commands support it: `apps create`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `profile delete`, `workflows create`, and `api-integrations create`. Provide all required flags explicitly — run `foundry <command> --help` to identify them.
+Add `--no-prompt` to prevent interactive prompts. Nearly all commands support it: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `profile delete`, `workflows create`, and `api-integrations create`. Provide all required flags explicitly — run `foundry <command> --help` to identify them.
 
 ### Auth Works Locally but Fails in CI
 
@@ -173,6 +173,19 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Blank page, no CORS errors | Vite `root` changed from `src` | Restore `root: 'src'` in vite.config.js |
 | Blank page with CORS errors | `noAttr()` removed from vite.config.js | Restore the `noAttr()` plugin in vite.config.js |
 | Dialog white background in dark mode | Shoelace panel defaults | Override `--sl-panel-background-color` with `var(--ground-floor)` |
+| App install fails with no detail | Workflow CEL expression error | Test API integration in console, then inspect workflow editor for errors |
+
+## Debugging App Install Failures
+
+When a Foundry app fails to install with no useful error message, isolate the problem by testing each component in the Falcon console:
+
+1. **Test the API integration first** — In the Falcon console, use the credentials from the install config to test the operation directly (e.g., run `listUsers` with the Okta domain and API key). This proves whether the spec and credentials work independently of the app.
+
+2. **Eliminate unlikely suspects** — Static UI files (extensions, pages) don't cause install failures. If the API integration works, the problem is almost certainly in a workflow.
+
+3. **Inspect the workflow in the console** — Open Falcon Fusion SOAR, edit the workflow, and look at each action's configuration. The workflow editor shows validation errors (like unknown variable references in CEL expressions) that the install API doesn't surface.
+
+> **Example:** Apps failed to install with no detail. API integration tested fine. Editing the workflow in the console revealed "unknown variable" on the Print data action — the CEL variable path was missing the `Custom_` prefix the platform adds to all API integration names. The install error gave no hint; the workflow editor showed it immediately.
 
 ## Recovery Strategies
 
