@@ -68,12 +68,32 @@ The aim of this repository is:
 This repository has a [code of conduct](CODE_OF_CONDUCT.md), we will
 remove things that do not respect it.
 
+### PR title and description style
+
+PR titles should be short (under 70 characters) and describe the change, not the process. Descriptions should lead with *why* the change exists, not summarize what files were touched. A reader should understand the motivation from the first sentence.
+
+Write in natural flowing sentences. Avoid artificial line breaks, bullet-heavy formatting, and filler phrases like "This PR introduces" or "Changes include." Bullet points are fine when listing multiple discrete items, but default to prose.
+
+Keep it concise. If you can say it in one paragraph, don't use three. Skip "Summary" headings, "Test plan" sections, and reviewer @mentions in the body. The diff speaks for itself. Here's what a good PR description looks like, followed by what to avoid:
+
+Good:
+> Foundry CLI v2.0.1 auto-detects headless environments, eliminating the need for `FOUNDRY_UI_HEADLESS_MODE`. This removes the env var handling from the SessionStart hook and CLI guard check, plus all command-line prefixes from test scripts. The hook now checks the CLI version and offers an upgrade prompt for users below 2.0.1, with a fallback for older versions.
+
+Bad:
+> ## Summary
+> This PR introduces several important updates to the hook scripts, enhancing reliability and improving the overall developer experience.
+>
+> ## Changes
+> - Updated set-foundry-env.sh
+> - Updated foundry-cli-guard.sh
+> - Updated test-hooks.sh
+>
+> ## Test plan
+> - [ ] Verify hooks work correctly
+
 ## AI-Assisted Contributions
 
-AI coding assistants are welcome for developing contributions to this project.
-If your tool needs project context, see [`AGENTS.md`](AGENTS.md) for orientation
-or [`CLAUDE.md`](CLAUDE.md) for Claude Code-specific plugin guidance. The bar for
-pull requests is the same regardless of how code was written.
+AI coding assistants are welcome for developing contributions to this project. If your tool needs project context, see [`AGENTS.md`](AGENTS.md) for orientation or [`CLAUDE.md`](CLAUDE.md) for Claude Code-specific plugin guidance. The bar for pull requests is the same regardless of how code was written. Pay extra attention to the [PR title and description style](#pr-title-and-description-style) section since AI tools tend to generate verbose, formulaic PR descriptions that don't match the style we're looking for.
 
 ---
 
