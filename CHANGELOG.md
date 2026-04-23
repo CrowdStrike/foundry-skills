@@ -10,15 +10,15 @@ Initial public release of Falcon Foundry Skills — AI coding assistant skills f
 
 ### Skills
 
-- **foundry-development-workflow** — Orchestrates the full app lifecycle from requirements through deployment. Coordinates all sub-skills and enforces CLI-first scaffolding.
-- **foundry-api-integrations** — Create and configure API integrations with OpenAPI specs. Includes spec adaptation for Foundry compatibility and Falcon Fusion SOAR sharing.
-- **foundry-collections-development** — Design and implement Foundry collections with JSON Schema modeling, CRUD operations via CustomStorage, and access control patterns.
-- **foundry-functions-development** — Build serverless functions in Python or Go with FDK handler patterns, dependency management, and testing.
-- **foundry-functions-falcon-api** — Call CrowdStrike Falcon APIs from within Foundry functions using zero-argument FalconPy authentication.
-- **foundry-ui-development** — Build UI pages and extensions with React, Vue, or vanilla JS. Includes FalconJS SDK patterns, Shoelace theming, and iframe communication.
-- **foundry-workflows-development** — Design Falcon Fusion SOAR workflows with YAML specs, CEL expressions, loop/condition control flow, and platform action integration.
-- **foundry-debugging-workflows** — Systematic troubleshooting for CLI errors, deployment failures, blank pages, and runtime issues.
-- **foundry-security-patterns** — OAuth scoping, input validation, XSS prevention, CSP configuration, and secure coding patterns.
+- **development-workflow** — Orchestrates the full app lifecycle from requirements through deployment. Coordinates all sub-skills and enforces CLI-first scaffolding.
+- **api-integrations** — Create and configure API integrations with OpenAPI specs. Includes spec adaptation for Foundry compatibility and Falcon Fusion SOAR sharing.
+- **collections-development** — Design and implement Foundry collections with JSON Schema modeling, CRUD operations via CustomStorage, and access control patterns.
+- **functions-development** — Build serverless functions in Python or Go with FDK handler patterns, dependency management, and testing.
+- **functions-falcon-api** — Call CrowdStrike Falcon APIs from within Foundry functions using zero-argument FalconPy authentication.
+- **ui-development** — Build UI pages and extensions with React, Vue, or vanilla JS. Includes FalconJS SDK patterns, Shoelace theming, and iframe communication.
+- **workflows-development** — Design Falcon Fusion SOAR workflows with YAML specs, CEL expressions, loop/condition control flow, and platform action integration.
+- **debugging-workflows** — Systematic troubleshooting for CLI errors, deployment failures, blank pages, and runtime issues.
+- **security-patterns** — OAuth scoping, input validation, XSS prevention, CSP configuration, and secure coding patterns.
 
 ### Infrastructure
 

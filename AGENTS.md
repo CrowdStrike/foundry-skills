@@ -27,16 +27,16 @@ The `skills/` directory contains specialized skills that provide systematic appr
 
 ### Core Principles
 
-**Mandatory Sub-Skill Delegation**: The foundry-development-workflow skill enforces that all capability development must use the appropriate specialized sub-skill. This prevents platform-specific mistakes and ensures consistent quality.
+**Mandatory Sub-Skill Delegation**: The development-workflow skill enforces that all capability development must use the appropriate specialized sub-skill. This prevents platform-specific mistakes and ensures consistent quality.
 
 **Capability-Based Architecture**: Each skill maps to specific Foundry platform capabilities:
 
-- **UI capabilities** → foundry-ui-development
-- **Data capabilities** → foundry-collections-development
-- **Logic capabilities** → foundry-functions-development
-- **Automation capabilities** → foundry-workflows-development
+- **UI capabilities** → ui-development
+- **Data capabilities** → collections-development
+- **Logic capabilities** → functions-development
+- **Automation capabilities** → workflows-development
 
-**Security-First Design**: Security patterns are integrated throughout all skills, with dedicated foundry-security-patterns for specialized security guidance.
+**Security-First Design**: Security patterns are integrated throughout all skills, with dedicated security-patterns for specialized security guidance.
 
 ### Primary Workflow Skills
 
@@ -54,19 +54,19 @@ The `skills/` directory contains specialized skills that provide systematic appr
 
 **Specialized skills for each Foundry capability type:**
 
-- **foundry-ui-development**: Vue/React + Shoelace UI components and extensions
-- **foundry-collections-development**: JSON Schema data modeling and CRUD operations
-- **foundry-functions-development**: Go/Python serverless functions with CrowdStrike SDK
-- **foundry-workflows-development**: YAML automation workflows and Fusion orchestration
-- **foundry-functions-falcon-api**: Calling Falcon APIs from within Functions (OAuth, SDKs)
-- **foundry-api-integrations**: Exposing external APIs via OpenAPI specs
+- **ui-development**: Vue/React + Shoelace UI components and extensions
+- **collections-development**: JSON Schema data modeling and CRUD operations
+- **functions-development**: Go/Python serverless functions with CrowdStrike SDK
+- **workflows-development**: YAML automation workflows and Fusion orchestration
+- **functions-falcon-api**: Calling Falcon APIs from within Functions (OAuth, SDKs)
+- **api-integrations**: Exposing external APIs via OpenAPI specs
 
 #### Support Skills
 
 **Cross-cutting concerns and troubleshooting:**
 
-- **foundry-security-patterns**: OAuth scoping, input validation, UI security
-- **foundry-debugging-workflows**: Systematic troubleshooting for CLI, manifest, and API issues
+- **security-patterns**: OAuth scoping, input validation, UI security
+- **debugging-workflows**: Systematic troubleshooting for CLI, manifest, and API issues
 
 ### Use Cases
 
@@ -77,29 +77,29 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 #### Starting New Foundry Development
 
 ```
-1. foundry-development-workflow coordinates the lifecycle
+1. development-workflow coordinates the lifecycle
 2. Specialized sub-skills for each capability (UI, Collections, Functions, Workflows)
-3. foundry-security-patterns for security review
+3. security-patterns for security review
 ```
 
 #### Working with Existing Foundry Apps
 
 ```
-1. foundry-development-workflow assesses current state
+1. development-workflow assesses current state
 2. Appropriate sub-skill for the capability being modified
-3. foundry-debugging-workflows if issues arise
-4. foundry-security-patterns for security validation
+3. debugging-workflows if issues arise
+4. security-patterns for security validation
 ```
 
 #### Common Development Scenarios
 
-- **"Add UI extension"** → foundry-ui-development skill
-- **"Create data schema"** → foundry-collections-development skill
-- **"Build API endpoint"** → foundry-functions-development skill
-- **"Automate workflow"** → foundry-workflows-development skill
-- **"Call Falcon API from Function"** → foundry-functions-falcon-api skill
-- **"Expose external API to Foundry"** → foundry-api-integrations skill
-- **"Troubleshoot deployment"** → foundry-debugging-workflows skill
+- **"Add UI extension"** → ui-development skill
+- **"Create data schema"** → collections-development skill
+- **"Build API endpoint"** → functions-development skill
+- **"Automate workflow"** → workflows-development skill
+- **"Call Falcon API from Function"** → functions-falcon-api skill
+- **"Expose external API to Foundry"** → api-integrations skill
+- **"Troubleshoot deployment"** → debugging-workflows skill
 
 ## Essential Foundry CLI Commands
 

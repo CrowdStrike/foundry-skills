@@ -305,7 +305,7 @@ print_phase1_advice() {
     printf "     The install UI shows a combobox with one placeholder — users can't type a custom domain.\n"
     printf "     ${GREEN}Fix:${RESET} Remove 'default:' from server variables in the OpenAPI spec.\n"
     printf "     Keep only 'description:' under each variable name.\n"
-    printf "     ${CYAN}Skill file:${RESET} foundry-api-integrations — add validation rule to server variable guidance.\n"
+    printf "     ${CYAN}Skill file:${RESET} api-integrations — add validation rule to server variable guidance.\n"
     printf "     ${CYAN}Hook file:${RESET} foundry-skill-router.sh already blocks this — ensure the skill teaches it too.\n\n"
   fi
 
@@ -326,7 +326,7 @@ print_phase1_advice() {
     printf "  ${YELLOW}%d. %d/%d apps have no deployment${RESET}\n" "$advice_count" "$no_deploy_count" "$APP_COUNT"
     printf "     Apps without deployments can't be released or installed.\n"
     printf "     ${GREEN}Fix:${RESET} Ensure the skill always runs 'foundry apps deploy' after scaffolding.\n"
-    printf "     ${CYAN}Skill file:${RESET} foundry-development-workflow — verify deploy step is mandatory.\n\n"
+    printf "     ${CYAN}Skill file:${RESET} development-workflow — verify deploy step is mandatory.\n\n"
   fi
 
   # Check if any releases failed
@@ -342,7 +342,7 @@ print_phase1_advice() {
     printf "  ${YELLOW}%d. %d/%d apps failed to release${RESET}\n" "$advice_count" "$no_release_count" "$APP_COUNT"
     printf "     Released apps are required for installation from the App Catalog.\n"
     printf "     ${GREEN}Fix:${RESET} Add 'foundry apps release --change-type Patch --deployment-id <id>' to the skill's deployment steps.\n"
-    printf "     ${CYAN}Skill file:${RESET} foundry-development-workflow — add release as a post-deploy step.\n\n"
+    printf "     ${CYAN}Skill file:${RESET} development-workflow — add release as a post-deploy step.\n\n"
   fi
 
   if [ "$advice_count" -eq 0 ]; then
@@ -383,7 +383,7 @@ print_phase2_advice() {
     printf "  ${YELLOW}%d. %d/%d apps failed to install${RESET}\n" "$advice_count" "$install_fail_count" "$APP_COUNT"
     printf "     Install failures typically stem from spec issues (combobox fields, invalid auth config).\n"
     printf "     ${GREEN}Fix:${RESET} Cross-reference with spec analysis above. Combobox fields are the #1 cause.\n"
-    printf "     ${CYAN}Skill file:${RESET} foundry-api-integrations — strengthen server variable validation.\n\n"
+    printf "     ${CYAN}Skill file:${RESET} api-integrations — strengthen server variable validation.\n\n"
   fi
 
   # Check UI failures
@@ -396,7 +396,7 @@ print_phase2_advice() {
     printf "     UI failures may indicate: missing API credentials, incorrect API call patterns,\n"
     printf "     or UI component errors (e.g., wrong data binding).\n"
     printf "     ${GREEN}Fix:${RESET} Check if the UI extension correctly calls the API integration endpoint.\n"
-    printf "     ${CYAN}Skill file:${RESET} foundry-ui-development — verify API call patterns in extensions.\n\n"
+    printf "     ${CYAN}Skill file:${RESET} ui-development — verify API call patterns in extensions.\n\n"
   fi
 
   # Check workflow failures
@@ -409,7 +409,7 @@ print_phase2_advice() {
     printf "     Workflow failures may indicate: incorrect action references, missing trigger config,\n"
     printf "     or YAML syntax issues (mustache vs \$ variable syntax).\n"
     printf "     ${GREEN}Fix:${RESET} Verify workflow YAML uses \$ prefix for variables, not {{mustache}}.\n"
-    printf "     ${CYAN}Skill file:${RESET} foundry-workflows-development — strengthen variable syntax guidance.\n\n"
+    printf "     ${CYAN}Skill file:${RESET} workflows-development — strengthen variable syntax guidance.\n\n"
   fi
 
   if [ "$advice_count" -eq 0 ]; then

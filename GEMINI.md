@@ -1,2 +1,2 @@
 @./AGENTS.md
-@./skills/foundry-development-workflow/SKILL.md
+@./skills/development-workflow/SKILL.md

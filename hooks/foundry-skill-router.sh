@@ -60,7 +60,7 @@ case "$HOOK_EVENT" in
       jq -n '{
         hookSpecificOutput: {
           hookEventName: "UserPromptSubmit",
-          additionalContext: "FOUNDRY PLUGIN DETECTED: This prompt involves Falcon Foundry development. Do NOT enter plan mode. IMMEDIATELY invoke foundry:foundry-development-workflow using the Skill tool. That skill handles requirements gathering, clarifying questions, CLI scaffolding, and sub-skill delegation."
+          additionalContext: "FOUNDRY PLUGIN DETECTED: This prompt involves Falcon Foundry development. Do NOT enter plan mode. IMMEDIATELY invoke falcon-foundry:development-workflow using the Skill tool. That skill handles requirements gathering, clarifying questions, CLI scaffolding, and sub-skill delegation."
         }
       }'
       exit 0
@@ -168,7 +168,7 @@ case "$HOOK_EVENT" in
       jq -n '{
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
-          additionalContext: "Foundry plugin reminder: Consider invoking foundry:foundry-development-workflow skill for Foundry development tasks. It handles CLI scaffolding, manifest coordination, and sub-skill delegation."
+          additionalContext: "Foundry plugin reminder: Consider invoking falcon-foundry:development-workflow skill for Foundry development tasks. It handles CLI scaffolding, manifest coordination, and sub-skill delegation."
         }
       }'
       exit 0

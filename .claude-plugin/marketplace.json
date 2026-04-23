@@ -5,9 +5,9 @@
   },
   "plugins": [
     {
-      "name": "foundry",
+      "name": "falcon-foundry",
       "source": "./",
-      "description": "CrowdStrike Falcon Foundry development skills for building cybersecurity applications on the Foundry platform. Includes UI development, collections, functions, workflows, API integration, security patterns, and debugging workflows.",
+      "description": "CrowdStrike Falcon Foundry development skills for building cybersecurity applications on the Falcon platform. Includes UI development, collections, functions, workflows, API integration, security patterns, and debugging workflows.",
       "version": "1.0.0",
       "author": {
         "name": "CrowdStrike"

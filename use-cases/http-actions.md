@@ -2,7 +2,7 @@
 name: http-actions
 description: Call external REST APIs from workflows using HTTP Request actions with API key or OAuth 2.0 auth, no custom app required
 source: https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/
-skills: [foundry-api-integrations, foundry-workflows-development]
+skills: [api-integrations, workflows-development]
 capabilities: [api-integration, workflow]
 ---
 

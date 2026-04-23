@@ -4,7 +4,7 @@ description: Build and deploy a first Falcon Foundry app from scratch using the 
 source:
   - https://www.crowdstrike.com/tech-hub/ng-siem/a-practical-guide-to-building-a-falcon-foundry-app-for-the-first-time/
   - https://www.crowdstrike.com/tech-hub/ng-siem/deploy-a-foundry-app-template-in-5-easy-steps/
-skills: [foundry-development-workflow]
+skills: [development-workflow]
 capabilities: [ui-extension, ui-page]
 ---
 

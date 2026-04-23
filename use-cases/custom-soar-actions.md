@@ -2,7 +2,7 @@
 name: custom-soar-actions
 description: Create custom Falcon Fusion SOAR actions from a third-party API integration and orchestrate data into LogScale
 source: https://www.crowdstrike.com/tech-hub/ng-siem/create-custom-actions-for-soar-with-falcon-foundry/
-skills: [foundry-api-integrations, foundry-workflows-development, foundry-functions-development]
+skills: [api-integrations, workflows-development, functions-development]
 capabilities: [api-integration, workflow, function]
 ---
 

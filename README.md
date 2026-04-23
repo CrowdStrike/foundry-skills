@@ -28,7 +28,7 @@ Or register this repo as a plugin marketplace, then install:
 
 ```
 /plugin marketplace add CrowdStrike/foundry-skills
-/plugin install foundry@foundry-skills
+/plugin install falcon-foundry@foundry-skills
 ```
 
 Or install from a local clone for development:
@@ -86,7 +86,7 @@ alwaysApply: false
 ---
 
 Reference the Falcon Foundry skills in /path/to/foundry-skills/skills/ for building Foundry apps.
-The primary orchestrator is foundry-development-workflow/SKILL.md.
+The primary orchestrator is development-workflow/SKILL.md.
 EOF
 ```
 
@@ -107,7 +107,7 @@ Gemini activates the right skill on demand based on your prompt.
 
 ### Other Tools
 
-These skills are plain markdown files. Any AI coding assistant that can read local files can use them. See `AGENTS.md` for the full development guide, or point your tool at the `skills/` directory and start with `foundry-development-workflow/SKILL.md` as the entry point.
+These skills are plain markdown files. Any AI coding assistant that can read local files can use them. See `AGENTS.md` for the full development guide, or point your tool at the `skills/` directory and start with `development-workflow/SKILL.md` as the entry point.
 
 ## Usage
 
@@ -137,23 +137,23 @@ The skills include hooks that ensure the right skills get used:
 
 | Skill | Purpose |
 |-------|---------|
-| `foundry-development-workflow` | Primary orchestrator — coordinates the full app lifecycle |
-| `foundry-api-integrations` | OpenAPI spec import, auth scheme configuration, SOAR sharing |
-| `foundry-functions-falcon-api` | Calling Falcon APIs from within Functions (OAuth, SDKs) |
-| `foundry-workflows-development` | YAML workflow creation, Falcon Fusion SOAR actions and triggers |
-| `foundry-ui-development` | React/Vue UI pages with Shoelace components and Falcon theming |
-| `foundry-functions-development` | Go/Python serverless functions with CrowdStrike SDK |
-| `foundry-collections-development` | JSON Schema data modeling and CRUD operations |
-| `foundry-security-patterns` | OAuth scoping, input validation, content security |
-| `foundry-debugging-workflows` | Systematic troubleshooting for CLI, manifest, and deployment issues |
+| `development-workflow` | Primary orchestrator — coordinates the full app lifecycle |
+| `api-integrations` | OpenAPI spec import, auth scheme configuration, SOAR sharing |
+| `functions-falcon-api` | Calling Falcon APIs from within Functions (OAuth, SDKs) |
+| `workflows-development` | YAML workflow creation, Falcon Fusion SOAR actions and triggers |
+| `ui-development` | React/Vue UI pages with Shoelace components and Falcon theming |
+| `functions-development` | Go/Python serverless functions with CrowdStrike SDK |
+| `collections-development` | JSON Schema data modeling and CRUD operations |
+| `security-patterns` | OAuth scoping, input validation, content security |
+| `debugging-workflows` | Systematic troubleshooting for CLI, manifest, and deployment issues |
 
 ## Architecture
 
-The skills follow a hub-and-spoke pattern. `foundry-development-workflow` is the orchestrator that parses your requirements, runs CLI commands for scaffolding, and delegates capability-specific implementation to sub-skills:
+The skills follow a hub-and-spoke pattern. `development-workflow` is the orchestrator that parses your requirements, runs CLI commands for scaffolding, and delegates capability-specific implementation to sub-skills:
 
 ```mermaid
 graph TD
-    O["foundry-development-workflow<br/>(Orchestrator)"]
+    O["development-workflow<br/>(Orchestrator)"]
 
     O --> UI["UI Development"]
     O --> FN["Functions Development"]
@@ -195,7 +195,7 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 
 These skills pair well with [obra/superpowers](https://github.com/obra/superpowers), which adds structured planning, TDD discipline, and code review workflows. Foundry skills handle the Foundry-specific CLI and platform knowledge while superpowers provides general software engineering best practices.
 
-See [skills/foundry-development-workflow/references/superpowers-integration.md](skills/foundry-development-workflow/references/superpowers-integration.md) for details on how they work together.
+See [skills/development-workflow/references/superpowers-integration.md](skills/development-workflow/references/superpowers-integration.md) for details on how they work together.
 
 **Note:** The without-superpowers path produces more reliable results because the Foundry skill has full control from the start. Superpowers brainstorming loads first and creates a plan before the Foundry skills are read, which may not follow Foundry-specific patterns.
 
@@ -232,7 +232,7 @@ foundry profile list      # List all profiles
 
 1. Validate immediately after `foundry api-integrations create` (`foundry apps validate --no-prompt`) — Foundry's server-side OpenAPI parser is stricter than `redocly lint` and may reject large vendor specs
 2. Run `foundry apps deploy` from the project root directory
-3. Check the `foundry-debugging-workflows` skill for systematic troubleshooting
+3. Check the `debugging-workflows` skill for systematic troubleshooting
 
 ## Testing
 
@@ -315,6 +315,22 @@ Claude handles the branch, skill edits, and PR creation. Even when Claude strugg
 3. Run `./test-hooks.sh` to validate hooks
 4. Test with `./test-skill.sh --runs 1` for a quick end-to-end check
 5. Run `./run-ab-test.sh 1` to compare against main before opening a PR
+
+### Release process
+
+Releasing these skills is easy! Just run the following command:
+
+```bash
+./release.sh
+```
+
+This walks you through a semantic version bump (major/minor/patch), updates the version in `plugin.json`, `marketplace.json`, README badge, all `SKILL.md` files, and the CHANGELOG date, then creates a release branch and PR. After the PR is approved and merged, create a draft GitHub release to tag main:
+
+```bash
+gh release create v<version> --target main --title "v<version>" --generate-notes --draft
+```
+
+This generates release notes from merged PRs and saves them as a draft. Review and edit the notes at [github.com/CrowdStrike/foundry-skills/releases](https://github.com/CrowdStrike/foundry-skills/releases), then click **Publish** when ready.
 
 ## License
 
