@@ -230,7 +230,7 @@ foundry profile list      # List all profiles
 
 ### Deployment failures
 
-1. Deploy immediately after `foundry api-integrations create` — Foundry's server-side OpenAPI parser is stricter than `redocly lint` and may reject large vendor specs
+1. Validate immediately after `foundry api-integrations create` (`foundry apps validate --no-prompt`) — Foundry's server-side OpenAPI parser is stricter than `redocly lint` and may reject large vendor specs
 2. Run `foundry apps deploy` from the project root directory
 3. Check the `foundry-debugging-workflows` skill for systematic troubleshooting
 

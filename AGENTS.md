@@ -129,6 +129,7 @@ foundry profile activate --name <name>     # Switch between environments
 # App Development Lifecycle
 foundry apps create --name "X" --no-prompt --no-git  # Create new app
 foundry apps run                           # Start full app locally in dev mode
+foundry apps validate --no-prompt           # Dry-run validation (no deploy)
 foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
 foundry apps release --change-type Patch --deployment-id <id> --notes "notes"  # Release to app catalog
 foundry ui run                             # Local UI development server
@@ -137,6 +138,7 @@ foundry ui run                             # Local UI development server
 foundry api-integrations create --name "X" --spec path.json --no-prompt   # Create API integration
 foundry ui pages create --name "X" --from-template React --no-prompt       # Create UI page
 foundry ui extensions create --name "X" --from-template React --sockets "socket.name" --no-prompt  # Create UI extension
+foundry ui extensions list-sockets                                                                # List available socket IDs
 foundry ui navigation add --name "X" --path / --ref pages.xxx  # Add navigation
 foundry functions create --name "X" --language python --no-prompt           # Create function
 foundry collections create --name "X" --schema path.json --no-prompt        # Create collection
@@ -147,7 +149,7 @@ foundry workflows create --name "X" --spec path.yaml --no-prompt            # Cr
 
 When building Falcon Foundry apps, take your time and do each step thoroughly. Quality is more important than speed. Specifically:
 
-- Do not skip validation steps (deploy early after API integrations and collections to catch spec issues)
+- Do not skip validation steps (validate early after API integrations and collections with `foundry apps validate --no-prompt`)
 - Do not skip the Vite `noAttr()` fix for UI pages - a blank page wastes more time than the 30 seconds to add it
 - Read each sub-skill's Common Pitfalls section before implementing that capability
 - Verify CLI commands succeed before moving to the next step - do not chain multiple scaffolding commands blindly

@@ -30,7 +30,7 @@ User wants to persist structured data (config, checkpoints, event logs, user pre
    foundry collections create --name my_data \
      --schema schemas/my_data.json --description "Purpose" --no-prompt
    ```
-3. **Deploy early** to validate the schema against the platform.
+3. **Validate early** with `foundry apps validate --no-prompt` to check the schema against the platform.
 4. **Access from functions** using `APIHarnessV2` (see Key Code).
 5. **Access from UI extensions** using `@crowdstrike/foundry-js`.
 6. **Configure workflow sharing** if the collection needs to be used in workflows.

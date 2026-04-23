@@ -11,7 +11,7 @@
 #   - For Phase 2: Chrome open to Falcon console, Okta credentials set
 #
 # Environment variables:
-#   OKTA_DOMAIN    — Okta domain (e.g. dev-1337.okta.com)
+#   OKTA_DOMAIN    — Okta domain (e.g. integrator-6849440.okta.com)
 #   OKTA_API_KEY   — Okta API key
 #   OKTA_INSTANCE  — Instance name (default: Okta)
 #   FALCON_URL     — Falcon console URL (default: https://falcon.us-2.crowdstrike.com)
@@ -35,9 +35,6 @@ OKTA_INSTANCE="${OKTA_INSTANCE:-Okta}"
 FALCON_URL="${FALCON_URL:-https://falcon.us-2.crowdstrike.com}"
 SKIP_RELEASE="${SKIP_RELEASE:-0}"
 SKIP_BROWSER="${SKIP_BROWSER:-0}"
-
-# Ensure headless mode for all Foundry CLI commands in this script
-export FOUNDRY_UI_HEADLESS_MODE=true
 
 # ── Argument parsing ──────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -653,12 +650,13 @@ import sys, json
 text = open(sys.argv[1]).read()
 
 def find_apps(obj):
-    \"\"\"Recursively find an 'apps' list in a parsed JSON object.\"\"\"
+    \"\"\"Recursively find an 'apps' or 'results' list in a parsed JSON object.\"\"\"
     if isinstance(obj, dict):
-        if 'apps' in obj and isinstance(obj['apps'], list) and len(obj['apps']) > 0:
-            first = obj['apps'][0]
-            if isinstance(first, dict) and ('install' in first or 'ui' in first or 'ui_extension' in first):
-                return obj['apps']
+        for key in ('apps', 'results'):
+            if key in obj and isinstance(obj[key], list) and len(obj[key]) > 0:
+                first = obj[key][0]
+                if isinstance(first, dict) and ('install' in first or 'ui' in first or 'ui_extension' in first):
+                    return obj[key]
         for v in obj.values():
             result = find_apps(v)
             if result is not None:

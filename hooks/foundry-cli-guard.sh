@@ -11,9 +11,6 @@
 # 2. Running ui extensions create without --sockets (interactive picker hangs)
 # 3. Using mkdir/touch to create app structure (causes invalid manifests)
 # 4. Creating resources without user confirmation of the name
-# 5. Running deploy/release/list-deployments without FOUNDRY_UI_HEADLESS_MODE=true (TUI hangs)
-#    Note: The SessionStart hook (set-foundry-env.sh) sets this env var automatically.
-#    This guard is a fallback for edge cases where the env var isn't set.
 #
 # Receives JSON on stdin with hook_event_name and tool-specific fields.
 # Outputs JSON with additionalContext (advisory nudge, not blocking).
@@ -45,10 +42,10 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Check for Foundry CLI create commands that need --no-prompt
 # Nearly all Foundry CLI commands support --no-prompt:
-#   apps create/release/delete, functions create, collections create,
+#   apps create/validate/release/delete, functions create, collections create,
 #   workflows create, api-integrations create,
 #   ui pages create, ui extensions create, rtr-scripts create, profile create/delete
-if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
+if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
   # Check if --no-prompt is missing
   if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
     jq -n '{
@@ -68,7 +65,7 @@ if echo "$COMMAND" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --sockets. Without it, the CLI launches an interactive socket picker that will hang with Error: EOF. Add --sockets with the target socket ID. Example: foundry ui extensions create --name \"my-ext\" --from-template React --sockets \"activity.detections.details\" --no-prompt"
+        additionalContext: "The command is missing --sockets. Without it, the CLI launches an interactive socket picker that will hang with Error: EOF. Run `foundry ui extensions list-sockets` to see available sockets. Example: foundry ui extensions create --name \"my-ext\" --from-template React --sockets \"activity.detections.details\" --no-prompt"
       }
     }'
     exit 0
@@ -88,27 +85,11 @@ if echo "$COMMAND" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
       jq -n --arg val "$SOCKET_VAL" '{
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
-          additionalContext: ("Invalid socket ID: \"" + $val + "\". Valid socket IDs are: activity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, ngsiem.workbench.details, workflows.executions.execution.details. Use the exact ID from this list.")
+          additionalContext: ("Invalid socket ID: \"" + $val + "\". Run `foundry ui extensions list-sockets` for available sockets. Known IDs: activity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, ngsiem.workbench.details, workflows.executions.execution.details.")
         }
       }'
       exit 0
     fi
-  fi
-fi
-
-# Check for foundry apps deploy/release/list-deployments without FOUNDRY_UI_HEADLESS_MODE=true
-# Normally the SessionStart hook sets this env var, but this guard catches edge cases.
-# The enhanced UI (TUI progress monitor) requires a TTY and hangs in non-interactive environments.
-# Skip advisory only when the env var is explicitly "true" — unset or "false" both need the prefix.
-if echo "$COMMAND" | grep -qE 'foundry\s+apps\s+(deploy|release|list-deployments)\b'; then
-  if [ "${FOUNDRY_UI_HEADLESS_MODE:-}" != "true" ] && ! echo "$COMMAND" | grep -qF 'FOUNDRY_UI_HEADLESS_MODE=true'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "The command is missing FOUNDRY_UI_HEADLESS_MODE=true. The enhanced UI (TUI progress monitor) requires a TTY and will hang in Claude Code. Prepend FOUNDRY_UI_HEADLESS_MODE=true to the command. Example: FOUNDRY_UI_HEADLESS_MODE=true foundry apps deploy --change-type Patch --change-log \"msg\""
-      }
-    }'
-    exit 0
   fi
 fi
 
