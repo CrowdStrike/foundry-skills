@@ -75,7 +75,7 @@ actions:
     print_results:
         id: aadbf530e35fc452a032f5f8acaaac2a
         properties:
-            text_data: "${data['list_users.API_Integration.Okta.listUsers.body']}"
+            text_data: "${data['list_users.API_Integration.Custom_Okta.listUsers.body']}"
         version_constraint: ~1
 output_fields: []
 ```
@@ -147,11 +147,11 @@ actions:
     print_data:
         id: aadbf530e35fc452a032f5f8acaaac2a
         properties:
-            text_data: "${data['list_users_action.API_Integration.Okta.listUsers.body']}"
+            text_data: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
         version_constraint: ~1
 ```
 
-The `{name}` must exactly match the `name` field from the `api_integrations` entry in `manifest.yml`. The OpenAPI spec must have a matching `operationId` with a properly structured `x-cs-operation-config`:
+The `{name}` must exactly match the `name` field from the `api_integrations` entry in `manifest.yml`, prefixed with `Custom_`. The platform adds `Custom_` to all API integration names in the variable path. The OpenAPI spec must have a matching `operationId` with a properly structured `x-cs-operation-config`:
 
 ```yaml
 x-cs-operation-config:
@@ -190,11 +190,11 @@ Print data has three input properties: `fields` (array — dropdown of trigger/w
     print_data:
         id: aadbf530e35fc452a032f5f8acaaac2a
         properties:
-            text_data: "${data['list_users_action.API_Integration.Okta.listUsers.body']}"
+            text_data: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
         version_constraint: ~1
 ```
 
-The data path follows the pattern: `action_key.API_Integration.{IntegrationName}.{operationId}.{field}`. Use the **Workflow data** panel in the workflow editor to copy the exact path for any field — click the data pill and it copies the correct `${data['...']}` expression to your clipboard.
+The data path follows the pattern: `action_key.API_Integration.Custom_{IntegrationName}.{operationId}.{field}`. The platform adds `Custom_` to all API integration names in the variable path. Use the **Workflow data** panel in the workflow editor to copy the exact path for any field — click the data pill and it copies the correct `${data['...']}` expression to your clipboard.
 
 **Send email** (`07413ef9ba7c47bf5a242799f59902cc`):
 
@@ -209,7 +209,7 @@ In interactive mode, when the user requests email, **ask for their email address
             to:
                 - recipient@company.com    # Ask user for real address, or mark as parameterized
             subject: "Email subject"
-            msg: "${data['list_users_action.API_Integration.Okta.listUsers.body']}"
+            msg: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
             msg_type: "text"
         version_constraint: ~1
 ```
@@ -220,14 +220,14 @@ Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/go
 
 | Syntax | Description |
 |--------|-------------|
-| `${data['action_key.API_Integration.Name.operationId.body']}` | Response body from an API integration action |
-| `${data['action_key.API_Integration.Name.operationId.body']}[0].field` | Access a field in the first element of an array response |
+| `${data['action_key.API_Integration.Custom_Name.operationId.body']}` | Response body from an API integration action |
+| `${data['action_key.API_Integration.Custom_Name.operationId.body']}[0].field` | Access a field in the first element of an array response |
 | `${data['action_key.output.field']}` | Field from a platform action's output |
 | `${data['trigger.param_name']}` | On-demand trigger parameter value |
 
 **CRITICAL:** Do NOT use `$action_name.output.body` — this passes as a literal string and is NOT resolved at runtime. Always use `${data['...']}` expressions.
 
-The `action_key` is the YAML key of the action (e.g., `list_users` from `actions: list_users:`), NOT the action's `id`. The integration name corresponds to the `name` field in your `api_integrations` manifest entry. Use the **Workflow data** panel in the workflow editor to copy exact data paths — it produces the correct expression when you click a data pill.
+The `action_key` is the YAML key of the action (e.g., `list_users` from `actions: list_users:`), NOT the action's `id`. The integration name in the variable path is `Custom_{name}` where `{name}` is the `name` field in your `api_integrations` manifest entry (spaces become underscores). Use the **Workflow data** panel in the workflow editor to copy exact data paths — it produces the correct expression when you click a data pill.
 
 ### CEL Expressions
 
@@ -241,7 +241,7 @@ Falcon Fusion SOAR supports CEL for data transformations, conditions, and field 
 "${data['action.field'] != null ? data['action.field'] : \"default\"}"
 
 # Array element access
-"${data['action.API_Integration.Name.op.body']}[0]"
+"${data['action.API_Integration.Custom_Name.op.body']}[0]"
 ```
 
 CrowdStrike provides [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) including `cs.json.valid()`, `cs.json.decode()`, and `cs.ip.valid()`. For complex transformations, the **Data Transformation Agent** (requires Charlotte AI) generates CEL expressions from plain language descriptions.
@@ -360,7 +360,7 @@ foundry workflows executions start --definition my-workflow --mocks mymocks.json
 foundry workflows executions view <execution_id>                        # View results
 ```
 
-No local validator exists for workflow YAML semantics — validation happens server-side on `foundry apps deploy`.
+Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
 
 ## Reading Guide
 

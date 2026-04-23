@@ -81,14 +81,14 @@ actions:
     print_results:
         id: aadbf530e35fc452a032f5f8acaaac2a
         properties:
-            text_data: "${data['list_users.API_Integration.Okta.listUsers.body']}"
+            text_data: "${data['list_users.API_Integration.Custom_Okta.listUsers.body']}"
         version_constraint: ~1
 output_fields: []
 ```
 
 **Patterns demonstrated:**
 - API integration action ID format: `api_integrations.{name}.{operationId}`
-- `${data['action_key.API_Integration.Name.operationId.body']}` to access API response body via CEL expression
+- `${data['action_key.API_Integration.Custom_Name.operationId.body']}` to access API response body via CEL expression
 - `output_fields: []` when no fields need to be surfaced
 
 ## Scheduled Workflow with Pagination Loop
@@ -238,7 +238,7 @@ loops:
 | `${data['array_param.#.field']}` | Field of current loop item |
 | `${data['ActionLabel.OutputField']}` | Output from a prior action |
 | `${data['WorkflowCustomVariable.field']}` | Custom variable value |
-| `${data['action_key.API_Integration.Name.operationId.body']}` | API integration response body |
+| `${data['action_key.API_Integration.Custom_Name.operationId.body']}` | API integration response body |
 | `${Workflow.Execution.ID}` | Current execution ID |
 | `${Workflow.Execution.Time.Date}` | Execution date |
 

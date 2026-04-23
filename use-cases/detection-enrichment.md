@@ -27,7 +27,7 @@ User wants to add contextual data (geolocation, threat intel, reputation scores)
 6. Add query parameters (e.g., `ip_address`).
 7. Test with a temporary configuration and your API key.
 8. **Generate response schema**: Copy test response body > Response > Response body > Generate schema. This step is critical for the Extension Builder to offer field selection.
-9. **Deploy immediately** after adding the API integration.
+9. **Validate** immediately after adding the API integration (`foundry apps validate --no-prompt`).
 
 ### 2. Build the UI Extension with Extension Builder
 
