@@ -2,7 +2,7 @@
 name: schemaless-queries
 description: Disable schema validation on Falcon Fusion SOAR Event Queries to handle dynamic or variable response structures
 source: https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/
-skills: [foundry-workflows-development]
+skills: [workflows-development]
 capabilities: [workflow]
 ---
 

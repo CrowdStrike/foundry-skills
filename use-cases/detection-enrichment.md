@@ -2,7 +2,7 @@
 name: detection-enrichment
 description: Enrich endpoint detection details with third-party API data using Foundry Extension Builder (no-code UI extensions)
 source: https://www.crowdstrike.com/tech-hub/ng-siem/enrich-detections-with-falcon-foundry-extension-builder/
-skills: [foundry-ui-development, foundry-functions-development]
+skills: [ui-development, functions-development]
 capabilities: [ui-extension, function]
 ---
 

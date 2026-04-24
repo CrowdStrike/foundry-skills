@@ -2,7 +2,7 @@
 name: lookup-table-enrichment
 description: Upload third-party data as a lookup table in Falcon Next-Gen SIEM for automated event enrichment and threat hunting
 source: https://www.crowdstrike.com/tech-hub/ng-siem/falcon-next-gen-siem-creating-a-lookup-table-with-3rd-party-data-for-automated-enrichment/
-skills: [foundry-collections-development, foundry-functions-development, foundry-workflows-development]
+skills: [collections-development, functions-development, workflows-development]
 capabilities: [collection, function, workflow]
 ---
 

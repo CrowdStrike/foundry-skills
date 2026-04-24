@@ -154,22 +154,25 @@ main() {
     printf "${YELLOW}⚠${RESET} No [${NEXT_VERSION}] - TBD entry found in CHANGELOG.md (already dated?)\n"
   fi
 
-  printf "\n${BLUE}Step 5: Commit and tag${RESET}\n"
+  printf "\n${BLUE}Step 5: Commit and create PR${RESET}\n"
+  local release_branch="release/v${NEXT_VERSION}"
+  git checkout -b "$release_branch"
   git add "$PLUGIN_JSON" "$MARKETPLACE_JSON" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md "$SCRIPT_DIR/CHANGELOG.md"
   git commit -m "Release v${NEXT_VERSION}"
-  git tag -a "v${NEXT_VERSION}" -m "Release v${NEXT_VERSION}"
-  printf "${GREEN}✓${RESET} Committed and tagged v${NEXT_VERSION}\n"
+  printf "${GREEN}✓${RESET} Committed v${NEXT_VERSION}\n"
 
-  printf "\n${BLUE}Step 6: Push commit and tag to %s${RESET}\n" "$remote"
-  git push "$remote" main
-  git push "$remote" "v${NEXT_VERSION}"
-  printf "${GREEN}✓${RESET} Pushed to %s\n" "$remote"
+  printf "\n${BLUE}Step 6: Push branch and create PR${RESET}\n"
+  git push -u "$remote" "$release_branch"
+  gh pr create --title "Release v${NEXT_VERSION}" --body "Version bump to v${NEXT_VERSION}."
+  printf "${GREEN}✓${RESET} PR created\n"
+  git checkout main
 
-  printf "\n${BLUE}Step 7: Marketplace PR${RESET}\n"
-  printf "\nTo complete the release, create a GitHub release:\n"
-  printf "  https://github.com/CrowdStrike/foundry-skills/releases/new?tag=v${NEXT_VERSION}\n\n"
-  printf "The tag v${NEXT_VERSION} has been pushed. Create a release with release notes.\n\n"
-  printf "After the release is published, users get the update on next 'git pull'.\n\n"
+  printf "\n${BLUE}Step 7: After PR merges${RESET}\n"
+  printf "\nOnce the PR is approved and merged, create a draft GitHub release:\n"
+  printf "  gh release create v${NEXT_VERSION} --target main --title \"v${NEXT_VERSION}\" --generate-notes --draft\n\n"
+  printf "This creates a draft release with auto-generated notes from merged PRs.\n"
+  printf "Review and edit the notes at https://github.com/CrowdStrike/foundry-skills/releases,\n"
+  printf "then click Publish when ready.\n\n"
   printf "${GREEN}Done.${RESET}\n"
 }
 

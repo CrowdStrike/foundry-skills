@@ -2,7 +2,7 @@
 name: api-pagination
 description: Paginate through external API results using functions for small datasets or workflows for large/unknown datasets
 source: https://www.crowdstrike.com/tech-hub/ng-siem/api-pagination-strategies-for-falcon-foundry-functions-and-workflows/
-skills: [foundry-functions-development, foundry-workflows-development]
+skills: [functions-development, workflows-development]
 capabilities: [function, workflow]
 ---
 

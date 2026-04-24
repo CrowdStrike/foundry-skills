@@ -2,7 +2,7 @@
 name: collections
 description: Design collection schemas, perform CRUD operations, search with FQL, and use collections in UI extensions and workflows
 source: https://www.crowdstrike.com/tech-hub/ng-siem/getting-started-with-falcon-foundry-collections-your-guide-to-structured-data-storage-in-foundry-apps/
-skills: [foundry-collections-development]
+skills: [collections-development]
 capabilities: [collection]
 ---
 

@@ -50,4 +50,4 @@ The skills enforce discipline to prevent common failures:
 
 **Skills Documentation**: Each skill includes comprehensive documentation in its `SKILL.md` file with specific patterns, testing approaches, and integration guidance.
 
-**Skills Coordination**: The foundry-development-workflow skill ensures proper coordination between all sub-skills and maintains CLI state consistency throughout development.
+**Skills Coordination**: The development-workflow skill ensures proper coordination between all sub-skills and maintains CLI state consistency throughout development.

@@ -2,7 +2,7 @@
 name: python-functions
 description: Build Python serverless functions with FalconPy SDK, API integrations, and collection access
 source: https://www.crowdstrike.com/tech-hub/ng-siem/dive-into-falcon-foundry-functions-with-python/
-skills: [foundry-functions-development]
+skills: [functions-development]
 capabilities: [function]
 ---
 

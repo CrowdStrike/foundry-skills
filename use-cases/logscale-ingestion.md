@@ -2,7 +2,7 @@
 name: logscale-ingestion
 description: Ingest custom data into Falcon LogScale using a Python function with FalconPy
 source: https://www.crowdstrike.com/tech-hub/ng-siem/ingesting-custom-data-into-falcon-logscale-with-falcon-foundry-functions/
-skills: [foundry-functions-development]
+skills: [functions-development]
 capabilities: [function]
 ---
 

@@ -239,7 +239,7 @@ while IFS= read -r plugin; do
   if [ -n "$plugin" ] && echo "$PLUGIN_LIST" | grep -A3 "$plugin" | grep -q "enabled"; then
     ENABLED_FOUNDRY_PLUGINS+=("$plugin")
   fi
-done < <(echo "$PLUGIN_LIST" | grep -o 'foundry@[^ ]*' || true)
+done < <(echo "$PLUGIN_LIST" | grep -oE '(foundry|falcon-foundry)@[^ ]*' || true)
 
 if [ ${#ENABLED_FOUNDRY_PLUGINS[@]} -gt 0 ]; then
   echo "Disabling installed Foundry plugins (using --plugin-dir instead):"

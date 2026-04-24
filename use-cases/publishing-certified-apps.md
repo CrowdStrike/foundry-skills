@@ -2,7 +2,7 @@
 name: publishing-certified-apps
 description: Publish a Foundry app to the app catalog as a certified app via the GitHub-based review workflow
 source: https://www.crowdstrike.com/tech-hub/ng-siem/publishing-certified-apps-on-falcon-foundry/
-skills: [foundry-development-workflow]
+skills: [development-workflow]
 capabilities: []
 ---
 

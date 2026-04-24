@@ -2,7 +2,7 @@
 name: greynoise-deep-dive
 description: Build a multi-capability Foundry app that imports third-party threat intel into Falcon Next-Gen SIEM as a lookup file
 source: https://www.crowdstrike.com/tech-hub/ng-siem/technical-deep-dive-with-greynoise-building-a-falcon-foundry-app-for-crowdstrike-falcon-next-gen-siem/
-skills: [foundry-api-integrations, foundry-ui-development, foundry-functions-development, foundry-workflows-development]
+skills: [api-integrations, ui-development, functions-development, workflows-development]
 capabilities: [api-integration, ui-page, function, workflow]
 ---
 

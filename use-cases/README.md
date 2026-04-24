@@ -4,7 +4,7 @@ Real-world patterns extracted from [CrowdStrike Tech Hub](https://www.crowdstrik
 
 ## How the Orchestrator Uses These
 
-The `foundry-development-workflow` orchestrator globs `use-cases/*.md` and scans frontmatter `description` fields to match user requests to known patterns. Sub-skills also reference specific use cases for real-world examples.
+The `development-workflow` orchestrator globs `use-cases/*.md` and scans frontmatter `description` fields to match user requests to known patterns. Sub-skills also reference specific use cases for real-world examples.
 
 ## File Format
 
@@ -13,7 +13,7 @@ The `foundry-development-workflow` orchestrator globs `use-cases/*.md` and scans
 name: use-case-name
 description: One-line trigger for orchestrator pattern matching
 source: https://www.crowdstrike.com/tech-hub/ng-siem/...
-skills: [foundry-workflows-development, foundry-functions-development]
+skills: [workflows-development, functions-development]
 capabilities: [api-integration, workflow, function, collection, ui-page, ui-extension]
 ---
 
