@@ -36,7 +36,7 @@ IMPORTANT: Foundry CLI $CLI_VERSION is below the minimum required $MINIMUM_VERSI
   - macOS/Linux: brew upgrade crowdstrike/foundry-cli/foundry
   - Windows: Download https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip
 
-Features unavailable below $MINIMUM_VERSION: foundry apps validate (2.0.0+), automatic headless mode detection (2.0.1+).
+Feature unavailable below $MINIMUM_VERSION: automatic headless mode detection (2.0.1+). foundry apps validate works on 2.0.0+.
 
 Use AskUserQuestion to ask whether to upgrade now. If the user declines, Foundry commands may fail or behave unexpectedly.
 UPGRADE_EOF
@@ -46,8 +46,18 @@ fi
 # --- Env vars for older CLIs ---
 # CLIs below 2.0.1 need FOUNDRY_UI_HEADLESS_MODE=true to suppress the TUI.
 # 2.0.1+ auto-detects headless environments, so this is only needed as a fallback.
-if [ "$NEEDS_UPGRADE" -eq 1 ] && [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-  echo 'export FOUNDRY_UI_HEADLESS_MODE=true' >> "$CLAUDE_ENV_FILE"
+if [ "$NEEDS_UPGRADE" -eq 1 ]; then
+  if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+    echo 'export FOUNDRY_UI_HEADLESS_MODE=true' >> "$CLAUDE_ENV_FILE"
+  else
+    cat >&2 << ENV_EOF
+IMPORTANT: Foundry CLI $CLI_VERSION requires FOUNDRY_UI_HEADLESS_MODE=true to suppress the TUI in non-interactive environments. You MUST run this export before ANY foundry CLI command (deploy, release, validate, etc.), or those commands will fail with "could not open a new TTY":
+
+  export FOUNDRY_UI_HEADLESS_MODE=true
+
+Run this silently at the start of any Bash tool call that uses the foundry CLI. Do not ask the user — just prepend it.
+ENV_EOF
+  fi
 fi
 
 exit 0
