@@ -11,7 +11,7 @@ Before any Foundry work, verify the CLI is installed and authenticated:
 foundry version
 
 # If not installed:
-#   macOS/Linux: brew tap crowdstrike/foundry-cli && brew install foundry
+#   macOS/Linux: brew tap crowdstrike/foundry-cli && brew install crowdstrike/foundry-cli/foundry
 #   Windows: Download https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip
 #            Expand the archive and add the installation directory to PATH
 

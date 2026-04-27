@@ -11,7 +11,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 ### Prerequisites
 
-- **Foundry CLI**: Install with `brew tap crowdstrike/foundry-cli && brew install foundry` (macOS/Linux) or [download for Windows](https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip)
+- **Foundry CLI**: Install with `brew tap crowdstrike/foundry-cli && brew install crowdstrike/foundry-cli/foundry` (macOS/Linux) or [download for Windows](https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip)
 - **CrowdStrike Account**: With Falcon Foundry access
 - **Authentication**: Run `foundry login` to authenticate
 - **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Gemini CLI, or any tool that supports loading reference documentation
