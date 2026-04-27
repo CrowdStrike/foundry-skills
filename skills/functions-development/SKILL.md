@@ -56,7 +56,7 @@ This skill is split across multiple files. Consult these for full examples:
 
 ## Runtime Environment
 
-**Python runtime version: 3.13** (manylinux_2_39, glibc 2.39). When choosing package versions for `requirements.txt`, ensure they have wheels compatible with this environment. Packages requiring `manylinux_2_17` (glibc 2.17) or older are compatible; those requiring newer glibc versions may fail at import time. For example, numpy ≤ 2.2.x works, but numpy 2.4.x requires `manylinux_2_39` wheels.
+**Python runtime version: 3.13** (manylinux_2_28, glibc 2.28). When choosing package versions for `requirements.txt`, ensure they have wheels compatible with this environment. Packages requiring `manylinux_2_17` (glibc 2.17) or `manylinux_2_28` (glibc 2.28) are compatible; those requiring newer glibc versions (e.g., `manylinux_2_39`) may fail at import time.
 
 When linting Python functions with pylint, use `--py-version=3.13` or set `py-version=3.13` in `.pylintrc` to match the runtime.
 
