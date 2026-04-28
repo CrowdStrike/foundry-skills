@@ -833,7 +833,7 @@ printf "\n${BOLD}Section 4: PreToolUse — Marker File Advisory${RESET}\n\n"
 # 4.1 — Marker exists, tool is Skill → no output, marker deleted
 cleanup
 echo "$$" > "$MARKER"
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "falcon-foundry:development-workflow"}}')
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "crowdstrike-falcon-foundry:development-workflow"}}')
 OUTPUT=$(run_hook "$HOOK" "$JSON")
 assert_empty "$OUTPUT" "4.1  Skill tool → no output"
 assert_marker_not_exists "4.1  Skill tool → marker deleted"
@@ -892,9 +892,9 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {s
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
 assert_empty "$OUTPUT" "5.5  test-driven-development → no output"
 
-# 5.6 — falcon-foundry:development-workflow → no output
+# 5.6 — crowdstrike-falcon-foundry:development-workflow → no output
 cleanup
-JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "falcon-foundry:development-workflow"}}')
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "crowdstrike-falcon-foundry:development-workflow"}}')
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
 assert_empty "$OUTPUT" "5.6  foundry skill → no output"
 

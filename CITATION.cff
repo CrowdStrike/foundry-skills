@@ -17,6 +17,7 @@ abstract: >-
 keywords:
   - crowdstrike
   - crowdstrike-foundry
+  - crowdstrike-falcon-foundry
   - falcon-foundry
   - ai-skills
   - claude-code
