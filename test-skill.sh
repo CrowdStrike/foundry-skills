@@ -96,7 +96,7 @@ if [ "$SKIP_PLUGIN_MANAGE" != "1" ] && [ "$NO_PLUGIN" != "1" ] && [ -n "$PLUGIN_
     if [ -n "$plugin" ] && echo "$PLUGIN_LIST" | grep -A3 "$plugin" | grep -q "enabled"; then
       ENABLED_FOUNDRY_PLUGINS+=("$plugin")
     fi
-  done < <(echo "$PLUGIN_LIST" | grep -oE '(foundry|falcon-foundry)@[^ ]*' || true)
+  done < <(echo "$PLUGIN_LIST" | grep -oE '(foundry|falcon-foundry|crowdstrike-falcon-foundry)@[^ ]*' || true)
 
   if [ ${#ENABLED_FOUNDRY_PLUGINS[@]} -gt 0 ]; then
     echo "Disabling installed Foundry plugins (using --plugin-dir instead):"
@@ -452,7 +452,7 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
   # Check orchestrator skill usage
   if [ -s "$SKILLS_FILE" ] && grep -qi "development-workflow" "$SKILLS_FILE" 2>/dev/null; then
     echo "  ✅ Used Foundry orchestrator skill"
-  elif grep -qi "falcon-foundry:development-workflow\|development-workflow" "$TEXT_FILE" 2>/dev/null; then
+  elif grep -qi "crowdstrike-falcon-foundry:development-workflow\|development-workflow" "$TEXT_FILE" 2>/dev/null; then
     echo "  ✅ Used Foundry orchestrator skill"
   else
     echo "  ⚠️  May not have used Foundry orchestrator skill"

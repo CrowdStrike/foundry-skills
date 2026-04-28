@@ -24,7 +24,7 @@ case "$SKILL_NAME" in
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "STOP. Do NOT proceed with brainstorming. The Foundry plugin is installed and falcon-foundry:development-workflow MUST be used instead. It handles requirements gathering, CLI scaffolding, and manifest coordination for Foundry apps. Cancel this brainstorming skill invocation and invoke falcon-foundry:development-workflow immediately."
+        additionalContext: "STOP. Do NOT proceed with brainstorming. The Foundry plugin is installed and crowdstrike-falcon-foundry:development-workflow MUST be used instead. It handles requirements gathering, CLI scaffolding, and manifest coordination for Foundry apps. Cancel this brainstorming skill invocation and invoke crowdstrike-falcon-foundry:development-workflow immediately."
       }
     }'
     exit 0
@@ -37,7 +37,7 @@ case "$SKILL_NAME" in
   superpowers:executing-plans|executing-plans|\
   superpowers:subagent-driven-development|subagent-driven-development)
     CONTEXT=$(cat <<'FOUNDRY_CONTEXT'
-FOUNDRY PLUGIN INSTALLED: If this task involves Falcon Foundry, invoke falcon-foundry:development-workflow BEFORE this skill. That skill owns Foundry app creation — it uses CLI commands (foundry apps create, foundry api-integrations create, etc.) that generate manifest.yml and wire up capability IDs correctly. Hand-writing manifest.yml or workflow YAML without the CLI causes deploy failures.
+FOUNDRY PLUGIN INSTALLED: If this task involves Falcon Foundry, invoke crowdstrike-falcon-foundry:development-workflow BEFORE this skill. That skill owns Foundry app creation — it uses CLI commands (foundry apps create, foundry api-integrations create, etc.) that generate manifest.yml and wire up capability IDs correctly. Hand-writing manifest.yml or workflow YAML without the CLI causes deploy failures.
 FOUNDRY_CONTEXT
     )
     jq -n \

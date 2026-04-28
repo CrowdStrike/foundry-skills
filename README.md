@@ -28,7 +28,7 @@ Or register this repo as a plugin marketplace, then install:
 
 ```
 /plugin marketplace add CrowdStrike/foundry-skills
-/plugin install falcon-foundry@foundry-skills
+/plugin install crowdstrike-falcon-foundry@foundry-skills
 ```
 
 Or install from a local clone for development:
