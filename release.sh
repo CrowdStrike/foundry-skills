@@ -76,7 +76,7 @@ main() {
   while IFS= read -r line; do
     name=$(echo "$line" | awk '{print $1}')
     url=$(echo "$line" | awk '{print $2}')
-    if [[ "$url" == *"/CrowdStrike/foundry-skills"* ]]; then
+    if [[ "$url" == *"CrowdStrike/foundry-skills"* ]]; then
       remote="$name"
       break
     fi
