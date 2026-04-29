@@ -24,6 +24,13 @@ Install from the [Anthropic Plugin Marketplace](https://github.com/anthropics/cl
 /plugin install crowdstrike-falcon-foundry
 ```
 
+Or install directly from this repo:
+
+```
+/plugin marketplace add CrowdStrike/foundry-skills
+/plugin install crowdstrike-falcon-foundry@foundry-marketplace
+```
+
 Or install from a local clone for development:
 
 ```bash
