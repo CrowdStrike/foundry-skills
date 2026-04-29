@@ -2,7 +2,11 @@
 #
 # release.sh — Automate plugin release workflow
 #
-# 1. Prompt for semantic version bump (major/minor/patch)
+# Usage:
+#   ./release.sh              # interactive bump (major/minor/patch)
+#   ./release.sh --version X  # release exact version (e.g., first release)
+#
+# 1. Prompt for semantic version bump (or use --version)
 # 2. Update version in .claude-plugin/plugin.json
 # 3. Update README version badge
 # 4. Update SKILL.md version and updated date
@@ -21,6 +25,21 @@ RESET='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PLUGIN_JSON="$SCRIPT_DIR/.claude-plugin/plugin.json"
 MARKETPLACE_URL="https://github.com/CrowdStrike/foundry-skills.git"
+EXPLICIT_VERSION=""
+
+# Argument parsing
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version)
+      EXPLICIT_VERSION="$2"
+      shift 2
+      ;;
+    *)
+      printf "${RED}Usage: $0 [--version X.Y.Z]${RESET}\n" >&2
+      exit 1
+      ;;
+  esac
+done
 
 # Read current version from plugin.json
 get_current_version() {
@@ -85,27 +104,36 @@ main() {
   CURRENT_VERSION=$(get_current_version)
   printf "Current version: ${GREEN}${CURRENT_VERSION}${RESET}\n\n"
 
-  # Prompt for bump type
-  printf "Release type:\n"
-  printf "  1) Major (breaking changes)\n"
-  printf "  2) Minor (new features, backwards compatible)\n"
-  printf "  3) Patch (bugfixes)\n\n"
-  read -rp "Select [1-3]: " bump_choice
-
-  case "$bump_choice" in
-    1) BUMP_TYPE="major" ;;
-    2) BUMP_TYPE="minor" ;;
-    3) BUMP_TYPE="patch" ;;
-    *)
-      printf "${RED}Invalid choice${RESET}\n" >&2
+  if [ -n "$EXPLICIT_VERSION" ]; then
+    # Validate the explicit version format
+    if ! [[ "$EXPLICIT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      printf "${RED}ERROR: Invalid version format: %s (expected X.Y.Z)${RESET}\n" "$EXPLICIT_VERSION" >&2
       exit 1
-      ;;
-  esac
+    fi
+    NEXT_VERSION="$EXPLICIT_VERSION"
+    printf "Explicit version: ${YELLOW}${NEXT_VERSION}${RESET}\n"
+  else
+    # Prompt for bump type
+    printf "Release type:\n"
+    printf "  1) Major (breaking changes)\n"
+    printf "  2) Minor (new features, backwards compatible)\n"
+    printf "  3) Patch (bugfixes)\n\n"
+    read -rp "Select [1-3]: " bump_choice
 
-  read -r major minor patch <<< "$(parse_version "$CURRENT_VERSION")"
-  NEXT_VERSION=$(calculate_next_version "$major" "$minor" "$patch" "$BUMP_TYPE")
+    case "$bump_choice" in
+      1) BUMP_TYPE="major" ;;
+      2) BUMP_TYPE="minor" ;;
+      3) BUMP_TYPE="patch" ;;
+      *)
+        printf "${RED}Invalid choice${RESET}\n" >&2
+        exit 1
+        ;;
+    esac
 
-  printf "\nVersion: ${CURRENT_VERSION} → ${YELLOW}${NEXT_VERSION}${RESET}\n"
+    read -r major minor patch <<< "$(parse_version "$CURRENT_VERSION")"
+    NEXT_VERSION=$(calculate_next_version "$major" "$minor" "$patch" "$BUMP_TYPE")
+    printf "\nVersion: ${CURRENT_VERSION} → ${YELLOW}${NEXT_VERSION}${RESET}\n"
+  fi
 
   # Check tag doesn't already exist
   if git rev-parse "v${NEXT_VERSION}" >/dev/null 2>&1; then
