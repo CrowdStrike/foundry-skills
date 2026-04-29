@@ -18,17 +18,10 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 ### Claude Code (Tested)
 
-Install as a plugin from the [Anthropic Plugin Marketplace](https://github.com/anthropics/claude-plugins-official):
+Install from the [Anthropic Plugin Marketplace](https://github.com/anthropics/claude-plugins-official):
 
 ```
-/plugin install CrowdStrike/foundry-skills
-```
-
-Or register this repo as a plugin marketplace, then install:
-
-```
-/plugin marketplace add CrowdStrike/foundry-skills
-/plugin install crowdstrike-falcon-foundry@foundry-skills
+/plugin install crowdstrike-falcon-foundry
 ```
 
 Or install from a local clone for development:
