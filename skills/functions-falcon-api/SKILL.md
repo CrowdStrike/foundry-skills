@@ -1,25 +1,17 @@
 ---
 name: functions-falcon-api
-description: Call CrowdStrike Falcon platform APIs (detections, alerts, hosts, RTR) from within Foundry function handlers. TRIGGER when user asks to "call Falcon APIs from a function", "use FalconPy in a function", "use gofalcon in a function", or needs to integrate Falcon platform APIs within serverless function code. DO NOT TRIGGER when user wants to expose external third-party APIs to Foundry — use api-integrations instead.
-version: 1.0.0
-updated: 2026-04-29
+description: "Use when querying detections, fetching alerts, looking up hosts, or calling other CrowdStrike Falcon platform APIs from within Foundry function handlers using FalconPy or gofalcon SDKs with zero-arg authentication. TRIGGER when user asks to call Falcon APIs from a function, use FalconPy in a function, use gofalcon in a function, or needs to integrate Falcon platform APIs within serverless function code. DO NOT TRIGGER when user wants to expose external third-party APIs to Foundry — use api-integrations instead."
 metadata:
   author: CrowdStrike
   category: backend
-  tags: [foundry, functions, falcon-api, falconpy, gofalcon]
+  tags: "foundry, functions, falcon-api, falconpy, gofalcon"
+  version: "1.0.0"
+  updated: "2026-04-29"
 ---
 
 # Falcon API Integration in Functions
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Falcon API integration specialist for Foundry functions**.
->
-> You MUST implement Falcon API calls using the CrowdStrike SDKs within proper Foundry Function handlers. Authentication is automatic when using the FDK handler pattern.
-
-This skill covers calling CrowdStrike Falcon APIs from within Foundry functions (serverless Go or Python code). Authentication is completely automatic when code runs inside Foundry function handlers — the platform handles all OAuth flows, token management, and credential injection.
-
-For exposing external APIs to Foundry via OpenAPI specs, see **api-integrations** instead.
+Calling CrowdStrike Falcon APIs from within Foundry functions (serverless Go or Python). Authentication is automatic inside Foundry function handlers — the platform handles OAuth flows, token management, and credential injection. For exposing external APIs via OpenAPI specs, see **api-integrations** instead.
 
 ## Reference Files
 
@@ -41,7 +33,7 @@ func = Function.instance()
 
 @func.handler(method='GET', path='/api/alerts')
 def get_alerts(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
-    falcon = Alerts()  # Zero-arg constructor — auth is automatic
+    falcon = Alerts()
 
     limit = min(int(request.params.get("limit", 50)), 100)
     response = falcon.query_alerts_v2(limit=limit)
@@ -65,11 +57,7 @@ if __name__ == '__main__':
     func.run()
 ```
 
-**How it works:**
-- **In Foundry cloud**: Uses context-based authentication injected by the platform
-- **Locally**: Reads `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET` from environment variables
-
-FalconPy already reads env vars internally, so writing a `get_falcon_client()` wrapper adds no value and breaks context auth in the cloud.
+In Foundry cloud, authentication is injected by the platform. Locally, FalconPy reads `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET` from environment variables automatically -- do not write a `get_falcon_client()` wrapper, which breaks context auth in the cloud.
 
 ## Go: FDK Helper Authentication
 
@@ -122,7 +110,7 @@ func main() {
 ```python
 @func.handler(method='GET', path='/api/detections')
 def get_detections(request: Request, config, logger) -> Response:
-    falcon = Detects()  # Zero-arg — auth is automatic
+    falcon = Detects()
 
     severity_min = int(request.params.get("severity_min", 3))
     limit = min(int(request.params.get("limit", 50)), 100)
@@ -172,30 +160,23 @@ def get_host_details(request: Request, config, logger) -> Response:
 
 ### Multi-API Enrichment
 
+Instantiate multiple Service Classes in one handler to correlate data across APIs. Each uses zero-arg auth:
+
 ```python
 @func.handler(method='POST', path='/api/enrich')
 def enrich_host_context(request: Request, config, logger) -> Response:
-    hosts_api = Hosts()
-    detects_api = Detects()
-    alerts_api = Alerts()
-
+    hosts_api, detects_api, alerts_api = Hosts(), Detects(), Alerts()
     hostname = request.body.get("hostname")
     if not hostname:
         return Response(body={"error": "Hostname required"}, code=400)
 
-    # Get host
-    host_query = hosts_api.query_devices_by_filter(filter=f"hostname:'{hostname}'")
-    host_ids = host_query.get("body", {}).get("resources", [])
+    host_ids = hosts_api.query_devices_by_filter(filter=f"hostname:'{hostname}'").get("body", {}).get("resources", [])
     if not host_ids:
         return Response(body={"error": "Host not found"}, code=404)
 
     host = hosts_api.get_device_details(ids=host_ids).get("body", {}).get("resources", [{}])[0]
-
-    # Get detections
     detect_ids = detects_api.query_detects(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
     detections = detects_api.get_detect_summaries(ids=detect_ids).get("body", {}).get("resources", []) if detect_ids else []
-
-    # Get alerts
     alert_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
     alerts = alerts_api.get_alerts_v2(ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
 
@@ -219,13 +200,6 @@ if response["status_code"] == 207:
 ## Multi-Region Support
 
 The SDKs handle region discovery automatically when called from within Foundry Function handlers. No configuration needed.
-
-| Region | Base URL |
-|--------|----------|
-| US-1 | api.crowdstrike.com |
-| US-2 | api.us-2.crowdstrike.com |
-| EU-1 | api.eu-1.crowdstrike.com |
-| US-GOV-1 | api.laggar.gcw.crowdstrike.com |
 
 ## Testing
 
@@ -261,7 +235,14 @@ cd functions/my-function && python3 main.py
 curl -X GET http://localhost:8081/api/alerts?limit=10
 ```
 
-The zero-arg pattern works seamlessly in both local and cloud environments.
+## Development Workflow
+
+1. **Scaffold** -- `foundry functions create --language python --no-prompt`
+2. **Implement** -- import Service Class, call with zero-arg constructor
+3. **Write tests** -- mock Service Classes (see Testing section), run `pytest`
+4. **Test locally** -- set `FALCON_CLIENT_ID`/`FALCON_CLIENT_SECRET`, run `python3 main.py`, verify 200 responses with `curl`. If errors occur, fix before proceeding.
+5. **Deploy** -- `foundry apps deploy --no-prompt`
+6. **Verify in cloud** -- trigger from workflow or UI, check response and 207 multi-status handling
 
 ## Common Pitfalls
 

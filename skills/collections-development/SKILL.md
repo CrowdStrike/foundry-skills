@@ -1,23 +1,17 @@
 ---
 name: collections-development
-description: Design JSON Schema collections and CRUD patterns for Falcon Foundry apps. TRIGGER when user asks to "create a collection", "define a JSON schema", "store data in Foundry", runs `foundry collections create`, or needs help with indexable fields, FQL queries, or collection access patterns. DO NOT TRIGGER for workflow YAML, function handlers, or UI components — use the appropriate sub-skill.
-version: 1.0.0
-updated: 2026-04-29
+description: "Use when designing JSON Schema collections and CRUD patterns for Falcon Foundry apps. TRIGGER when user asks to create a collection, define a JSON schema, store data in Foundry, runs foundry collections create, or needs help with indexable fields, FQL queries, or collection access patterns. DO NOT TRIGGER for workflow YAML, function handlers, or UI components — use the appropriate sub-skill."
 metadata:
   author: CrowdStrike
   category: data
-  tags: [foundry, collections, json-schema, nosql]
+  tags: "foundry, collections, json-schema, nosql"
+  version: "1.0.0"
+  updated: "2026-04-29"
 ---
 
 # Foundry Collections Development
 
-> **SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry data modeling specialist**.
->
-> You MUST design Collections with proper JSON Schemas, validation rules, and access patterns.
-
-Falcon Foundry Collections are NoSQL document stores with JSON Schema validation. They provide persistent storage for app data with CRUD operations, FQL queries, and schema enforcement.
+Falcon Foundry Collections provide persistent storage for app data with JSON Schema validation, CRUD operations, FQL queries, and schema enforcement.
 
 ## Collection Naming Constraints
 
@@ -49,6 +43,8 @@ foundry collections create \
 ```
 
 This creates the collection directory, copies the schema, and updates `manifest.yml`. Edit the project copy at `collections/my_collection.json` afterward to refine.
+
+**Validation checkpoint:** After creating a collection, run `foundry apps validate --no-prompt` to verify the schema is draft-07 compliant and has at most 10 indexable fields. Fix any schema errors before proceeding to CRUD implementation.
 
 ## Collection API Access
 
@@ -158,61 +154,24 @@ Indexing is controlled entirely by `x-cs-indexable-fields` or `x-cs-indexable: t
 ```typescript
 import { Collection } from '@crowdstrike/foundry-js';
 
-export class IncidentCollection {
-  private collection: Collection<Incident>;
+const collection = new Collection<Incident>('incidents');
 
-  constructor() {
-    this.collection = new Collection<Incident>('incidents');
-  }
+// Create
+const incident = { id: crypto.randomUUID(), title: 'Alert', severity: 7, created_at: new Date().toISOString() };
+await collection.create(incident.id, incident);
 
-  async create(data: Omit<Incident, 'id' | 'created_at' | 'updated_at'>): Promise<Incident> {
-    const incident: Incident = {
-      ...data,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    await this.collection.create(incident.id, incident);
-    return incident;
-  }
+// Read (handle NOT_FOUND)
+try { const item = await collection.get(id); } catch (e) { if (e.code === 'NOT_FOUND') return null; throw e; }
 
-  async get(id: string): Promise<Incident | null> {
-    try {
-      return await this.collection.get(id);
-    } catch (error) {
-      if (error.code === 'NOT_FOUND') return null;
-      throw error;
-    }
-  }
+// Update
+const updated = { ...existing, ...updates, updated_at: new Date().toISOString() };
+await collection.update(id, updated);
 
-  async update(id: string, updates: Partial<Incident>): Promise<Incident> {
-    const existing = await this.get(id);
-    if (!existing) throw new Error(`Incident ${id} not found`);
-    const updated: Incident = {
-      ...existing,
-      ...updates,
-      id: existing.id,
-      created_at: existing.created_at,
-      updated_at: new Date().toISOString(),
-    };
-    await this.collection.update(id, updated);
-    return updated;
-  }
+// Delete
+await collection.delete(id);
 
-  async delete(id: string): Promise<void> {
-    await this.collection.delete(id);
-  }
-
-  async list(options?: { status?: string; limit?: number; offset?: number }) {
-    const filters: Record<string, any> = {};
-    if (options?.status) filters.status = options.status;
-    return this.collection.query(filters, {
-      limit: options?.limit ?? 50,
-      offset: options?.offset ?? 0,
-      sort: [{ field: 'created_at', order: 'desc' }],
-    });
-  }
-}
+// Query with FQL filter and sort
+const results = await collection.query({ status: 'open' }, { limit: 50, offset: 0, sort: [{ field: 'created_at', order: 'desc' }] });
 ```
 
 ## CRUD Operations (Python — from Functions)
@@ -253,12 +212,7 @@ for item in response.get("body", {}).get("resources", []):
     data = json.loads(obj.decode("utf-8"))
 ```
 
-Key points:
-- `CustomStorage(ext_headers=_app_headers())` applies `X-CS-APP-ID` to all requests (needed for local dev; Foundry sets it automatically in production)
-- `PutObject` acts as upsert (creates or overwrites by key). Pass body as a dict.
-- `GetObject` returns bytes directly — decode with `json.loads(response.decode("utf-8"))`
-- `SearchObjects` returns metadata only, not full objects
-- FQL filters only work on fields marked `x-cs-indexable: true` in the collection schema
+`CustomStorage(ext_headers=_app_headers())` applies `X-CS-APP-ID` for local dev (Foundry sets it automatically in production). `PutObject` is upsert. `GetObject` returns bytes -- decode with `json.loads(response.decode("utf-8"))`. `SearchObjects` returns metadata only, not full objects. FQL filters only work on `x-cs-indexable: true` fields.
 
 ## FQL Search Syntax
 
@@ -301,11 +255,7 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 
 ## Common Pitfalls
 
-- **Using `APIHarnessV2` (Uber class) for collection operations.** Use `CustomStorage` service class instead — the Foundry functions editor auto-detects OAuth scopes from service class imports but cannot parse Uber class `.command()` calls.
-- **Using JSON Schema newer than draft 7.** Foundry only supports draft 7.
-- **Missing indexes.** Fields used in queries must be marked with `x-cs-indexable: true` or listed in `x-cs-indexable-fields`. Max 10 per collection.
-- **Invalid collection names.** Names must be 5-200 chars, start/end with letter or number, and contain only letters, numbers, and underscores.
-- **Not configuring workflow share settings.** Set `workflow_integration.system_action: true` for app-only workflow access, or `false` to also expose collections as Falcon Fusion SOAR actions.
+- **Using `APIHarnessV2` (Uber class) for collection operations.** Use `CustomStorage` service class instead -- the Foundry functions editor auto-detects OAuth scopes from service class imports.
 - **Trying to delete collections via CLI.** Collections can only be deleted from the Falcon Foundry UI.
 - **Trying to manage objects via CLI.** Collection CRUD requires the CrowdStrike API or `foundry-js` SDK.
 

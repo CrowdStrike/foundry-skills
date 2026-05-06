@@ -1,29 +1,17 @@
 ---
 name: ui-development
-description: Build UI pages and extensions for Falcon Foundry apps using React or Vue with the Shoelace design system and Foundry-JS SDK. TRIGGER when user asks to "create a UI page", "build a UI extension", "add a Shoelace component", "call an API from the UI", runs `foundry ui pages create` or `foundry ui run`, or needs help with Vite config, FalconJS SDK, or Falcon console theming. DO NOT TRIGGER for backend functions, workflow YAML, or collection schemas.
-version: 1.0.0
-updated: 2026-04-29
+description: "Use when building UI pages and extensions for Falcon Foundry apps using React or Vue with the Shoelace design system and Foundry-JS SDK. TRIGGER when user asks to create a UI page, build a UI extension, add a Shoelace component, call an API from the UI, runs foundry ui pages create or foundry ui run, or needs help with Vite config, FalconJS SDK, or Falcon console theming. DO NOT TRIGGER for backend functions, workflow YAML, or collection schemas."
 metadata:
   author: CrowdStrike
   category: frontend
-  tags: [foundry, ui, react, vue, shoelace]
+  tags: "foundry, ui, react, vue, shoelace"
+  version: "1.0.0"
+  updated: "2026-04-29"
 ---
 
 # Foundry UI Development
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry UI specialist**.
->
-> You MUST implement UI components following Falcon design system patterns using Shoelace components and the Foundry-JS SDK.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. Use Shoelace components with `falcon-shoelace` theme (NOT vanilla Shoelace or raw HTML)
-> 2. Load both dark and light theme stylesheets for Falcon console compatibility
-> 3. Coordinate with `foundry ui run` for live development
-> 4. Apply iframe security patterns for all extensions
-
-Falcon Foundry UI pages and extensions use React or Vue with the Shoelace design system (Falcon-themed) and the Foundry-JS SDK for platform integration.
+Falcon Foundry UI pages and extensions use React or Vue with the Falcon-themed Shoelace design system and the Foundry-JS SDK for platform integration.
 
 ## Pages vs Extensions
 
@@ -293,16 +281,14 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 
 ## Common Pitfalls
 
-- **NEVER edit manifest.yml `path` or `entrypoint` values.** The CLI sets these correctly. The format `ui/extensions/my-ext/src/dist/index.html` is NOT a doubled path — it is correct. If you see a deploy path error, you likely changed `vite.config.js` — revert your changes.
-- **NEVER modify `vite.config.js`.** The blueprint is turnkey. Do not change `base: './'` to `''` or anything else. Do not change `root: 'src'`. Do not remove `noAttr()`. Just edit your React/JS code and deploy.
-- **Omitting `--sockets` on extension create.** This launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"` on the command line. Run `foundry ui extensions list-sockets` to see available sockets — do not guess or fabricate socket names.
+- **Omitting `--sockets` on extension create.** Launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"`.
 - **Importing vanilla Shoelace themes.** Use `@crowdstrike/falcon-shoelace` for Falcon console styling.
-- **Loading only light theme.** The Falcon console supports dark mode — users see broken styling without both themes.
+- **Loading only light theme.** The Falcon console supports dark mode -- both themes are required.
 - **Hardcoding colors.** Use `var(--sl-*)` design tokens so the UI adapts to theme changes.
-- **Expecting backend to work with `foundry ui run`.** The dev server only serves UI — deploy backend capabilities first.
+- **Expecting backend to work with `foundry ui run`.** The dev server only serves UI -- deploy backend capabilities first.
 - **Shoelace dialogs/drawers white in dark mode.** Override `--sl-panel-background-color` and `--sl-color-neutral-0` with `var(--ground-floor)`. See [references/shoelace-reference.md](references/shoelace-reference.md).
-- **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
-- **Missing CSP for Shoelace icons.** When using `setBasePath()` with the CDN, add `cdn.jsdelivr.net` to both `connect-src` and `img-src` in the manifest's `content_security_policy`.
+- **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead.
+- **Missing CSP for Shoelace icons.** Add `cdn.jsdelivr.net` to both `connect-src` and `img-src` in the manifest's `content_security_policy`.
 
 ## Reading Guide
 

@@ -1,37 +1,17 @@
 ---
 name: functions-development
-description: Build serverless Go or Python functions for Falcon Foundry apps. TRIGGER when user asks to "create a function", "write a serverless function", "build backend logic", runs `foundry functions create`, or needs help with FDK handler patterns, function testing, or collection integration from functions. DO NOT TRIGGER for calling Falcon platform APIs from functions — use functions-falcon-api instead. DO NOT TRIGGER for workflow YAML or UI components.
-version: 1.0.0
-updated: 2026-04-29
+description: "Use when building serverless Go or Python functions for Falcon Foundry apps. TRIGGER when user asks to create a function, write a serverless function, build backend logic, runs foundry functions create, or needs help with FDK handler patterns, function testing, or collection integration from functions. DO NOT TRIGGER for calling Falcon platform APIs from functions — use functions-falcon-api instead. DO NOT TRIGGER for workflow YAML or UI components."
 metadata:
   author: CrowdStrike
   category: backend
-  tags: [foundry, functions, serverless, python, go]
+  tags: "foundry, functions, serverless, python, go"
+  version: "1.0.0"
+  updated: "2026-04-29"
 ---
 
 # Foundry Functions Development
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry serverless functions specialist**.
->
-> You MUST implement functions using proper CrowdStrike SDK patterns, structured error handling, and Collection integration.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. Use CrowdStrike SDKs (gofalcon/falconpy) for ALL API interactions
-> 2. Implement structured JSON responses with proper status codes
-> 3. Apply input validation before processing any request
-
-Falcon Foundry Functions are serverless handlers in Go or Python, executed inside the Foundry FaaS runtime. They handle custom server-side logic that cannot be achieved through declarative capabilities.
-
-## Functions as a Last Resort
-
-Before writing a function, exhaust alternatives — each one avoids deployment complexity, cold start latency, and maintenance overhead:
-
-- **Collections** for data storage and retrieval (CRUD without custom logic)
-- **Workflows** for orchestrating multi-step operations
-- **API Integrations** (HTTP Actions) for calling external APIs directly from workflows
-- **UI Extensions** with `foundry-js` for client-side data fetching
+Falcon Foundry Functions are serverless handlers in Go or Python, executed inside the Foundry FaaS runtime. Before writing a function, consider alternatives that avoid deployment complexity and cold starts: Collections for CRUD, Workflows for orchestration, API Integrations for external APIs from workflows, or UI Extensions with `foundry-js` for client-side fetching.
 
 ## Reference Files
 
@@ -59,6 +39,15 @@ This skill is split across multiple files. Consult these for full examples:
 **Python runtime version: 3.13** (manylinux_2_28, glibc 2.28). When choosing package versions for `requirements.txt`, ensure they have wheels compatible with this environment. Packages requiring `manylinux_2_17` (glibc 2.17) or `manylinux_2_28` (glibc 2.28) are compatible; those requiring newer glibc versions (e.g., `manylinux_2_39`) may fail at import time.
 
 When linting Python functions with pylint, use `--py-version=3.13` or set `py-version=3.13` in `.pylintrc` to match the runtime.
+
+## Development Workflow
+
+1. **Scaffold** -- `foundry functions create --language python --no-prompt`
+2. **Implement handler** -- write FDK handler with typed request/response
+3. **Write tests** -- mock external dependencies, test locally
+4. **Run locally** -- `cd functions/my-fn && python3 main.py`, verify with `curl`
+5. **Validate** -- `foundry apps validate --no-prompt`
+6. **Deploy** -- `foundry apps deploy --no-prompt`
 
 ## CLI Scaffolding
 

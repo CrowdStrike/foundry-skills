@@ -1,38 +1,17 @@
 ---
 name: development-workflow
-description: Orchestrates the complete Falcon Foundry app lifecycle from requirements through deployment. TRIGGER when user asks to "create a Foundry app", "build a Foundry app", "plan a Foundry app", runs any `foundry apps` CLI command, or discusses Foundry app architecture. DO NOT TRIGGER when user is working on a specific capability (UI, function, workflow, collection) within an existing app — use the appropriate sub-skill instead. This skill OWNS the entire Foundry development flow. Do not delegate Foundry app creation to superpowers:brainstorming or superpowers:writing-plans — those skills do not know about the Foundry CLI.
-version: 1.0.0
-updated: 2026-04-29
+description: "Use when orchestrating the complete Falcon Foundry app lifecycle from requirements through deployment. TRIGGER when user asks to create a Foundry app, build a Foundry app, plan a Foundry app, runs any foundry apps CLI command, or discusses Foundry app architecture. DO NOT TRIGGER when user is working on a specific capability (UI, function, workflow, collection) within an existing app — use the appropriate sub-skill instead. This skill owns the entire Foundry development flow and must not delegate to superpowers:brainstorming or superpowers:writing-plans."
 metadata:
   author: CrowdStrike
   category: orchestration
-  tags: [foundry, lifecycle, cli, deployment]
+  tags: "foundry, lifecycle, cli, deployment"
+  version: "1.0.0"
+  updated: "2026-04-29"
 ---
 
 # Foundry Development Workflow
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry app lifecycle orchestrator**.
->
-> **THIS SKILL OWNS THE FOUNDRY DEVELOPMENT FLOW.**
->
-> **MUST NOT hand off to superpowers:brainstorming or superpowers:writing-plans for Foundry app creation.**
-> Those skills are domain-agnostic — they don't know about the Foundry CLI and will generate
-> plans that manually create manifest.yml and boilerplate files. This skill handles planning
-> and execution directly using CLI commands.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. Follow the **App Creation Flow** below to go from user prompt → running app
-> 2. Use `foundry apps create` and related CLI commands for ALL scaffolding
-> 3. Delegate capability-specific content to Foundry sub-skills
-> 4. Hand-write ONLY what the CLI cannot generate (OpenAPI content, workflow logic, UI code)
->
-> **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`, but may still prompt interactively in some CLI versions — delete via Falcon App Manager UI if it hangs), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
->
-> **Superpowers skills MAY supplement** (TDD discipline, code review) but MUST NOT replace this workflow.
-
-This skill coordinates the full Falcon Foundry app lifecycle — from parsing requirements through scaffolding, implementation, and deployment. It delegates capability-specific work to sub-skills that know the platform details.
+This skill coordinates the full Falcon Foundry app lifecycle from requirements through scaffolding, implementation, and deployment. It delegates capability-specific work to sub-skills. Always add `--no-prompt` to CLI commands to prevent interactive prompts that cause `Error: EOF`. If a CLI command fails, fix the command and retry -- never fall back to `mkdir`.
 
 ## Decision Tree
 
@@ -104,7 +83,7 @@ foundry apps create --name "app-name" --description "description" --no-prompt --
 cd app-name
 ```
 
-`--no-prompt` prevents interactive prompts that fail in non-interactive environments with `Error: EOF`. `--no-git` skips git initialization. The command is `foundry apps create` (there is no `init` command). If it fails, fix the command and retry — MUST NOT fall back to `mkdir`, which produces invalid manifest structure.
+`--no-git` skips git initialization. The command is `foundry apps create` (there is no `init` command).
 
 ### Step 5: Add Capabilities (CLI Commands)
 
