@@ -139,21 +139,17 @@ def create_incident(client: CustomStorage, data: Dict[str, Any]) -> Dict[str, An
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    response = client.PutObject(
-        collection_name=COLLECTION_NAME,
-        object_key=incident_id,
-        body=incident,
-    )
+    response = client.PutObject(collection_name=COLLECTION_NAME,
+                                object_key=incident_id,
+                                body=incident)
     if response["status_code"] != 200:
         raise Exception(f"Failed to create incident: {response.get('errors', [])}")
     return incident
 
 def get_incident(client: CustomStorage, incident_id: str) -> Optional[Dict[str, Any]]:
     """Retrieve an incident by key. GetObject returns bytes — decode to dict."""
-    response = client.GetObject(
-        collection_name=COLLECTION_NAME,
-        object_key=incident_id,
-    )
+    response = client.GetObject(collection_name=COLLECTION_NAME,
+                                object_key=incident_id)
     if isinstance(response, dict) and response.get("status_code") == 404:
         return None
     if isinstance(response, dict) and response.get("status_code", 200) != 200:
@@ -162,19 +158,15 @@ def get_incident(client: CustomStorage, incident_id: str) -> Optional[Dict[str, 
 
 def delete_incident(client: CustomStorage, incident_id: str) -> bool:
     """Delete an incident by key."""
-    response = client.DeleteObject(
-        collection_name=COLLECTION_NAME,
-        object_key=incident_id,
-    )
+    response = client.DeleteObject(collection_name=COLLECTION_NAME,
+                                   object_key=incident_id)
     return response["status_code"] == 200
 
 def search_incidents(client: CustomStorage, fql_filter: str = "", limit: int = 50) -> List[Dict[str, Any]]:
     """Search incidents using FQL filter. Only indexed fields are filterable."""
-    response = client.SearchObjects(
-        collection_name=COLLECTION_NAME,
-        filter=fql_filter,
-        limit=limit,
-    )
+    response = client.SearchObjects(collection_name=COLLECTION_NAME,
+                                    filter=fql_filter,
+                                    limit=limit)
     if response["status_code"] != 200:
         raise Exception(f"Search failed: {response.get('errors', [])}")
     # SearchObjects returns metadata — retrieve full objects by key
@@ -235,7 +227,7 @@ if os.environ.get("APP_ID"):
     headers = {"X-CS-APP-ID": os.environ.get("APP_ID")}
 
 response = client.command("PutObject", collection_name="incidents",
-    object_key="id-123", body={"id": "id-123"}, headers=headers)
+                          object_key="id-123", body={"id": "id-123"}, headers=headers)
 ```
 
 The Foundry functions editor cannot auto-detect scopes from Uber class usage — configure scopes manually in the manifest.
