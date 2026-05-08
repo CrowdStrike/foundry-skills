@@ -234,3 +234,4 @@ Before seeking external help:
 - [ ] Reviewed CLI error messages
 - [ ] Attempted recovery procedures
 - [ ] Documented reproduction steps
+

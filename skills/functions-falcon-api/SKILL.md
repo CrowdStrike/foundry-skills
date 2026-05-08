@@ -129,11 +129,9 @@ def get_detections(request: Request, config, logger) -> Response:
     severity_min = int(request.params.get("severity_min", 3))
     limit = min(int(request.params.get("limit", 50)), 100)
 
-    query_response = falcon.query_detects(
-        filter=f"max_severity_displayname:>'{severity_min}'",
-        limit=limit,
-        sort="last_behavior|desc"
-    )
+    query_response = falcon.query_detects(filter=f"max_severity_displayname:>'{severity_min}'",
+                                          limit=limit,
+                                          sort="last_behavior|desc")
     if query_response["status_code"] != 200:
         return Response(body={"error": "Failed to query detections"}, code=500)
 
