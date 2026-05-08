@@ -230,7 +230,7 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
    foundry apps release --deployment-id <id> --change-type Patch --notes "e2e testing" --no-prompt
    ```
 
-4. **Run tests:** `cd e2e && npx playwright test`
+4. **Run tests:** `cd e2e && npm test`
 
 5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)
 
