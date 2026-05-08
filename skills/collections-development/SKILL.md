@@ -236,7 +236,7 @@ client = CustomStorage(ext_headers=_app_headers())
 
 # Create or update (PutObject = upsert). Pass body as a dict.
 client.PutObject(collection_name="incidents", object_key="incident-123",
-    body={"id": "incident-123", "title": "Suspicious process", "severity": 7})
+                 body={"id": "incident-123", "title": "Suspicious process", "severity": 7})
 
 # Read — GetObject returns bytes on success, dict on error
 response = client.GetObject(collection_name="incidents", object_key="incident-123")
@@ -248,7 +248,7 @@ client.DeleteObject(collection_name="incidents", object_key="incident-123")
 
 # Search (FQL filter — only indexed fields)
 response = client.SearchObjects(collection_name="incidents",
-    filter="status:'open'+severity:>=5", limit=50)
+                                filter="status:'open'+severity:>=5", limit=50)
 # SearchObjects returns metadata — follow up with GetObject per key for full objects
 for item in response.get("body", {}).get("resources", []):
     obj = client.GetObject(collection_name="incidents", object_key=item["object_key"])
