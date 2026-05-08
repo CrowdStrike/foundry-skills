@@ -78,14 +78,16 @@ response = api.execute_command_proxy(
 
 **Accessing collections from a function:**
 ```python
-from falconpy import APIHarnessV2
-api_client = APIHarnessV2()
+from falconpy import CustomStorage
+
+custom_storage = CustomStorage()
 # Write
-api_client.command("PutObject", body=data,
-    collection_name="my_collection", object_key=key)
+custom_storage.PutObject(body=data,
+                         collection_name="my_collection",
+                         object_key=key)
 # Read (returns bytes)
-result = api_client.command("GetObject",
-    collection_name="my_collection", object_key=key)
+result = custom_storage.GetObject(collection_name="my_collection",
+                                  object_key=key)
 json_data = json.loads(result.decode("utf-8"))
 ```
 
