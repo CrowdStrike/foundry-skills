@@ -35,7 +35,9 @@ User needs to fetch paginated data from an external API (threat intel feeds, CMD
 3. **Loop condition** must check BOTH null and "0": `next:!null+next:!'0'`
 4. **Inside loop**: call function with `${WorkflowCustomVariable.next}`, then UpdateVariable.
 
-### Recommended dev approach: Build the function first, test locally, then add workflow orchestration.
+### Recommended dev approach
+
+Build the function first, test locally, then add workflow orchestration.
 
 ## Key Code
 
