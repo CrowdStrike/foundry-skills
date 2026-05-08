@@ -3,10 +3,12 @@ name: development-workflow
 description: Orchestrates the complete Falcon Foundry app lifecycle from requirements through deployment. TRIGGER when user asks to "create a Foundry app", "build a Foundry app", "plan a Foundry app", runs any `foundry apps` CLI command, or discusses Foundry app architecture. DO NOT TRIGGER when user is working on a specific capability (UI, function, workflow, collection) within an existing app — use the appropriate sub-skill instead. This skill OWNS the entire Foundry development flow. Do not delegate Foundry app creation to superpowers:brainstorming or superpowers:writing-plans — those skills do not know about the Foundry CLI.
 version: 1.0.0
 updated: 2026-04-29
+tags: [foundry, lifecycle, cli, deployment]
+author: CrowdStrike
+license: MIT
+compatibility: Claude Code >=1.0
 metadata:
-  author: CrowdStrike
   category: orchestration
-  tags: [foundry, lifecycle, cli, deployment]
 ---
 
 # Foundry Development Workflow
@@ -55,6 +57,7 @@ Implement a known pattern (pagination, enrichment, ingestion, etc.)
 
 Debug / troubleshoot      → debugging-workflows
 Security review           → security-patterns
+E2E testing / Playwright  → e2e-testing
 ```
 
 ## App Creation Flow
@@ -212,27 +215,24 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 
 ## Testing an Existing App Locally
 
-When running e2e tests against an existing app:
+When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 
-1. **Update manifest name** if needed (to match `APP_NAME` in `e2e/.env`)
-2. **Deploy and release:**
+1. **Configure credentials** — copy `.env.sample` to `.env` in the `e2e/` directory and fill in valid Falcon credentials (username, password, TOTP secret, base URL) and app name. `APP_NAME` defaults to the repo name. `FALCON_` credentials must be for a non-SSO user because TOTP is used in e2e tests. This file is gitignored and required for local test runs.
+
+2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Remember to `git checkout manifest.yml` after deploy to revert ID changes.
+
+3. **Deploy and release:**
    ```bash
-   foundry apps deploy --change-type patch --change-log "e2e testing" --no-prompt
+   foundry apps deploy --change-type Patch --change-log "e2e testing" --no-prompt
    # Poll until successful
    foundry apps list-deployments
    # Release
-   foundry apps release --deployment-id <id> --change-type patch --notes "e2e testing" --no-prompt
+   foundry apps release --deployment-id <id> --change-type Patch --notes "e2e testing" --no-prompt
    ```
-3. **Run tests:** `cd e2e && npx playwright test`
-4. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)
 
-### App Name Alignment
+4. **Run tests:** `cd e2e && npx playwright test`
 
-The manifest `name` and the e2e test `APP_NAME` environment variable must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development.
-
-Two approaches:
-- **Update manifest to match .env** (preferred): Use the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Remember to `git checkout manifest.yml` after deploy to revert ID changes.
-- **Update .env to match manifest**: Works but names with spaces can cause issues in some tooling.
+5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)
 
 ## Manifest Coordination
 

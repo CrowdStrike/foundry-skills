@@ -146,6 +146,7 @@ The skills include hooks that ensure the right skills get used:
 | `collections-development` | JSON Schema data modeling and CRUD operations |
 | `security-patterns` | OAuth scoping, input validation, content security |
 | `debugging-workflows` | Systematic troubleshooting for CLI, manifest, and deployment issues |
+| `e2e-testing` | End-to-end testing with `@crowdstrike/foundry-playwright` |
 
 ## Architecture
 
@@ -188,6 +189,7 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 - LogScale data ingestion from functions
 - Lookup table enrichment with 3rd-party data
 - Custom SOAR actions
+- NGSIEM query export to CSV/JSON
 - Publishing certified apps
 - And more (see [use-cases/README.md](use-cases/README.md))
 

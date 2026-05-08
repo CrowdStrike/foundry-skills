@@ -3,10 +3,12 @@ name: workflows-development
 description: Create and configure Falcon Fusion SOAR workflow YAML for Falcon Foundry apps. TRIGGER when user asks to "create a workflow", "build an automation", "configure Fusion SOAR", "add an on-demand workflow", runs `foundry workflows create`, or needs help with Fusion YAML syntax, triggers, actions, or variable references. DO NOT TRIGGER for UI pages, functions, or collection schemas — use the appropriate sub-skill.
 version: 1.0.0
 updated: 2026-04-29
+tags: [foundry, workflows, fusion-soar, yaml]
+author: CrowdStrike
+license: MIT
+compatibility: Claude Code >=1.0
 metadata:
-  author: CrowdStrike
   category: automation
-  tags: [foundry, workflows, fusion-soar, yaml]
 ---
 
 # Foundry Workflows Development
