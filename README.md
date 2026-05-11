@@ -2,7 +2,7 @@
 
 # Falcon Foundry Skills
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 [![CI](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml)
 
 AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, and collections — all scaffolded with the Foundry CLI and deployed to the Falcon console.
@@ -333,6 +333,8 @@ gh release create v<version> --target main --title "v<version>" --generate-notes
 ```
 
 This generates release notes from merged PRs and saves them as a draft. Review and edit the notes at [github.com/CrowdStrike/foundry-skills/releases](https://github.com/CrowdStrike/foundry-skills/releases), then click **Publish** when ready.
+
+After publishing the release, notify Anthropic of the new tag and SHA so they can update the marketplace pin. Do not open PRs to `anthropics/claude-plugins-official` or re-submit through the plugin submission form.
 
 ## License
 

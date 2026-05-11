@@ -1,8 +1,8 @@
 ---
 name: functions-falcon-api
 description: Call CrowdStrike Falcon platform APIs (detections, alerts, hosts, RTR) from within Foundry function handlers. TRIGGER when user asks to "call Falcon APIs from a function", "use FalconPy in a function", "use gofalcon in a function", or needs to integrate Falcon platform APIs within serverless function code. DO NOT TRIGGER when user wants to expose external third-party APIs to Foundry — use api-integrations instead.
-version: 1.0.0
-updated: 2026-04-29
+version: 1.1.0
+updated: 2026-05-11
 tags: [foundry, functions, falcon-api, falconpy, gofalcon]
 author: CrowdStrike
 license: MIT

@@ -185,7 +185,7 @@ main() {
   printf "\n${BLUE}Step 5: Commit and create PR${RESET}\n"
   local release_branch="release/v${NEXT_VERSION}"
   git checkout -b "$release_branch"
-  git add "$PLUGIN_JSON" "$MARKETPLACE_JSON" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md "$SCRIPT_DIR/CHANGELOG.md"
+  git add "$PLUGIN_JSON" "$MARKETPLACE_JSON" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md "$SCRIPT_DIR/CHANGELOG.md" "$SCRIPT_DIR/release.sh"
   git commit -m "Release v${NEXT_VERSION}"
   printf "${GREEN}✓${RESET} Committed v${NEXT_VERSION}\n"
 
@@ -201,6 +201,13 @@ main() {
   printf "This creates a draft release with auto-generated notes from merged PRs.\n"
   printf "Review and edit the notes at https://github.com/CrowdStrike/foundry-skills/releases,\n"
   printf "then click Publish when ready.\n\n"
+
+  printf "${BLUE}Step 8: Update Anthropic Plugin Marketplace${RESET}\n"
+  printf "\nAfter publishing the GitHub release, notify Anthropic of the new tag and SHA:\n"
+  printf "  Tag: v${NEXT_VERSION}\n"
+  printf "  SHA: \$(git rev-parse v${NEXT_VERSION})\n\n"
+  printf "Anthropic handles the marketplace pin bump internally. Do not open PRs to\n"
+  printf "anthropics/claude-plugins-official or re-submit through the plugin submission form.\n\n"
   printf "${GREEN}Done.${RESET}\n"
 }
 
