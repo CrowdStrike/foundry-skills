@@ -3,10 +3,12 @@ name: ui-development
 description: Build UI pages and extensions for Falcon Foundry apps using React or Vue with the Shoelace design system and Foundry-JS SDK. TRIGGER when user asks to "create a UI page", "build a UI extension", "add a Shoelace component", "call an API from the UI", runs `foundry ui pages create` or `foundry ui run`, or needs help with Vite config, FalconJS SDK, or Falcon console theming. DO NOT TRIGGER for backend functions, workflow YAML, or collection schemas.
 version: 1.0.0
 updated: 2026-04-29
+tags: [foundry, ui, react, vue, shoelace]
+author: CrowdStrike
+license: MIT
+compatibility: Claude Code >=1.0
 metadata:
-  author: CrowdStrike
   category: frontend
-  tags: [foundry, ui, react, vue, shoelace]
 ---
 
 # Foundry UI Development

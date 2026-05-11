@@ -119,15 +119,16 @@ def fetch_with_retry(api, params, logger, max_retries=5):
 **State management with collections:**
 ```python
 def save_pagination_state(key, limit, offset):
-    api = APIHarnessV2()
-    api.command("PutObject", body={"limit": limit, "offset": offset},
-        collection_name="pagination_tracker", object_key=key)
+    custom_storage = CustomStorage(ext_headers=_app_headers())
+    custom_storage.PutObject(body={"limit": limit, "offset": offset},
+                             collection_name="pagination_tracker",
+                             object_key=key)
 
 def get_pagination_state(key):
-    api = APIHarnessV2()
+    custom_storage = CustomStorage(ext_headers=_app_headers())
     try:
-        result = api.command("GetObject",
-            collection_name="pagination_tracker", object_key=key)
+        result = custom_storage.GetObject(collection_name="pagination_tracker",
+                                          object_key=key)
         if isinstance(result, bytes):
             data = json.loads(result.decode("utf-8"))
             return data.get("limit", -1), data.get("offset", -1)

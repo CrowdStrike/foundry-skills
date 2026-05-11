@@ -31,7 +31,7 @@ User wants to persist structured data (config, checkpoints, event logs, user pre
      --schema schemas/my_data.json --description "Purpose" --no-prompt
    ```
 3. **Validate early** with `foundry apps validate --no-prompt` to check the schema against the platform.
-4. **Access from functions** using `APIHarnessV2` (see Key Code).
+4. **Access from functions** using `CustomStorage` service class (see Key Code).
 5. **Access from UI extensions** using `@crowdstrike/foundry-js`.
 6. **Configure workflow sharing** if the collection needs to be used in workflows.
 
@@ -61,29 +61,30 @@ User wants to persist structured data (config, checkpoints, event logs, user pre
 
 **CRUD from Python functions (FalconPy):**
 ```python
-from falconpy import APIHarnessV2
+from falconpy import CustomStorage
 import json
 
-api = APIHarnessV2()
-headers = {}  # set X-CS-APP-ID for local testing
+custom_storage = CustomStorage(ext_headers=_app_headers())
 
 # Create/Update
-api.command("PutObject", body=data,
-    collection_name="my_data", object_key=unique_id, headers=headers)
+custom_storage.PutObject(body=data,
+                         collection_name="my_data",
+                         object_key=unique_id)
 
 # Search (returns metadata only, not full objects)
-results = api.command("SearchObjects",
-    filter="severity:'high'", collection_name="my_data",
-    limit=50, sort="timestamp_unix.desc", headers=headers)
+results = custom_storage.SearchObjects(filter="severity:'high'",
+                                       collection_name="my_data",
+                                       limit=50,
+                                       sort="timestamp_unix.desc")
 
 # Get full object (returns bytes)
-obj = api.command("GetObject",
-    collection_name="my_data", object_key=key, headers=headers)
+obj = custom_storage.GetObject(collection_name="my_data",
+                               object_key=key)
 data = json.loads(obj.decode("utf-8"))
 
 # Delete
-api.command("DeleteObject",
-    collection_name="my_data", object_key=key, headers=headers)
+custom_storage.DeleteObject(collection_name="my_data",
+                            object_key=key)
 ```
 
 **FQL query patterns:**

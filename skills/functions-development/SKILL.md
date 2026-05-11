@@ -3,10 +3,12 @@ name: functions-development
 description: Build serverless Go or Python functions for Falcon Foundry apps. TRIGGER when user asks to "create a function", "write a serverless function", "build backend logic", runs `foundry functions create`, or needs help with FDK handler patterns, function testing, or collection integration from functions. DO NOT TRIGGER for calling Falcon platform APIs from functions — use functions-falcon-api instead. DO NOT TRIGGER for workflow YAML or UI components.
 version: 1.0.0
 updated: 2026-04-29
+tags: [foundry, functions, serverless, python, go]
+author: CrowdStrike
+license: MIT
+compatibility: Claude Code >=1.0
 metadata:
-  author: CrowdStrike
   category: backend
-  tags: [foundry, functions, serverless, python, go]
 ---
 
 # Foundry Functions Development

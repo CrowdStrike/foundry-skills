@@ -216,6 +216,16 @@ func main() {
 }
 ```
 
+## Extracting Fields from API Responses
+
+Before writing code that reads fields from an API response, verify the field's location in the OpenAPI spec's response schema. Fields are often nested under objects (e.g., `meta.severity` not `severity`). Similarly, query parameter names may differ from response field names (e.g., filtering by `meta.severity` even though the CSV column is just `severity`).
+
+**Checklist:**
+1. Find the endpoint's response schema in the OpenAPI spec
+2. Trace the field path — is it top-level or nested under an object?
+3. For query parameters, check the `parameters` section for the exact name
+4. Match your struct/dict access to the actual nesting (e.g., `ioc.get("meta", {}).get("severity", '')`)
+
 ## Key Points
 
 | Aspect | Detail |

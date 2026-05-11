@@ -186,44 +186,6 @@ class ExtensionMessaging {
 }
 ```
 
-## E2E Testing with Playwright
-
-**Pattern: Testing in Falcon Console Context**
-
-```typescript
-// e2e/alerts-dashboard.spec.ts
-import { test, expect } from '@playwright/test';
-import { loginToFalcon, navigateToApp } from './helpers/falcon-auth';
-
-test.describe('Alerts Dashboard', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginToFalcon(page);
-    await navigateToApp(page, 'my-foundry-app');
-  });
-
-  test('displays alerts from API', async ({ page }) => {
-    // Wait for data to load
-    await expect(page.locator('sl-spinner')).not.toBeVisible({ timeout: 10000 });
-
-    // Verify table is populated
-    const rows = page.locator('tbody tr');
-    await expect(rows).toHaveCount.greaterThan(0);
-  });
-
-  test('filters alerts by severity', async ({ page }) => {
-    await page.selectOption('sl-select[name="severity"]', '8');
-    await page.click('sl-button[type="submit"]');
-
-    // Verify only high severity alerts shown
-    const badges = page.locator('sl-badge');
-    for (const badge of await badges.all()) {
-      const text = await badge.textContent();
-      expect(parseInt(text || '0')).toBeGreaterThanOrEqual(8);
-    }
-  });
-});
-```
-
 ## Extension Builder (No-Code)
 
 The Extension Builder provides a drag-and-drop alternative to CLI-based UI development. Use it for simple extensions that display contextual data without custom logic.

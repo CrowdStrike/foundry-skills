@@ -3,10 +3,12 @@ name: functions-falcon-api
 description: Call CrowdStrike Falcon platform APIs (detections, alerts, hosts, RTR) from within Foundry function handlers. TRIGGER when user asks to "call Falcon APIs from a function", "use FalconPy in a function", "use gofalcon in a function", or needs to integrate Falcon platform APIs within serverless function code. DO NOT TRIGGER when user wants to expose external third-party APIs to Foundry — use api-integrations instead.
 version: 1.0.0
 updated: 2026-04-29
+tags: [foundry, functions, falcon-api, falconpy, gofalcon]
+author: CrowdStrike
+license: MIT
+compatibility: Claude Code >=1.0
 metadata:
-  author: CrowdStrike
   category: backend
-  tags: [foundry, functions, falcon-api, falconpy, gofalcon]
 ---
 
 # Falcon API Integration in Functions
@@ -127,11 +129,9 @@ def get_detections(request: Request, config, logger) -> Response:
     severity_min = int(request.params.get("severity_min", 3))
     limit = min(int(request.params.get("limit", 50)), 100)
 
-    query_response = falcon.query_detects(
-        filter=f"max_severity_displayname:>'{severity_min}'",
-        limit=limit,
-        sort="last_behavior|desc"
-    )
+    query_response = falcon.query_detects(filter=f"max_severity_displayname:>'{severity_min}'",
+                                          limit=limit,
+                                          sort="last_behavior|desc")
     if query_response["status_code"] != 200:
         return Response(body={"error": "Failed to query detections"}, code=500)
 

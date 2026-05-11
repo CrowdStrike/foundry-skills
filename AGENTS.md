@@ -67,6 +67,7 @@ The `skills/` directory contains specialized skills that provide systematic appr
 
 - **security-patterns**: OAuth scoping, input validation, UI security
 - **debugging-workflows**: Systematic troubleshooting for CLI, manifest, and API issues
+- **e2e-testing**: End-to-end testing with `@crowdstrike/foundry-playwright`
 
 ### Use Cases
 
@@ -100,6 +101,7 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 - **"Call Falcon API from Function"** → functions-falcon-api skill
 - **"Expose external API to Foundry"** → api-integrations skill
 - **"Troubleshoot deployment"** → debugging-workflows skill
+- **"Add e2e tests"** → e2e-testing skill
 
 ## Essential Foundry CLI Commands
 
