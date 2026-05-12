@@ -1,5 +1,6 @@
 {
   "name": "foundry-marketplace",
+  "description": "AI coding assistant skills for building CrowdStrike Falcon Foundry apps",
   "owner": {
     "name": "CrowdStrike"
   },
