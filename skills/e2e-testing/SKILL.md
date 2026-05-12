@@ -2,7 +2,7 @@
 name: e2e-testing
 description: End-to-end testing for Falcon Foundry apps using Playwright and @crowdstrike/foundry-playwright. TRIGGER when user asks to "add e2e tests", "add playwright tests", "write end-to-end tests", "test my app", or mentions "e2e", "playwright", or "end-to-end" in the context of testing a Foundry app. DO NOT TRIGGER during normal app creation, UI development, or function development. This skill is opt-in; not all apps need e2e tests.
 version: 1.1.0
-updated: 2026-05-11
+updated: 2026-05-12
 tags: [foundry, e2e, playwright, testing]
 author: CrowdStrike
 license: MIT

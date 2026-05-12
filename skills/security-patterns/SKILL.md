@@ -2,7 +2,7 @@
 name: security-patterns
 description: Security patterns for Falcon Foundry apps including OAuth scopes, RBAC, input validation, UI security, and credential management. TRIGGER when user asks to "configure OAuth scopes", "secure a Foundry app", "handle secrets", "add input validation", or needs to review a Foundry app for security concerns (XSS, CSP, credential management). Also trigger during pre-deployment security reviews.
 version: 1.1.0
-updated: 2026-05-11
+updated: 2026-05-12
 tags: [foundry, oauth, rbac, xss, csp]
 author: CrowdStrike
 license: MIT

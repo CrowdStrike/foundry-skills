@@ -2,7 +2,7 @@
 name: debugging-workflows
 description: Systematic troubleshooting for Falcon Foundry CLI errors, manifest validation failures, deploy failures, and development server issues. TRIGGER when user encounters CLI errors, `foundry ui run` not working, deploy failures, authentication issues, or any unexpected behavior during Foundry app development. Also trigger for headless/CI environment setup failures.
 version: 1.1.0
-updated: 2026-05-11
+updated: 2026-05-12
 tags: [foundry, debugging, cli, deployment]
 author: CrowdStrike
 license: MIT
