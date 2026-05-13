@@ -184,7 +184,7 @@ for i in $(seq 1 $RUNS); do
   FOUNDRY_SKIP_NAME_CONFIRM=1 env -u CLAUDECODE claude -p "$RUN_PROMPT" \
     ${PLUGIN_DIR_FLAGS[@]+"${PLUGIN_DIR_FLAGS[@]}"} \
     --dangerously-skip-permissions \
-    --model claude-4-6-opus \
+    --model claude-opus-4-6 \
     --verbose \
     --output-format stream-json \
     > "$LOG_FILE" 2>&1 &

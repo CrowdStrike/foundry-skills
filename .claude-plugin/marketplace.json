@@ -1,5 +1,6 @@
 {
   "name": "foundry-marketplace",
+  "description": "AI coding assistant skills for building CrowdStrike Falcon Foundry apps",
   "owner": {
     "name": "CrowdStrike"
   },
@@ -8,7 +9,7 @@
       "name": "crowdstrike-falcon-foundry",
       "source": "./",
       "description": "CrowdStrike Falcon Foundry development skills for building cybersecurity applications on the Falcon platform. Includes UI development, collections, functions, workflows, API integration, security patterns, and debugging workflows.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "CrowdStrike"
       },

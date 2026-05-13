@@ -1,6 +1,6 @@
-# foundry-js SDK Operations
+# Foundry-JS Operations
 
-SDK patterns for `@crowdstrike/foundry-js` beyond the React context/navigation covered in `react-patterns.md`. Source: [Getting Started with foundry-js](https://www.crowdstrike.com/tech-hub/ng-siem/getting-started-with-foundry-js-using-the-foundry-js-demo-app/).
+Patterns for `@crowdstrike/foundry-js` beyond the React context/navigation covered in `react-patterns.md`. Source: [Getting Started with foundry-js](https://www.crowdstrike.com/tech-hub/ng-siem/getting-started-with-foundry-js-using-the-foundry-js-demo-app/).
 
 ## Connection (Required First)
 

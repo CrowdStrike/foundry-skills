@@ -1,8 +1,8 @@
 ---
 name: api-integrations
 description: Expose external APIs to Falcon Foundry via OpenAPI specs. TRIGGER when user asks to "create an API integration", "adapt an OpenAPI spec for Foundry", "expose an API to workflows", "connect to a third-party API", or runs `foundry api-integrations create`. Also trigger when user has an OpenAPI/Swagger spec and wants it working in Falcon Foundry. DO NOT TRIGGER when user wants to call Falcon platform APIs from function code — use functions-falcon-api instead.
-version: 1.0.0
-updated: 2026-04-29
+version: 1.1.0
+updated: 2026-05-13
 tags: [foundry, openapi, api, workflows]
 author: CrowdStrike
 license: MIT
@@ -151,7 +151,7 @@ For autocomplete dropdown patterns and the HTTP Actions vs. Functions decision f
 
 ## Calling API Integrations
 
-UI extensions call API integrations through the Falcon JS SDK (sandboxed iframes block arbitrary HTTP requests). This pattern is from [foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo):
+UI extensions call API integrations through Foundry-JS (sandboxed iframes block arbitrary HTTP requests). This pattern is from [foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo):
 
 ```javascript
 import FalconApi from '@crowdstrike/foundry-js';
