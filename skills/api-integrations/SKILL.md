@@ -151,7 +151,7 @@ For autocomplete dropdown patterns and the HTTP Actions vs. Functions decision f
 
 ## Calling API Integrations
 
-UI extensions call API integrations through the Falcon JS SDK (sandboxed iframes block arbitrary HTTP requests). This pattern is from [foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo):
+UI extensions call API integrations through Foundry-JS (sandboxed iframes block arbitrary HTTP requests). This pattern is from [foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo):
 
 ```javascript
 import FalconApi from '@crowdstrike/foundry-js';

@@ -2,12 +2,12 @@
 
 Full examples for calling API integrations from UI extensions, Python functions, and Go functions.
 
-## UI Extensions (JavaScript / Falcon JS SDK)
+## UI Extensions (JavaScript / Foundry-JS)
 
 UI extensions call API integrations through `falcon.apiIntegration()`, not direct HTTP calls. Foundry UI extensions run in sandboxed iframes and cannot make arbitrary HTTP requests.
 
 ```javascript
-// React example using Falcon JS SDK
+// React example using Foundry-JS
 import FalconApi from '@crowdstrike/foundry-js';
 
 const falcon = new FalconApi();

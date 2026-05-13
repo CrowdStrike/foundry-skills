@@ -1,6 +1,6 @@
 ---
 name: ui-development
-description: Build UI pages and extensions for Falcon Foundry apps using React or Vue with the Shoelace design system and Foundry-JS SDK. TRIGGER when user asks to "create a UI page", "build a UI extension", "add a Shoelace component", "call an API from the UI", runs `foundry ui pages create` or `foundry ui run`, or needs help with Vite config, FalconJS SDK, or Falcon console theming. DO NOT TRIGGER for backend functions, workflow YAML, or collection schemas.
+description: Build UI pages and extensions for Falcon Foundry apps using React or Vue with the Shoelace design system and Foundry-JS. TRIGGER when user asks to "create a UI page", "build a UI extension", "add a Shoelace component", "call an API from the UI", runs `foundry ui pages create` or `foundry ui run`, or needs help with Vite config, Foundry-JS, or Falcon console theming. DO NOT TRIGGER for backend functions, workflow YAML, or collection schemas.
 version: 1.1.0
 updated: 2026-05-13
 tags: [foundry, ui, react, vue, shoelace]
@@ -17,7 +17,7 @@ metadata:
 >
 > If you are loading this skill, your role is **Foundry UI specialist**.
 >
-> You MUST implement UI components following Falcon design system patterns using Shoelace components and the Foundry-JS SDK.
+> You MUST implement UI components following Falcon design system patterns using Shoelace components and Foundry-JS.
 >
 > **IMMEDIATE ACTIONS REQUIRED:**
 > 1. Use Shoelace components with `falcon-shoelace` theme (NOT vanilla Shoelace or raw HTML)
@@ -25,7 +25,7 @@ metadata:
 > 3. Coordinate with `foundry ui run` for live development
 > 4. Apply iframe security patterns for all extensions
 
-Falcon Foundry UI pages and extensions use React or Vue with the Shoelace design system (Falcon-themed) and the Foundry-JS SDK for platform integration.
+Falcon Foundry UI pages and extensions use React or Vue with the Shoelace design system (Falcon-themed) and Foundry-JS for platform integration.
 
 ## Pages vs Extensions
 
@@ -124,7 +124,7 @@ For extended Shoelace component catalog and CSS customization, see [references/s
 
 For theming, dark/light mode switching, and design token values, see [references/falcon-theming.md](references/falcon-theming.md).
 
-## FalconJS SDK
+## Foundry-JS
 
 ```javascript
 import FalconApi from '@crowdstrike/foundry-js';
@@ -315,7 +315,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | Dark/light theming, design tokens | [references/falcon-theming.md](references/falcon-theming.md) |
 | React component examples | [references/react-patterns.md](references/react-patterns.md) |
 | Vue component examples | [references/vue-patterns.md](references/vue-patterns.md) |
-| FalconJS SDK: workflows, LogScale, cloud functions, collections CRUD | [references/foundry-js-sdk.md](references/foundry-js-sdk.md) |
+| Foundry-JS: workflows, LogScale, cloud functions, collections CRUD | [references/foundry-js.md](references/foundry-js.md) |
 | Framework selection, ExtensionMessaging, E2E testing, Extension Builder, CSP, dev server coordination | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
@@ -326,7 +326,7 @@ For real-world implementation patterns, see:
 
 ## Reference Implementations
 
-- **[foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo)**: Comprehensive FalconJS SDK demo (API integrations, collections, workflows, LogScale, cloud functions, events, navigation, modals)
+- **[foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo)**: Comprehensive Foundry-JS demo (API integrations, collections, workflows, LogScale, cloud functions, events, navigation, modals)
 - **[foundry-sample-mitre](https://github.com/CrowdStrike/foundry-sample-mitre)**: Vue shared components, multi-view app
 - **[foundry-sample-collections-toolkit](https://github.com/CrowdStrike/foundry-sample-collections-toolkit)**: UI for collections
 - **[foundry-sample-functions-python](https://github.com/CrowdStrike/foundry-sample-functions-python)**: UI calling functions

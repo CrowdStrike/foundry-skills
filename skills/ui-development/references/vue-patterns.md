@@ -2,7 +2,7 @@
 
 ## Page Component (Full Example)
 
-Vue 3 Composition API with Foundry-JS SDK:
+Vue 3 Composition API with Foundry-JS:
 
 ```vue
 <template>

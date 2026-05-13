@@ -434,7 +434,7 @@ All [CrowdStrike/foundry-sample-*](https://github.com/CrowdStrike?q=foundry-samp
 | [foundry-sample-charlotte-toolkit](https://github.com/CrowdStrike/foundry-sample-charlotte-toolkit/tree/main/e2e) | Charlotte AI toolkit |
 | [foundry-sample-collections-toolkit](https://github.com/CrowdStrike/foundry-sample-collections-toolkit/tree/main/e2e) | Collection CRUD |
 | [foundry-sample-detection-translation](https://github.com/CrowdStrike/foundry-sample-detection-translation/tree/main/e2e) | Detection extension |
-| [foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo/tree/main/e2e) | Foundry-JS SDK demo |
+| [foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo/tree/main/e2e) | Foundry-JS demo |
 | [foundry-sample-idp-notifications](https://github.com/CrowdStrike/foundry-sample-idp-notifications/tree/main/e2e) | IDP notifications |
 | [foundry-sample-insider-risk-sailpoint](https://github.com/CrowdStrike/foundry-sample-insider-risk-sailpoint/tree/main/e2e) | SailPoint integration |
 | [foundry-sample-insider-risk-workday](https://github.com/CrowdStrike/foundry-sample-insider-risk-workday/tree/main/e2e) | Workday integration |

@@ -21,7 +21,7 @@
 ### UI Pages (Standalone Applications)
 - Technology selection: Vue vs React guidance
 - Shoelace design system integration
-- Foundry-JS SDK authentication patterns
+- Foundry-JS authentication patterns
 - Vite build system configuration
 
 ### UI Extensions (Console-Embedded Components)
@@ -260,7 +260,7 @@ ui:
 | "I can test API integration calls before deploying" | `foundry ui run` only serves UI locally — API integrations, collections, and functions must be deployed to the cloud first via `foundry apps deploy` |
 | "I can test without mocking Foundry SDK" | Real API calls in tests are slow, flaky, and environment-dependent |
 | "Iframe security is handled by the platform" | Extensions MUST validate message origins; platform provides the sandbox, you secure the communication |
-| "React/Vue patterns are transferable" | Foundry-JS SDK and Shoelace have specific integration patterns |
+| "React/Vue patterns are transferable" | Foundry-JS and Shoelace have specific integration patterns |
 | "I'll use the default Shoelace theme" | Vanilla Shoelace doesn't match Falcon console styling; `falcon-shoelace` is required for visual consistency and dark/light mode support |
 | "Dark mode support can come later" | The Falcon console ships with dark mode. Users see broken styling on day one if you skip it |
 
