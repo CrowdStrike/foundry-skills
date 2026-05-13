@@ -626,7 +626,7 @@ printf "  Log: %s\n\n" "$LOG_FILE"
 
 env -u CLAUDECODE claude -p "$BROWSER_PROMPT" \
   --dangerously-skip-permissions \
-  --model claude-4-6-opus \
+  --model opus \
   --verbose \
   --output-format stream-json \
   > "$LOG_FILE" 2>&1 || true
