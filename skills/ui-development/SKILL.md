@@ -315,6 +315,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | Dark/light theming, design tokens | [references/falcon-theming.md](references/falcon-theming.md) |
 | React component examples | [references/react-patterns.md](references/react-patterns.md) |
 | Vue component examples | [references/vue-patterns.md](references/vue-patterns.md) |
+| FalconJS SDK: workflows, LogScale, cloud functions, collections CRUD | [references/foundry-js-sdk.md](references/foundry-js-sdk.md) |
 | Framework selection, ExtensionMessaging, E2E testing, Extension Builder, CSP, dev server coordination | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
