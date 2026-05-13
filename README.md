@@ -133,6 +133,8 @@ The skills include hooks that ensure the right skills get used:
 
 3. **`PreToolUse` hook (CLI guard)** — Validates all Bash commands to ensure Foundry CLI commands include `--no-prompt` flag (prevents `Error: EOF` failures) and blocks manual directory creation for app structure (prevents invalid `manifest.yml`). This enforcement is automatic and transparent — you'll only see it when it catches an error.
 
+Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
+
 ## Skills
 
 | Skill | Purpose |
