@@ -249,6 +249,8 @@ For full Vue component examples, see [references/vue-patterns.md](references/vue
 - **`foundry ui run`**: Serves only the UI in Falcon console dev mode (port 25678). Use during UI-focused development.
 - **`foundry apps run`**: Starts the full app locally (validates manifest on startup). Use when testing UI + functions + integrations together.
 
+**CRITICAL: Run from the app root directory.** Both `foundry ui run` and `foundry apps run` resolve manifest paths relative to `os.Getwd()`. After `cd`-ing into a UI page/extension directory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry` app commands. Running from a subdirectory causes "file not found" or doubled-path errors.
+
 If the UI calls API integrations, collections, or functions, deploy those backend capabilities first via `foundry apps deploy`. `foundry ui run` only serves UI assets locally — backend capabilities resolve from the cloud.
 
 ### Development Mode vs Preview Mode
@@ -295,6 +297,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 
 ## Common Pitfalls
 
+- **Running `foundry` commands from a UI subdirectory.** After `cd ui/extensions/my-ext && npm install && npm run build`, you MUST `cd` back to the app root before running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run`. The CLI resolves manifest paths relative to cwd — running from a subdirectory produces doubled paths like `ui/extensions/my-ext/ui/extensions/my-ext/src/dist/index.html`.
 - **NEVER edit manifest.yml `path` or `entrypoint` values.** The CLI sets these correctly. The format `ui/extensions/my-ext/src/dist/index.html` is NOT a doubled path — it is correct. If you see a deploy path error, you likely changed `vite.config.js` — revert your changes.
 - **NEVER modify `vite.config.js`.** The blueprint is turnkey. Do not change `base: './'` to `''` or anything else. Do not change `root: 'src'`. Do not remove `noAttr()`. Just edit your React/JS code and deploy.
 - **Omitting `--sockets` on extension create.** This launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"` on the command line. Run `foundry ui extensions list-sockets` to see available sockets — do not guess or fabricate socket names.

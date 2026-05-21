@@ -32,6 +32,8 @@ metadata:
 >
 > **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`, but may still prompt interactively in some CLI versions — delete via Falcon App Manager UI if it hangs), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
+> **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list-deployments`.
+>
 > **Superpowers skills MAY supplement** (TDD discipline, code review) but MUST NOT replace this workflow.
 
 This skill coordinates the full Falcon Foundry app lifecycle — from parsing requirements through scaffolding, implementation, and deployment. It delegates capability-specific work to sub-skills that know the platform details.
@@ -157,8 +159,12 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 ### Step 7: Final Build and Deploy
 
 ```bash
-# Build UI (required before deploy)
+# Build UI (required before deploy) — MUST cd back to app root afterward
 cd ui/pages/my-page && npm install && npm run build && cd ../../..
+# For extensions: cd ui/extensions/my-ext && npm install && npm run build && cd ../../..
+
+# IMPORTANT: Verify you are in the app root (where manifest.yml lives) before running
+# foundry apps/ui commands. The CLI resolves paths relative to cwd, not the manifest location.
 
 # Final deploy (run ONCE, never re-deploy to check status)
 foundry apps deploy --no-prompt --change-type Patch --change-log "Complete app"
