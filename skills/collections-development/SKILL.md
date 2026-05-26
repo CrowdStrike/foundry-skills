@@ -310,6 +310,8 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 - **Not configuring workflow share settings.** Set `workflow_integration.system_action: true` for app-only workflow access, or `false` to also expose collections as Falcon Fusion SOAR actions.
 - **Trying to delete collections via CLI.** Collections can only be deleted from the Falcon Foundry UI.
 - **Trying to manage objects via CLI.** Collection CRUD requires the CrowdStrike API or `foundry-js` SDK.
+- **Schema field names must match exactly.** If a field name in your write payload doesn't match the collection schema (e.g., writing `score` when the schema defines `severity`), the write fails and returns errors in the response body — but the SDK does not throw. Without checking `result.errors`, the failure is invisible. Always read the collection schema file before writing seed data; verify required fields, enum values, and exact field names.
+- **Not checking write responses for errors.** The SDK does not throw on server-side validation failures. Always check `result?.errors?.length` after write operations — errors include specific messages like `"missing property 'severity'"` or `"value must be one of 'low', 'medium', 'high', 'critical'"`. Verify persistence with a follow-up read or list call.
 
 ## Reading Guide
 
