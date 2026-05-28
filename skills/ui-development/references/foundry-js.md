@@ -34,6 +34,28 @@ await collection.delete({ key: 'item-1' });
 
 **Gotcha:** Add 50ms delays between sequential reads to avoid rate limiting in rapid operations.
 
+## API Integrations
+
+Call external APIs configured as API integrations in your app's manifest:
+
+```typescript
+const apiIntegration = falcon.apiIntegration({
+  definitionId: 'Okta',        // Matches the API integration name in manifest.yml
+  operationId: 'listUsers'     // Matches the operationId in the OpenAPI spec
+});
+
+const response = await apiIntegration.execute({
+  request: { params: {} }      // Pass query/path parameters here
+});
+
+// Response structure
+const resource = response.resources?.[0];
+const statusCode = resource?.status_code;    // HTTP status from the external API
+const body = resource?.response_body;         // Parsed response body
+```
+
+UI extensions run in sandboxed iframes and cannot make arbitrary HTTP requests. All external API calls must go through `falcon.apiIntegration()`. See [calling-patterns.md](../../api-integrations/references/calling-patterns.md) for calling API integrations from Python and Go functions.
+
 ## Workflow Execution (Async Polling)
 
 Workflows are asynchronous — trigger then poll for completion:
