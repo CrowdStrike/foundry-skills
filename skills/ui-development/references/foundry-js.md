@@ -54,7 +54,7 @@ const statusCode = resource?.status_code;    // HTTP status from the external AP
 const body = resource?.response_body;         // Parsed response body
 ```
 
-UI extensions run in sandboxed iframes and cannot make arbitrary HTTP requests. All external API calls must go through `falcon.apiIntegration()`. See [calling-patterns.md](../../api-integrations/references/calling-patterns.md) for Python and Go examples.
+UI extensions run in sandboxed iframes and cannot make arbitrary HTTP requests. All external API calls must go through `falcon.apiIntegration()`. See [calling-patterns.md](../../api-integrations/references/calling-patterns.md) for calling API integrations from Python and Go functions.
 
 ## Workflow Execution (Async Polling)
 
