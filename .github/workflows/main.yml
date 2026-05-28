@@ -60,6 +60,37 @@ jobs:
             done
           done
           exit $fail
+      - name: Validate skill size budgets
+        run: |
+          fail=0
+          warn=0
+          total_desc_chars=0
+
+          for skill in skills/*/SKILL.md; do
+            name=$(basename "$(dirname "$skill")")
+            chars=$(wc -c < "$skill")
+            approx_tokens=$((chars / 4))
+
+            if [ "$approx_tokens" -gt 5500 ]; then
+              echo "FAIL: $name SKILL.md ~${approx_tokens} tokens (max 5500)"
+              fail=1
+            elif [ "$approx_tokens" -gt 4500 ]; then
+              echo "WARN: $name SKILL.md ~${approx_tokens} tokens (approaching 5500 limit)"
+            fi
+
+            desc=$(sed -n 's/^description: *//p' "$skill")
+            desc_len=${#desc}
+            total_desc_chars=$((total_desc_chars + desc_len))
+
+            if [ "$desc_len" -gt 1536 ]; then
+              echo "FAIL: $name description ${desc_len} chars (max 1536)"
+              fail=1
+            fi
+          done
+
+          echo ""
+          echo "Total description budget: ${total_desc_chars} chars across $(ls -d skills/*/SKILL.md | wc -l) skills"
+          exit $fail
       - name: Validate hook scripts exist
         run: |
           fail=0
