@@ -284,16 +284,17 @@ window.addEventListener('message', (event: MessageEvent) => {
 
 ## Extension Socket Locations
 
-Run `foundry ui extensions list-sockets` to get the current list of available sockets. Use the **technical ID** (not human-readable name) with `--sockets`:
+Run `foundry ui extensions list-sockets` to get the current list of available sockets. Use the **technical ID** (not human-readable name) with `--sockets`. The extension renders in the detail panel reached by the navigation below — open an individual record (detection, case, host, lead, or execution) to see it.
 
-| Display Name | Technical ID for `--sockets` |
-|-------------|------------------------------|
-| Automated leads details | `automated-leads.leads.details` |
-| Endpoint detection details | `activity.detections.details` |
-| Host management host details | `hosts.host.panel` |
-| Next-Gen SIEM cases details | `xdr.cases.panel` |
-| Next-Gen SIEM workbench details | `ngsiem.workbench.details` |
-| Workflow execution details | `workflows.executions.execution.details` |
+| Display Name | Technical ID for `--sockets` | Console Navigation |
+|-------------|------------------------------|--------------------|
+| Endpoint detection details | `activity.detections.details` | Endpoint security › Monitor › Endpoint detections |
+| Identity Protection detection details | `identity.detections.details` | Identity protection › Detections |
+| Next-Gen SIEM cases details | `xdr.cases.panel` | Next-Gen SIEM › Cases |
+| Next-Gen SIEM workbench details | `ngsiem.workbench.details` | Next-Gen SIEM › Cases › open a case › workbench graph canvas › click a node |
+| Host management host details | `hosts.host.panel` | Host setup and management › Host management |
+| Automated leads details | `automated-leads.leads.details` | Next-Gen SIEM › Automated leads |
+| Workflow execution details | `workflows.executions.execution.details` | Fusion SOAR › Workflows › open an execution |
 
 ## Common Pitfalls
 
