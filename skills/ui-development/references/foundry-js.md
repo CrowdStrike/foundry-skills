@@ -156,16 +156,22 @@ function App() {
 
 ### External Links Use navigateTo
 
-Links that navigate outside your app use `falcon.navigation.navigateTo()`:
+Links that navigate outside your app use `falcon.navigation.navigateTo()`. The `target` option controls where the link opens:
+
+- `target: "_blank"` — opens in a new browser tab
+- `target: "_self"` — navigates the Falcon console in the same tab
 
 ```tsx
-function ExternalLink({ href, children }) {
+function ExternalLink({ href, children, newTab = true }) {
   const { falcon } = useFalconApiContext();
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (falcon?.navigation?.navigateTo) {
-      falcon.navigation.navigateTo({ path: e.currentTarget.href });
+      falcon.navigation.navigateTo({
+        path: e.currentTarget.href,
+        target: newTab ? '_blank' : '_self',
+      });
     } else {
       window.open(href, '_blank');
     }
