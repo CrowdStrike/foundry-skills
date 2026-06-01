@@ -2,6 +2,78 @@
 
 > Parent skill: [functions-development](../SKILL.md)
 
+## Testing in the Falcon Console (Python)
+
+The browser-based Python editor lets you edit, test, and debug functions without leaving the Falcon console. For users unfamiliar with terminal-based testing, this is the fastest path to understanding how their code executes.
+
+### Navigating to the Editor
+
+1. Go to Foundry → App builder, then open your app
+2. Click the ⋮ menu (top right, next to Exit) → **Edit app** (enters draft mode)
+3. Click the **Logic** icon in the left sidebar
+4. Scroll to the **Functions** section
+5. Click ⋮ on the function row → **Edit function**
+
+The editor opens to `main.py` by default. It supports Python only — Go functions still require the Foundry CLI.
+
+### Editor Layout
+
+**Tabs:** Function code | Handlers | Runtime config | Test
+
+**Top right buttons:** Function logs (opens Advanced event search) | Save
+
+The "Function code" tab shows `main.py` and `requirements.txt`. The "Runtime config" tab shows auto-detected API scopes from FalconPy imports (origin: "Code derived").
+
+### Adding Logging
+
+The FDK injects a logger automatically when you include it in the handler signature:
+
+```python
+from logging import Logger
+from typing import Dict, Optional
+
+def on_post(request: Request, _config: Optional[Dict[str, object]], logger: Logger) -> Response:
+    host_id = request.body["host_id"]
+    logger.info(f"Looking up host: {host_id}")
+    # ... rest of handler
+```
+
+### Making the Function Testable
+
+The Test tab requires either preview mode or an installed app:
+
+- **Preview mode** (no Falcon API calls): Deploy the app, then enable preview mode from the Falcon title bar Developer tools button (</> icon). Select the app name and version to test.
+- **Installed app** (uses FalconPy): Functions that call Falcon APIs need context-aware authentication, which only works when the app is installed. Complete the full cycle: Deploy → Release → Install from App Catalog.
+
+For integrations you won't invoke during testing, placeholder credentials work for basic auth and API key authentication. OAuth integrations typically require real credentials because the install process validates the token endpoint.
+
+### Running a Test
+
+1. Click the **Test** tab
+2. Select the handler from the **Handler name** dropdown (e.g., `host-details`)
+3. Enter the **Request JSON**:
+   ```json
+   { "host_id": "abc123def456" }
+   ```
+4. Click **Test**
+
+Results appear inline with the HTTP status code and response body. Errors (400, 500) show immediately for rapid iteration.
+
+### Finding Test Data
+
+For functions that require real IDs (hosts, detections, etc.), find them in the Falcon console:
+
+- **Host IDs:** Host Setup and Management → Host Management → click a host → copy its host ID
+- **Detection IDs:** Endpoint security → Endpoint detections → click a detection → copy from URL or details panel
+
+### Function Logs
+
+Click the **Function logs** button (top right of the editor). This opens Advanced event search in a new tab with a pre-populated query filtered to your function ID. Results appear automatically showing `logger.info()` output and any errors from recent executions.
+
+This is where logging becomes visible — once users see their log messages appearing here, the connection between code and runtime behavior clicks.
+
+---
+
 ## Local Testing Methods
 
 Four ways to test functions locally:
