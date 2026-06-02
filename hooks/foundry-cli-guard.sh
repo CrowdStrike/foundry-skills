@@ -73,7 +73,7 @@ if echo "$COMMAND" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
   # Validate --sockets value against known valid socket IDs
   SOCKET_VAL=$(echo "$COMMAND" | grep -oE -- '--sockets\s+"?[^"[:space:]]+"?' | sed 's/--sockets[[:space:]]*//' | tr -d '"')
   if [ -n "$SOCKET_VAL" ]; then
-    VALID_SOCKETS="activity.detections.details automated-leads.leads.details hosts.host.panel xdr.cases.panel ngsiem.workbench.details workflows.executions.execution.details"
+    VALID_SOCKETS="activity.detections.details identity.detections.details automated-leads.leads.details hosts.host.panel xdr.cases.panel ngsiem.workbench.details workflows.executions.execution.details"
     IS_VALID=false
     for vs in $VALID_SOCKETS; do
       if [ "$SOCKET_VAL" = "$vs" ]; then
@@ -85,7 +85,7 @@ if echo "$COMMAND" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
       jq -n --arg val "$SOCKET_VAL" '{
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
-          additionalContext: ("Invalid socket ID: \"" + $val + "\". Run `foundry ui extensions list-sockets` for available sockets. Known IDs: activity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, ngsiem.workbench.details, workflows.executions.execution.details.")
+          additionalContext: ("Invalid socket ID: \"" + $val + "\". Run `foundry ui extensions list-sockets` for available sockets. Known IDs: activity.detections.details, identity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, ngsiem.workbench.details, workflows.executions.execution.details.")
         }
       }'
       exit 0
