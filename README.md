@@ -214,7 +214,7 @@ foundry ui extensions create --name "X" --from-template React --sockets "activit
 foundry functions create --name "X" --language python --no-prompt              # Add function
 foundry collections create --name "X" --schema /tmp/schema.json --no-prompt   # Add collection
 foundry workflows create --name "X" --spec /tmp/workflow.yaml --no-prompt     # Add workflow
-foundry apps deploy                                              # Deploy to cloud
+foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
 foundry apps release                                             # Release to catalog
 ```
 

@@ -922,6 +922,24 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.3  apps deploy → pass (no --no-prompt needed)"
 
+# 6.3b — foundry apps deploy without --change-type → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --change-type" "6.3b apps deploy without --change-type → advisory"
+
+# 6.3c — foundry apps deploy without --change-log → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --change-log" "6.3c apps deploy without --change-log → advisory"
+
+# 6.3d — bare foundry apps deploy (no flags at all) → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --change-type" "6.3d bare apps deploy → advisory"
+
 # 6.4 — foundry ui pages create without --no-prompt → advisory
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui pages create --name MyPage --from-template React"}}')

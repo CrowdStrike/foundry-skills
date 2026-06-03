@@ -8,9 +8,10 @@
 #
 # Prevents common failures:
 # 1. Running Foundry CLI commands without --no-prompt (causes Error: EOF)
-# 2. Running ui extensions create without --sockets (interactive picker hangs)
-# 3. Using mkdir/touch to create app structure (causes invalid manifests)
-# 4. Creating resources without user confirmation of the name
+# 2. Running foundry apps deploy without --change-type (causes 500 error)
+# 3. Running ui extensions create without --sockets (interactive picker hangs)
+# 4. Using mkdir/touch to create app structure (causes invalid manifests)
+# 5. Creating resources without user confirmation of the name
 #
 # Receives JSON on stdin with hook_event_name and tool-specific fields.
 # Outputs JSON with additionalContext (advisory nudge, not blocking).
@@ -52,6 +53,30 @@ if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|dele
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
         additionalContext: "The command is missing --no-prompt. Foundry CLI create/release commands run non-interactively in Claude Code and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
+      }
+    }'
+    exit 0
+  fi
+fi
+
+# Check for foundry apps deploy without --change-type
+# Omitting --change-type causes a 500 error (server-side panic) because the
+# Foundry API requires a change_type field in deploy requests.
+if echo "$COMMAND" | grep -qE 'foundry\s+apps\s+deploy\b'; then
+  if ! echo "$COMMAND" | grep -qF -- '--change-type'; then
+    jq -n '{
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        additionalContext: "The command is missing --change-type. Foundry apps deploy requires --change-type and --change-log to avoid a 500 error. Add both flags before retrying. Example: foundry apps deploy --change-type Patch --change-log \"description of changes\" --no-prompt"
+      }
+    }'
+    exit 0
+  fi
+  if ! echo "$COMMAND" | grep -qF -- '--change-log'; then
+    jq -n '{
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        additionalContext: "The command is missing --change-log. Foundry apps deploy requires --change-type and --change-log. Add both flags before retrying. Example: foundry apps deploy --change-type Patch --change-log \"description of changes\" --no-prompt"
       }
     }'
     exit 0
