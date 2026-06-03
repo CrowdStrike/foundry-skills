@@ -38,7 +38,7 @@ import shlex
 def safe_command_execution(user_input: str) -> str:
     """Safe execution avoiding command injection"""
 
-    # Whitelist approach - only allow specific commands
+    # Allowlist approach - only allow specific commands
     allowed_commands = {
         'ping': ['ping', '-c', '1'],
         'nslookup': ['nslookup']

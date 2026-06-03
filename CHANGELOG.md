@@ -18,6 +18,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **debugging-workflows** — Added troubleshooting rows for blank pages from an un-awaited `falcon.connect()` and data not appearing after writes due to schema mismatches.
 - **development-workflow, ui-development** — Documented that `foundry apps validate`, `deploy`, and `ui run` must run from the app root; running from a subdirectory produces doubled paths and misleading file-not-found errors.
 
+### Fixed
+
+- **Inclusive terminology** — Changed "Whitelist approach" to "Allowlist approach" in security-examples.md.
+- **verify-apps.sh extension verification** — Instructions now scroll to find the accordion, expand it, wait for the iframe to load, and check for content inside — matching the `expandExtensionInSocket()` pattern from `@crowdstrike/foundry-playwright`.
+- **test-skill.sh warmup** — Use `--model haiku` for the API health check to avoid wasting Opus tokens on a connectivity test.
+- **tail-test.sh** — Suppress `find` stderr when test directories don't exist yet.
+
 ## [1.1.0] - 2026-05-13
 
 ### Added

@@ -524,10 +524,14 @@ for idx in $(seq 0 $((APP_COUNT - 1))); do
    - Navigate: ${SOCKET_NAV}
    - Wait for the page to load
    - ${SOCKET_INTERACT}
-   - Look for the extension panel labeled '${APP_NAME}' or similar (may be a collapsible section or tab in the details sidebar)
-   - If you see the extension panel (even if empty or showing an error fetching data), note 'UI: PASS'
-   - If no extension panel appears after waiting, note 'UI: FAIL (extension not visible in socket)'
-   - Take a screenshot showing the details view with the extension panel"
+   - Look for the extension panel button labeled '${APP_NAME}' or similar (a collapsible accordion section in the details sidebar)
+   - Scroll down if needed — extensions are often at the bottom of the panel (press End key multiple times)
+   - **Expand the extension**: Check if the button has aria-expanded='false' or is collapsed. Click it to expand.
+   - **Wait for iframe content**: After expanding, wait for an iframe (typically iframe[name='portal']) to appear and load inside the extension panel. This is where the extension UI renders.
+   - **Verify content**: Check inside the iframe for meaningful content — a table, list, error message, or loading indicator. Take a screenshot showing the expanded extension with its iframe content.
+   - If the extension expands and shows content (even an error or loading state), note 'UI: PASS'
+   - If the extension button exists but iframe never loads or is blank after 15 seconds, note 'UI: FAIL (iframe empty)'
+   - If no extension panel appears after scrolling and waiting, note 'UI: FAIL (extension not visible in socket)'"
   elif [ "$UI_TYPE" = "page" ]; then
     UI_INSTRUCTIONS="2. **Verify UI (App Page)**
    - After install, look for the app in Custom Apps (hamburger menu → Falcon Foundry → Custom Apps) or check for a 'Launch' / 'Open' button on the app details page
