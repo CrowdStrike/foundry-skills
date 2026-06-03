@@ -1,8 +1,8 @@
 ---
 name: api-integrations
 description: Expose external APIs to Falcon Foundry via OpenAPI specs. TRIGGER when user asks to "create an API integration", "adapt an OpenAPI spec for Foundry", "expose an API to workflows", "connect to a third-party API", or runs `foundry api-integrations create`. Also trigger when user has an OpenAPI/Swagger spec and wants it working in Falcon Foundry. DO NOT TRIGGER when user wants to call Falcon platform APIs from function code — use functions-falcon-api instead.
-version: 1.1.0
-updated: 2026-05-13
+version: 1.2.0
+updated: 2026-06-03
 tags: [foundry, openapi, api, workflows]
 author: CrowdStrike
 license: MIT
