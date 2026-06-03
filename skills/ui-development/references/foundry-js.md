@@ -159,7 +159,9 @@ function App() {
 Links that navigate outside your app use `falcon.navigation.navigateTo()`. The `target` option controls where the link opens:
 
 - `target: "_blank"` — opens in a new browser tab
-- `target: "_self"` — navigates the Falcon console in the same tab
+- `target: "_self"` (default) — navigates the Falcon console in the same tab
+
+When `target` is omitted, it defaults to `_self`.
 
 ```tsx
 function ExternalLink({ href, children, newTab = true }) {
