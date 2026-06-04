@@ -225,7 +225,7 @@ Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/go
 | `${data['action_key.API_Integration.Custom_Name.operationId.body']}` | Response body from an API integration action |
 | `${data['action_key.API_Integration.Custom_Name.operationId.body']}[0].field` | Access a field in the first element of an array response |
 | `${data['action_key.output.field']}` | Field from a platform action's output |
-| `${data['trigger.param_name']}` | On-demand trigger parameter value |
+| `${data['param_name']}` | On-demand trigger parameter value (use the parameter name directly, no prefix) |
 
 **CRITICAL:** Do NOT use `$action_name.output.body` — this passes as a literal string and is NOT resolved at runtime. Always use `${data['...']}` expressions.
 

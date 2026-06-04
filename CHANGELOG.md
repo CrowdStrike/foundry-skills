@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **functions-development** — Added `APIIntegrations().execute_command_proxy()` code examples showing how to call registered third-party API integrations from function code. Includes request body/params patterns, explanation of why the platform proxy is required, and references to 3 sample repos. Added pitfall warning against making raw HTTP calls when an integration is registered.
 
+### Fixed
+
+- **workflows-development** — Fixed incorrect trigger parameter variable syntax. Was `${data['trigger.param_name']}`, corrected to `${data['param_name']}` (no prefix). Validated against foundry-sample-foundryjs-demo, security-skills (20+ workflows), and all other sample repos that consistently use direct parameter names.
+
 ## [1.2.0] - 2026-06-03
 
 ### Added
