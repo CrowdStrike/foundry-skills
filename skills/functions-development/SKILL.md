@@ -194,6 +194,57 @@ falcon = Alerts()  # Auth is automatic — do not pass credentials
 
 FalconPy already reads env vars internally, so writing a `get_falcon_client()` wrapper that manually reads credentials adds no value and breaks context auth in the cloud.
 
+### Calling Registered API Integrations from Functions
+
+When your app has an API integration registered in `manifest.yml`, call it from functions using FalconPy's `APIIntegrations` class. Do NOT make raw HTTP calls (urllib/requests) to the third-party API — always go through the Foundry platform proxy:
+
+```python
+from falconpy import APIIntegrations
+
+api = APIIntegrations()  # Zero-arg auth, same as other FalconPy classes
+
+# Call using definition_id + operation_id from your manifest
+response = api.execute_command_proxy(
+    body={
+        "resources": [
+            {
+                "definition_id": "ZscalerAPI",      # matches manifest api_integrations name
+                "operation_id": "urlLookup",        # matches OpenAPI spec operationId
+            }
+        ]
+    },
+)
+```
+
+For APIs that need a request body or query parameters:
+
+```python
+response = api.execute_command_proxy(
+    body={
+        "resources": [
+            {
+                "definition_id": "Anomali API",
+                "operation_id": "Intelligence",
+                "request": {
+                    "params": {
+                        "query": {"type": "ip", "value": ip_address}
+                    }
+                },
+            }
+        ]
+    },
+)
+```
+
+**Why the proxy?** The platform manages OAuth tokens, rate limiting, and audit logging for registered integrations. Raw HTTP calls bypass all of this and won't work in production because the function has no direct network access to external APIs — only the platform proxy can reach them.
+
+**Local testing note:** Use `definition_id` (the UUID from `manifest.yml`), not the human-readable integration name. After deploying once, the platform assigns UUIDs that appear in the manifest.
+
+Reference implementations:
+- [foundry-sample-zscaler-internet-access](https://github.com/CrowdStrike/foundry-sample-zscaler-internet-access) (6 functions using `execute_command_proxy`)
+- [foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream) (IOC ingestion via API integration)
+- [foundry-sample-openrouter-toolkit](https://github.com/CrowdStrike/foundry-sample-openrouter-toolkit) (`execute_command` variant)
+
 ### requirements.txt Best Practices
 
 Pin all dependencies to exact versions (`==`) for reproducible builds and supply chain safety. The one exception is `crowdstrike-falconpy`, which should be left unpinned so functions always pick up the latest SDK (needed for context-based auth and new service classes). Ensure the file ends with a trailing newline.
@@ -240,7 +291,8 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 - **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content.
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).
 - **Using PATCH with Go functions.** Go only supports GET, POST, PUT, DELETE.
-- **Using `definition_id` vs. name for API integrations.** Calling API integrations from functions locally requires the UUID `definition_id` from `manifest.yml`, not the human-readable name.
+- **Using `definition_id` vs. name for API integrations.** Calling API integrations from functions requires the `definition_id` from `manifest.yml`, not the human-readable name. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.
+- **Making raw HTTP calls to third-party APIs.** When an API integration is registered in the manifest, MUST use `APIIntegrations().execute_command_proxy()` — raw urllib/requests calls bypass platform auth and won't reach external APIs in production.
 
 ## Use Cases
 
