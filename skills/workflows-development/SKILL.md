@@ -89,7 +89,7 @@ output_fields: []
 | On demand | `name: On demand`, `type: On demand` |
 | Scheduled | `event: Schedule`, `schedule: {time_cycle: "0 */6 * * *", tz: Etc/UTC}` |
 
-> **⚠️ Null-guard trigger parameters:** On-demand trigger parameters are optional — they may be null or empty at runtime. Always guard before using them:
+> **⚠️ Null-guard trigger parameters:** When run from the Falcon console, the UI prompts users to fill in parameters. However, when triggered via API or from another workflow, parameters may be empty. Guard defensively:
 >
 > ```yaml
 > conditions:
