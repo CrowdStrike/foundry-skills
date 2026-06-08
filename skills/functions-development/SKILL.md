@@ -250,7 +250,7 @@ response = api.execute_command_proxy(
 
 **Why the proxy?** The platform manages OAuth tokens, rate limiting, and audit logging for registered integrations. Raw HTTP calls bypass all of this — while they can work with hardcoded or env-var credentials, those values are stored unencrypted and visible to anyone who exports the app.
 
-**Local testing note:** When testing locally, use the UUID `definition_id` assigned after first deploy (visible in `manifest.yml`). In production, the human-readable integration name (e.g., `"ZscalerAPI"`) works as the `definition_id` value.
+**Local testing note:** When testing locally, you may need the UUID `definition_id` from `manifest.yml` (assigned by the platform). In production, the human-readable integration name (e.g., `"ZscalerAPI"`) works as the `definition_id` value.
 
 Reference implementations:
 - [foundry-sample-zscaler-internet-access](https://github.com/CrowdStrike/foundry-sample-zscaler-internet-access) (6 functions using `execute_command_proxy`)
