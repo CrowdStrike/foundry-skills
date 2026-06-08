@@ -250,7 +250,7 @@ response = api.execute_command_proxy(
 
 **Why the proxy?** The platform manages OAuth tokens, rate limiting, and audit logging for registered integrations. Raw HTTP calls bypass all of this and won't work in production because the function has no direct network access to external APIs — only the platform proxy can reach them.
 
-**Local testing note:** Use `definition_id` (the UUID from `manifest.yml`), not the human-readable integration name. After deploying once, the platform assigns UUIDs that appear in the manifest.
+**Local testing note:** When testing locally, use the UUID `definition_id` assigned after first deploy (visible in `manifest.yml`). In production, the human-readable integration name (e.g., `"ZscalerAPI"`) works as the `definition_id` value.
 
 Reference implementations:
 - [foundry-sample-zscaler-internet-access](https://github.com/CrowdStrike/foundry-sample-zscaler-internet-access) (6 functions using `execute_command_proxy`)
@@ -303,7 +303,7 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 - **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content.
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).
 - **Using PATCH with Go functions.** Go only supports GET, POST, PUT, DELETE.
-- **Using `definition_id` vs. name for API integrations.** Calling API integrations from functions requires the `definition_id` from `manifest.yml`, not the human-readable name. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.
+- **Using `definition_id` vs. name for API integrations.** When testing locally, use the UUID `definition_id` from `manifest.yml`. In production, the human-readable name (e.g., `"ZscalerAPI"`) works as the `definition_id` value. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.
 - **Making raw HTTP calls to third-party APIs.** When an API integration is registered in the manifest, MUST use `APIIntegrations().execute_command_proxy()` — raw urllib/requests calls bypass platform auth and won't reach external APIs in production.
 
 ## Use Cases
