@@ -145,6 +145,16 @@ const theme = await falcon.theme();
 document.documentElement.classList.add(`sl-theme-${theme}`);
 ```
 
+> **⚠️ `connect()` is async.** In React, `falcon.connect()` must be called inside a `useEffect` and navigation/theme must only be accessed AFTER connect resolves. Use `falcon.isConnected` as a dependency for `useMemo`:
+>
+> ```jsx
+> const navigation = useMemo(() => {
+>   return falcon.isConnected ? falcon.navigation : undefined;
+> }, [falcon.isConnected]);
+> ```
+>
+> Gate child rendering on `isInitialized` state. See [references/react-patterns.md](references/react-patterns.md) for the full `FalconApiProvider` pattern.
+
 ### Calling API Integrations
 
 Use `falcon.apiIntegration()` for third-party APIs. Use `falcon.api.get()` for CrowdStrike Falcon APIs.
