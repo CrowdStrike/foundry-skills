@@ -35,6 +35,18 @@ Before writing a function, exhaust alternatives — each one avoids deployment c
 - **API Integrations** (HTTP Actions) for calling external APIs directly from workflows
 - **UI Extensions** with `foundry-js` for client-side data fetching
 
+## Credential Management — No Secrets System Exists
+
+**There is no secrets management in Falcon Foundry.** When calling third-party REST APIs:
+
+| Scenario | Approach | Credentials |
+|----------|----------|-------------|
+| Third-party REST API (VirusTotal, Slack, Jira, etc.) | API integration in manifest + `APIIntegrations().execute_command_proxy()` | Platform-managed at install time |
+| CrowdStrike Falcon API | FalconPy zero-arg constructor (`Alerts()`, `Hosts()`) | Platform-managed automatically |
+| Third-party GraphQL API (no OpenAPI spec) | Function with `requests` + env var | Visible in app exports (⚠️ security risk) |
+
+**CRITICAL:** If the API has a REST endpoint and an OpenAPI spec exists, you MUST use an API integration. NEVER use `os.environ` with API keys, `requests.get()` with hardcoded URLs, or localStorage for credentials when an API integration can handle it. The platform manages OAuth tokens, and functions have no direct network access to external APIs in production — only the platform proxy can reach them.
+
 ## Reference Files
 
 This skill is split across multiple files. Consult these for full examples:

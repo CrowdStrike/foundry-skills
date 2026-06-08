@@ -23,6 +23,8 @@ metadata:
 
 This skill covers exposing external APIs (third-party services or CrowdStrike Falcon APIs) to the Falcon Foundry platform via OpenAPI/Swagger specifications. These integrations make API operations available to Falcon Fusion SOAR workflows, Foundry UI extensions, Foundry Functions, and other Foundry capabilities.
 
+**API integrations are how Foundry manages credentials.** There is no secrets system, no encrypted env vars, and no key vault. When you register an API integration, the platform collects credentials at install time and manages tokens automatically. This is why functions MUST call third-party REST APIs through `APIIntegrations().execute_command_proxy()` — not via raw HTTP with env vars.
+
 For calling Falcon APIs from within Function code, see **functions-falcon-api** instead.
 
 ## Decision Tree
