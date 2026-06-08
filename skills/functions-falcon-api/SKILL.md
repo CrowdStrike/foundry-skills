@@ -273,17 +273,14 @@ Every FalconPy service class call requires the correct OAuth scope(s) declared i
 
 ### Scope Reference (verified from production sample apps)
 
+Each row maps a FalconPy method actually called in a sample function to the scope declared in that app's manifest.
+
 | FalconPy Class | Methods | Required Scope(s) | Verified In |
 |---|---|---|---|
-| `Hosts` | `query_devices_by_filter`, `get_device_details` | `devices:read` | foundry-sample-functions-python |
-| `Hosts` | `perform_action` (contain/lift containment) | `devices:read`, `devices:write` | foundry-sample-rapid-response |
-| `IOC` | `indicator_create_v1` | `iocs:write` | foundry-sample-zscaler-internet-access |
+| `Hosts` | `get_device_details` | `devices:read` | foundry-sample-functions-python |
 | `Intel` | `query_indicator_ids` | `falconx-indicators:read` | foundry-sample-zscaler-internet-access |
-| `Alerts` | `get_queries_alerts_v2`, `get_alerts_v2` | `alerts:read` | foundry-sample-mitre |
-| `Detects` | `query_detects`, `get_detect_summaries` | `detects:read` | foundry-sample-mitre |
-| `IdentityProtection` | `graphql()` | `identity-graphql:write` | foundry-sample-idp-notifications |
-| `IdentityProtection` | `query_sensors`, `get_sensor_details` | `identity-entities:read` | foundry-sample-idp-notifications |
-| `IdentityProtection` | (policy rules) | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
+| `IdentityProtection` | `graphql`, `query_sensors`, `get_sensor_details` | `identity-graphql:write`, `identity-entities:read` | foundry-sample-idp-notifications |
+| `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
@@ -298,7 +295,7 @@ Every FalconPy service class call requires the correct OAuth scope(s) declared i
 auth:
     scopes:
         - devices:read
-        - iocs:write
+        - falconx-indicators:read
     permissions: {}
     roles: []
 ```
