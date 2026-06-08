@@ -89,6 +89,22 @@ output_fields: []
 | On demand | `name: On demand`, `type: On demand` |
 | Scheduled | `event: Schedule`, `schedule: {time_cycle: "0 */6 * * *", tz: Etc/UTC}` |
 
+> **⚠️ Null-guard trigger parameters:** On-demand trigger parameters are optional — they may be null or empty at runtime. Always guard before using them:
+>
+> ```yaml
+> conditions:
+>     check_param:
+>         cel_expression: "data['param_name'] != null && data['param_name'] != ''"
+>         next:
+>             - use_param
+>         display:
+>             - param_name was provided
+>         else:
+>             - handle_missing
+> ```
+>
+> Or inline in CEL: `${data['param'] != null ? data['param'] : "default"}`
+
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
 
 **Version constraints:** Every action requires `version_constraint`. Use `~0` for function actions and API integration actions. Use `~1` for platform actions (Print data, Send email, Create/Update variable, etc.):
@@ -179,6 +195,7 @@ Platform actions (send email, log output, create detection) require platform-spe
 | Send email | `07413ef9ba7c47bf5a242799f59902cc` |
 | Request human input - Send email | `d6731c10b24834e2e0f4bd9d390a29c8` |
 | Get device details | `6265dc947cc2252f74a5f25261ac36a9` |
+| Contain device | `bec9fbeb4999d207937854fd56088107` |
 
 For actions not in this table, use `foundry workflows actions view --name "..."` or the API query in [references/action-discovery.md](references/action-discovery.md). There are 9,000+ platform actions available. MUST NOT guess action IDs — use discovery commands.
 

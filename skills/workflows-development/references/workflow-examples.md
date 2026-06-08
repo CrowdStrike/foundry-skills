@@ -91,6 +91,75 @@ output_fields: []
 - `${data['action_key.API_Integration.Custom_Name.operationId.body']}` to access API response body via CEL expression
 - `output_fields: []` when no fields need to be surfaced
 
+## Response Action Workflow (Contain Host)
+
+Platform response actions (contain device, lift containment, create IOC) use discovered action IDs. To find the ID, run:
+
+```bash
+foundry workflows actions view --name "contain"
+```
+
+This example demonstrates an on-demand workflow that contains a host by device ID, with a null-guard condition to prevent runtime errors when the parameter is empty.
+
+```yaml
+name: Contain Malicious Host
+description: On-demand workflow to network-contain a host by device ID
+provision_on_install: true
+trigger:
+    next:
+        - check_device_id
+    name: On demand
+    parameters:
+        properties:
+            device_id:
+                type: string
+        type: object
+    type: On demand
+actions:
+    check_device_id:
+        next:
+            - contain_host
+        id: 702d15788dbbffdf0b68d8e2f3599aa4
+        class: CreateVariable
+        properties:
+            variable_schema:
+                properties:
+                    status:
+                        type: string
+                type: object
+        version_constraint: ~1
+    contain_host:
+        id: bec9fbeb4999d207937854fd56088107
+        next:
+            - print_result
+        properties:
+            device_id: "${data['device_id']}"
+        version_constraint: ~1
+    print_result:
+        id: aadbf530e35fc452a032f5f8acaaac2a
+        properties:
+            text_data: "Containment initiated for device ${data['device_id']}"
+        version_constraint: ~1
+conditions:
+    check_device_id:
+        cel_expression: "data['device_id'] != null && data['device_id'] != ''"
+        next:
+            - contain_host
+        display:
+            - device_id was provided
+        else:
+            - print_result
+```
+
+**Patterns demonstrated:**
+- Discovering platform actions via `foundry workflows actions view --name "..."`
+- `conditions:` with `cel_expression:` for null-guarding trigger parameters
+- `else:` routing to a fallback action when the parameter is missing
+- Response action pattern with a real platform action ID (`bec9fbeb4999d207937854fd56088107` = Contain device)
+- CEL null-guard: `data['field'] != null && data['field'] != ''`
+
+> **⚠️ Always discover action IDs** — do NOT guess or hardcode IDs from this example for other actions. Use `foundry workflows actions view --name "..."` or the API query in [action-discovery.md](action-discovery.md) to find the correct ID for your specific use case.
+
 ## Scheduled Workflow with Pagination Loop
 
 From [foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream). Scheduled trigger with loop-based pagination using a custom variable to track the cursor.
