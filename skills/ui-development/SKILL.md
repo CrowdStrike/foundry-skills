@@ -37,13 +37,16 @@ If the user doesn't specify page or extension, **ask which they prefer** before 
 | **Where** | Full-page view in Falcon console | Sidebar widget in detection/host/incident pages |
 | **Sockets** | N/A | One per extension (see socket table below) |
 | **Use when** | Complex interactions, multiple views, dashboards | Contextual enrichment, quick-glance data |
-| **Framework** | Vue or React | Vue or React |
+| **Framework** | Vue, React, or Vanilla JS | Vue, React, or Vanilla JS |
 
 ## CLI Scaffolding
 
 ```bash
 # Create a React page
 foundry ui pages create --name "my-page" --description "Page description" --from-template React --homepage --no-prompt
+
+# Create a Vanilla JS page (no npm install or build step needed)
+foundry ui pages create --name "my-page" --description "Page description" --from-template "Vanilla JS" --homepage --no-prompt
 
 # Add navigation entry (separate step — --no-prompt skips this during page creation)
 foundry ui navigation add --name "My Page" --path / --ref pages.my-page
@@ -52,7 +55,12 @@ foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 # REQUIRED: --sockets must be specified — omitting it launches an interactive picker that hangs with Error: EOF
 # REQUIRED: Use ONLY values from the Extension Socket Locations table below — do NOT guess socket IDs
 foundry ui extensions create --name "my-ext" --description "Description" --from-template React --sockets "activity.detections.details" --no-prompt
+
+# Create a Vanilla JS extension (no npm install or build step needed)
+foundry ui extensions create --name "my-ext" --description "Description" --from-template "Vanilla JS" --sockets "activity.detections.details" --no-prompt
 ```
+
+**Vanilla JS** needs no `npm install` or `npm run build`. The importmap loads foundry-js from CDN. Use it for simple extensions that display data or make API calls without complex state management. Deploy works with just the raw `src/` files.
 
 The blueprint output is deterministic — see [references/blueprint-templates.md](references/blueprint-templates.md) for exact file contents, Shoelace import patterns, and API integration calling examples.
 
@@ -297,6 +305,8 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | Workflow execution details | `workflows.executions.execution.details` | Fusion SOAR › Workflows › open an execution |
 
 ## Common Pitfalls
+
+> **Note:** The first three pitfalls below about `vite.config.js`, `npm install`, and `npm run build` apply to the React template only. Vanilla JS extensions have no build step — deploy the raw `src/` files directly.
 
 - **Running `foundry` commands from a UI subdirectory.** After `cd ui/extensions/my-ext && npm install && npm run build`, you MUST `cd` back to the app root before running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run`. The CLI resolves manifest paths relative to cwd — running from a subdirectory produces doubled paths like `ui/extensions/my-ext/ui/extensions/my-ext/src/dist/index.html`.
 - **NEVER edit manifest.yml `path` or `entrypoint` values.** The CLI sets these correctly. The format `ui/extensions/my-ext/src/dist/index.html` is NOT a doubled path — it is correct. If you see a deploy path error, you likely changed `vite.config.js` — revert your changes.
