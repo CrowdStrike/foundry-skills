@@ -289,6 +289,8 @@ Every FalconPy service class call requires the correct OAuth scope(s) declared i
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
 
+**Go functions (gofalcon) require the same scopes.** The table above uses FalconPy class/method names, but the underlying Falcon API scopes are identical regardless of SDK. If your Go function calls the RTR admin API, declare `real-time-response-admin:write`. If it manages incidents, declare `incidents:read`, `incidents:write`.
+
 ### How to declare scopes
 
 ```yaml
