@@ -263,6 +263,53 @@ curl -X GET http://localhost:8081/api/alerts?limit=10
 
 The zero-arg pattern works seamlessly in both local and cloud environments.
 
+## OAuth Scopes for manifest.yml
+
+Every FalconPy service class call requires the correct OAuth scope(s) declared in your manifest's `auth.scopes` array. Without the right scopes, the function gets a 403 at runtime. `foundry apps validate` does NOT catch missing scopes — it only fails at runtime.
+
+> **⚠️ Scope names don't always match class names.** The `Hosts` class requires `devices:read`, not `hosts:read`. Always use this table rather than guessing from class names.
+
+> **Built-in capabilities don't need scopes.** API integrations, collections, workflows, and LogScale ingestion work without declaring their scopes when used through Foundry's built-in SDK patterns (`falcon.apiIntegration()`, `CustomStorage()` for app collections, etc.). Only declare scopes when calling Falcon platform APIs directly via FalconPy service classes.
+
+### Scope Reference (verified from production sample apps)
+
+| FalconPy Class | Methods | Required Scope(s) | Verified In |
+|---|---|---|---|
+| `Hosts` | `query_devices_by_filter`, `get_device_details` | `devices:read` | foundry-sample-functions-python |
+| `Hosts` | `perform_action` (contain/lift containment) | `devices:read`, `devices:write` | foundry-sample-rapid-response |
+| `IOC` | `indicator_create_v1` | `iocs:write` | foundry-sample-zscaler-internet-access |
+| `Intel` | `query_indicator_ids` | `falconx-indicators:read` | foundry-sample-zscaler-internet-access |
+| `Alerts` | `get_queries_alerts_v2`, `get_alerts_v2` | `alerts:read` | foundry-sample-mitre |
+| `Detects` | `query_detects`, `get_detect_summaries` | `detects:read` | foundry-sample-mitre |
+| `IdentityProtection` | `graphql()` | `identity-graphql:write` | foundry-sample-idp-notifications |
+| `IdentityProtection` | `query_sensors`, `get_sensor_details` | `identity-entities:read` | foundry-sample-idp-notifications |
+| `IdentityProtection` | (policy rules) | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
+| `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
+| `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
+| `FirewallManagement` | (rule/policy management) | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
+| `HostGroup` | (group operations) | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
+| (RTR admin) | (session commands) | `real-time-response-admin:write` | foundry-sample-rapid-response |
+| `Incidents` | (incident management) | `incidents:read`, `incidents:write` | foundry-sample-charlotte-toolkit |
+
+### How to declare scopes
+
+```yaml
+# manifest.yml
+auth:
+    scopes:
+        - devices:read
+        - iocs:write
+    permissions: {}
+    roles: []
+```
+
+### When unsure about the correct scope
+
+If you're using a FalconPy method not in this table:
+1. Check the method's HTTP verb and API path in FalconPy source — GET typically needs `:read`, POST/PUT/PATCH/DELETE typically needs `:write`
+2. The scope prefix is usually the **API path prefix** (e.g., `/iocs/...` → `iocs`, `/devices/...` → `devices`), but exceptions exist (`Hosts` → `devices`, `NGSIEM` → `humio-auth-proxy`)
+3. When ambiguous, **ask the user** which scopes to include rather than guessing
+
 ## Common Pitfalls
 
 - **Writing OAuth code or credential management.** Auth is completely automatic inside FDK handlers.
