@@ -286,10 +286,8 @@ Every FalconPy service class call requires the correct OAuth scope(s) declared i
 | `IdentityProtection` | (policy rules) | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
-| `FirewallManagement` | (rule/policy management) | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
-| `HostGroup` | (group operations) | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
-| (RTR admin) | (session commands) | `real-time-response-admin:write` | foundry-sample-rapid-response |
-| `Incidents` | (incident management) | `incidents:read`, `incidents:write` | foundry-sample-charlotte-toolkit |
+| `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
+| `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
 
 ### How to declare scopes
 
