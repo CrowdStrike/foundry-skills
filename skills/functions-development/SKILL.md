@@ -45,7 +45,7 @@ Before writing a function, exhaust alternatives — each one avoids deployment c
 | CrowdStrike Falcon API | FalconPy zero-arg constructor (`Alerts()`, `Hosts()`) | Platform-managed automatically |
 | Third-party GraphQL API (no OpenAPI spec) | Function with `requests` + env var | Visible in app exports (⚠️ security risk) |
 
-**CRITICAL:** If the API has a REST endpoint and an OpenAPI spec exists, you MUST use an API integration. NEVER use `os.environ` with API keys, `requests.get()` with hardcoded URLs, or localStorage for credentials when an API integration can handle it. The platform manages OAuth tokens, and functions have no direct network access to external APIs in production — only the platform proxy can reach them.
+**CRITICAL:** If the API has a REST endpoint and an OpenAPI spec exists, you MUST use an API integration. NEVER use `os.environ` with API keys, `requests.get()` with hardcoded URLs, or localStorage for credentials when an API integration can handle it. Raw HTTP with env vars technically works, but credentials are unencrypted and visible in app exports.
 
 ## Reference Files
 
@@ -248,7 +248,7 @@ response = api.execute_command_proxy(
 )
 ```
 
-**Why the proxy?** The platform manages OAuth tokens, rate limiting, and audit logging for registered integrations. Raw HTTP calls bypass all of this and won't work in production because the function has no direct network access to external APIs — only the platform proxy can reach them.
+**Why the proxy?** The platform manages OAuth tokens, rate limiting, and audit logging for registered integrations. Raw HTTP calls bypass all of this — while they can work with hardcoded or env-var credentials, those values are stored unencrypted and visible to anyone who exports the app.
 
 **Local testing note:** When testing locally, use the UUID `definition_id` assigned after first deploy (visible in `manifest.yml`). In production, the human-readable integration name (e.g., `"ZscalerAPI"`) works as the `definition_id` value.
 
@@ -304,7 +304,7 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).
 - **Using PATCH with Go functions.** Go only supports GET, POST, PUT, DELETE.
 - **Using `definition_id` vs. name for API integrations.** When testing locally, use the UUID `definition_id` from `manifest.yml`. In production, the human-readable name (e.g., `"ZscalerAPI"`) works as the `definition_id` value. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.
-- **Making raw HTTP calls to third-party APIs.** When an API integration is registered in the manifest, MUST use `APIIntegrations().execute_command_proxy()` — raw urllib/requests calls bypass platform auth and won't reach external APIs in production.
+- **Making raw HTTP calls to third-party APIs.** When an API integration is registered in the manifest, MUST use `APIIntegrations().execute_command_proxy()`. Raw urllib/requests calls can technically work with hardcoded credentials or env vars, but credentials are stored unencrypted and visible in app exports — a security risk. Always prefer the API integration path.
 
 ## Use Cases
 
