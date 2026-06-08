@@ -107,7 +107,7 @@ description: On-demand workflow to network-contain a host by device ID
 provision_on_install: true
 trigger:
     next:
-        - check_device_id
+        - validate_device_id
     name: On demand
     parameters:
         properties:
@@ -116,18 +116,6 @@ trigger:
         type: object
     type: On demand
 actions:
-    check_device_id:
-        next:
-            - contain_host
-        id: 702d15788dbbffdf0b68d8e2f3599aa4
-        class: CreateVariable
-        properties:
-            variable_schema:
-                properties:
-                    status:
-                        type: string
-                type: object
-        version_constraint: ~1
     contain_host:
         id: bec9fbeb4999d207937854fd56088107
         next:
@@ -141,7 +129,7 @@ actions:
             text_data: "Containment initiated for device ${data['device_id']}"
         version_constraint: ~1
 conditions:
-    check_device_id:
+    validate_device_id:
         cel_expression: "data['device_id'] != null && data['device_id'] != ''"
         next:
             - contain_host
