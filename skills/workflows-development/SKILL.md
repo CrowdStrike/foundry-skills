@@ -107,19 +107,29 @@ output_fields: []
 
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
 
-**Version constraints:** Every action requires `version_constraint`. Use `~0` for function actions and API integration actions. Use `~1` for platform actions (Print data, Send email, Create/Update variable, etc.):
+**Version constraints:** Every action requires `version_constraint`. The `~N` value pins against the activity's declared `semantic_version` field, not its internal iteration count. The rule:
+
+- `~0` = activity has **no** `semantic_version` defined (functions, API integrations, and some platform actions like "contain device")
+- `~1` = activity **has** a `semantic_version` (most platform actions: Print data, Send email, Create/Update variable, Get device details, etc.)
+
+Use `foundry workflows actions view --name "<action>"` to check. If the activity output shows a semantic_version field, use `~1`. If it does not, use `~0`.
 
 ```yaml
 actions:
     my_function:
         id: functions.my-func.process
         properties: {}
-        version_constraint: ~0       # ~0 for functions
+        version_constraint: ~0       # no semantic_version defined
+    contain_host:
+        id: <contain-device-action-id>
+        properties:
+            device_id: "${data['trigger.device_id']}"
+        version_constraint: ~0       # no semantic_version defined
     print_results:
         id: aadbf530e35fc452a032f5f8acaaac2a
         properties:
             text_data: "${data['my_function.output']}"
-        version_constraint: ~1       # ~1 for platform actions
+        version_constraint: ~1       # has semantic_version
 ```
 
 ### Manifest Configuration
