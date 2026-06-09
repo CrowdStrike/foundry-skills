@@ -309,9 +309,9 @@ If you're using a FalconPy method not in this table:
 
 ## Common Pitfalls
 
-- **Writing OAuth code or credential management.** Auth is completely automatic inside FDK handlers.
+- **Writing OAuth code or credential management.** Auth is completely automatic for FalconPy inside FDK handlers. NEVER use `os.environ.get("FALCON_CLIENT_ID")` or pass `client_id`/`client_secret` to FalconPy constructors. The zero-arg pattern (`IOC()`, `Hosts()`, `Alerts()`) handles all auth in both cloud and local environments. (Go requires explicit credential wiring via `fdk.FalconClientOpts()` -- see the Go section above.)
 - **Using `requests` library instead of CrowdStrike SDKs.** SDKs handle auth, retries, pagination, and region discovery.
-- **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`).
+- **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.
 - **Writing Falcon API calls outside of FDK handler functions.** The handler pattern is required for automatic auth injection.
 - **Not handling 207 Multi-Status.** These responses look successful but may contain embedded errors.
 

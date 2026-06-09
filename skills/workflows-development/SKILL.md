@@ -343,8 +343,10 @@ workflows:
     workflow_integration:
       id: <generated-id>
       disruptive: false
-      system_action: true   # true = app workflows only, false = also available as Fusion SOAR action
+      system_action: false   # false = available as a Fusion SOAR response action; true = internal app use only
 ```
+
+> **⚠️ SOAR action visibility:** Set `system_action: false` when the workflow should appear as a response action in Falcon Fusion SOAR (analysts can trigger it from detections, incidents, or other workflows). Set `system_action: true` when the workflow is only used internally by the app (e.g., scheduled data sync, internal helper). If the user asks for a "SOAR action" or "response action", always use `false`.
 
 ## Error Handling
 

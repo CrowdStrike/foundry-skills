@@ -6,8 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+> Changes in this release were identified by running automated eval prompts against the skills with Sonnet and Opus, then investigating failures and judge feedback to find skill gaps.
+
 ### Added
 
+- **workflows-development** — Added collection config lookup workflow example showing the pattern for reading user-configured settings from a collection before performing an action.
 - **ui-development** — Added Vanilla JS as a first-class template option for pages and extensions. Includes CLI scaffolding examples, note that no npm install/build step is needed, and clarification that vite/build-related pitfalls are React-specific.
 - **workflows-development** — Added Response Action Workflow (Contain Host) example showing platform action discovery and usage. Added Contain device action ID to platform actions table.
 - **workflows-development** — Added null-guard warning near trigger parameters explaining they're prompted in the UI but may be empty via API or sub-workflow calls.
@@ -18,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **workflows-development** — Clarified `system_action` guidance: `false` exposes the workflow as a SOAR response action, `true` keeps it internal. Changed example default to `false` since most on-demand workflows should be SOAR-visible.
+- **functions-falcon-api** — Strengthened zero-arg constructor pitfall to explicitly call out the `os.environ` anti-pattern that models keep generating.
 - **functions-development** — Corrected `definition_id` vs name guidance: name works in production, UUID only needed for local testing. Fixed raw HTTP claim from "won't work" to "works but credentials are unencrypted."
 - **functions-development** — Added `APIIntegrations().execute_command_proxy()` code examples showing how to call registered third-party API integrations from function code. Includes request body/params patterns, explanation of why the platform proxy is required, and references to 3 sample repos. Added pitfall warning against making raw HTTP calls when an integration is registered.
 - **workflows-development** — Fixed incorrect trigger parameter variable syntax. Was `${data['trigger.param_name']}`, corrected to `${data['param_name']}` (no prefix). Validated against foundry-sample-foundryjs-demo, security-skills (20+ workflows), and all other sample repos that consistently use direct parameter names.
