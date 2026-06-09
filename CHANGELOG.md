@@ -9,10 +9,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 
 - **ui-development** — Added Vanilla JS as a first-class template option for pages and extensions. Includes CLI scaffolding examples, note that no npm install/build step is needed, and clarification that vite/build-related pitfalls are React-specific.
-- **functions-development** — Added `APIIntegrations().execute_command_proxy()` code examples showing how to call registered third-party API integrations from function code. Includes request body/params patterns, explanation of why the platform proxy is required, and references to 3 sample repos. Added pitfall warning against making raw HTTP calls when an integration is registered.
+- **workflows-development** — Added Response Action Workflow (Contain Host) example showing platform action discovery and usage. Added Contain device action ID to platform actions table.
+- **workflows-development** — Added null-guard warning near trigger parameters explaining they're prompted in the UI but may be empty via API or sub-workflow calls.
+- **functions-development** — Added credential management section with decision table (API integration vs FalconPy vs env vars) and callout that raw HTTP works but credentials are unencrypted and visible in app exports.
+- **functions-falcon-api** — Added OAuth scope reference table mapping FalconPy classes and methods to required manifest scopes, derived from all production sample apps. Notes that built-in capabilities don't need explicit scopes.
+- **api-integrations** — Added context paragraph explaining API integrations ARE Foundry's credential management system.
+- **ui-development** — Added async `connect()` callout explaining `falcon.connect()` must be in `useEffect` and navigation must be accessed after connect resolves via `useMemo` with `falcon.isConnected`.
 
 ### Fixed
 
+- **functions-development** — Corrected `definition_id` vs name guidance: name works in production, UUID only needed for local testing. Fixed raw HTTP claim from "won't work" to "works but credentials are unencrypted."
+- **functions-development** — Added `APIIntegrations().execute_command_proxy()` code examples showing how to call registered third-party API integrations from function code. Includes request body/params patterns, explanation of why the platform proxy is required, and references to 3 sample repos. Added pitfall warning against making raw HTTP calls when an integration is registered.
 - **workflows-development** — Fixed incorrect trigger parameter variable syntax. Was `${data['trigger.param_name']}`, corrected to `${data['param_name']}` (no prefix). Validated against foundry-sample-foundryjs-demo, security-skills (20+ workflows), and all other sample repos that consistently use direct parameter names.
 
 ## [1.2.0] - 2026-06-03

@@ -89,21 +89,47 @@ output_fields: []
 | On demand | `name: On demand`, `type: On demand` |
 | Scheduled | `event: Schedule`, `schedule: {time_cycle: "0 */6 * * *", tz: Etc/UTC}` |
 
+> **⚠️ Null-guard trigger parameters:** When run from the Falcon console, the UI prompts users to fill in parameters. However, when triggered via API or from another workflow, parameters may be empty. Guard defensively:
+>
+> ```yaml
+> conditions:
+>     check_param:
+>         cel_expression: "data['param_name'] != null && data['param_name'] != ''"
+>         next:
+>             - use_param
+>         display:
+>             - param_name was provided
+>         else:
+>             - handle_missing
+> ```
+>
+> Or inline in CEL: `${data['param'] != null ? data['param'] : "default"}`
+
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
 
-**Version constraints:** Every action requires `version_constraint`. Use `~0` for function actions and API integration actions. Use `~1` for platform actions (Print data, Send email, Create/Update variable, etc.):
+**Version constraints:** Every action requires `version_constraint`. The `~N` value pins against the activity's declared `semantic_version` field, not its internal iteration count. The rule:
+
+- `~0` = activity has **no** `semantic_version` defined (functions, API integrations, and some platform actions like "contain device")
+- `~1` = activity **has** a `semantic_version` (most platform actions: Print data, Send email, Create/Update variable, Get device details, etc.)
+
+Use `foundry workflows actions view --name "<action>"` to check. If the activity output shows a semantic_version field, use `~1`. If it does not, use `~0`.
 
 ```yaml
 actions:
     my_function:
         id: functions.my-func.process
         properties: {}
-        version_constraint: ~0       # ~0 for functions
+        version_constraint: ~0       # no semantic_version defined
+    contain_host:
+        id: <contain-device-action-id>
+        properties:
+            device_id: "${data['trigger.device_id']}"
+        version_constraint: ~0       # no semantic_version defined
     print_results:
         id: aadbf530e35fc452a032f5f8acaaac2a
         properties:
             text_data: "${data['my_function.output']}"
-        version_constraint: ~1       # ~1 for platform actions
+        version_constraint: ~1       # has semantic_version
 ```
 
 ### Manifest Configuration
@@ -179,6 +205,7 @@ Platform actions (send email, log output, create detection) require platform-spe
 | Send email | `07413ef9ba7c47bf5a242799f59902cc` |
 | Request human input - Send email | `d6731c10b24834e2e0f4bd9d390a29c8` |
 | Get device details | `6265dc947cc2252f74a5f25261ac36a9` |
+| Contain device | `bec9fbeb4999d207937854fd56088107` |
 
 For actions not in this table, use `foundry workflows actions view --name "..."` or the API query in [references/action-discovery.md](references/action-discovery.md). There are 9,000+ platform actions available. MUST NOT guess action IDs — use discovery commands.
 

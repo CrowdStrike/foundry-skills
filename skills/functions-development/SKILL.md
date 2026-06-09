@@ -35,6 +35,18 @@ Before writing a function, exhaust alternatives — each one avoids deployment c
 - **API Integrations** (HTTP Actions) for calling external APIs directly from workflows
 - **UI Extensions** with `foundry-js` for client-side data fetching
 
+## Credential Management — No Secrets System Exists
+
+**There is no secrets management in Falcon Foundry.** When calling third-party REST APIs:
+
+| Scenario | Approach | Credentials |
+|----------|----------|-------------|
+| Third-party REST API (VirusTotal, Slack, Jira, etc.) | API integration in manifest + `APIIntegrations().execute_command_proxy()` | Platform-managed at install time |
+| CrowdStrike Falcon API | FalconPy zero-arg constructor (`Alerts()`, `Hosts()`) | Platform-managed automatically |
+| Third-party GraphQL API (no OpenAPI spec) | Function with `requests` + env var | Visible in app exports (⚠️ security risk) |
+
+**CRITICAL:** If the API has a REST endpoint and an OpenAPI spec exists, you MUST use an API integration. NEVER use `os.environ` with API keys, `requests.get()` with hardcoded URLs, or localStorage for credentials when an API integration can handle it. Raw HTTP with env vars technically works, but credentials are unencrypted and visible in app exports.
+
 ## Reference Files
 
 This skill is split across multiple files. Consult these for full examples:
@@ -236,9 +248,9 @@ response = api.execute_command_proxy(
 )
 ```
 
-**Why the proxy?** The platform manages OAuth tokens, rate limiting, and audit logging for registered integrations. Raw HTTP calls bypass all of this and won't work in production because the function has no direct network access to external APIs — only the platform proxy can reach them.
+**Why the proxy?** The platform manages OAuth tokens, rate limiting, and audit logging for registered integrations. Raw HTTP calls bypass all of this — while they can work with hardcoded or env-var credentials, those values are stored unencrypted and visible to anyone who exports the app.
 
-**Local testing note:** Use `definition_id` (the UUID from `manifest.yml`), not the human-readable integration name. After deploying once, the platform assigns UUIDs that appear in the manifest.
+**Local testing note:** When testing locally, you may need the UUID `definition_id` from `manifest.yml` (assigned by the platform). In production, the human-readable integration name (e.g., `"ZscalerAPI"`) works as the `definition_id` value.
 
 Reference implementations:
 - [foundry-sample-zscaler-internet-access](https://github.com/CrowdStrike/foundry-sample-zscaler-internet-access) (6 functions using `execute_command_proxy`)
@@ -291,8 +303,8 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 - **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content.
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).
 - **Using PATCH with Go functions.** Go only supports GET, POST, PUT, DELETE.
-- **Using `definition_id` vs. name for API integrations.** Calling API integrations from functions requires the `definition_id` from `manifest.yml`, not the human-readable name. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.
-- **Making raw HTTP calls to third-party APIs.** When an API integration is registered in the manifest, MUST use `APIIntegrations().execute_command_proxy()` — raw urllib/requests calls bypass platform auth and won't reach external APIs in production.
+- **Using `definition_id` vs. name for API integrations.** When testing locally, use the UUID `definition_id` from `manifest.yml`. In production, the human-readable name (e.g., `"ZscalerAPI"`) works as the `definition_id` value. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.
+- **Making raw HTTP calls to third-party APIs.** When an API integration is registered in the manifest, MUST use `APIIntegrations().execute_command_proxy()`. Raw urllib/requests calls can technically work with hardcoded credentials or env vars, but credentials are stored unencrypted and visible in app exports — a security risk. Always prefer the API integration path.
 
 ## Use Cases
 
