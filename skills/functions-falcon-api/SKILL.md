@@ -307,6 +307,20 @@ If you're using a FalconPy method not in this table:
 2. The scope prefix is usually the **API path prefix** (e.g., `/iocs/...` → `iocs`, `/devices/...` → `devices`), but exceptions exist (`Hosts` → `devices`, `NGSIEM` → `humio-auth-proxy`)
 3. When ambiguous, **ask the user** which scopes to include rather than guessing
 
+## Falcon Severity Values
+
+CrowdStrike APIs return severity as **integers** (1-5) or display names. When integrating with external systems (Jira, ServiceNow, email), map them explicitly:
+
+| Falcon Severity | Display Name | Typical External Mapping |
+|----------------|--------------|--------------------------|
+| 1 | Informational | Low / Lowest |
+| 2 | Low | Low |
+| 3 | Medium | Medium |
+| 4 | High | High |
+| 5 | Critical | Highest / Critical |
+
+Use `max_severity_displayname` for FQL filters (string comparison) or `max_severity` for numeric comparison. When passing severity to external ticketing systems, always map to their expected format rather than passing the raw value through.
+
 ## Common Pitfalls
 
 - **Writing OAuth code or credential management.** Auth is completely automatic for FalconPy inside FDK handlers. NEVER use `os.environ.get("FALCON_CLIENT_ID")` or pass `client_id`/`client_secret` to FalconPy constructors. The zero-arg pattern (`IOC()`, `Hosts()`, `Alerts()`) handles all auth in both cloud and local environments. (Go requires explicit credential wiring via `fdk.FalconClientOpts()` -- see the Go section above.)

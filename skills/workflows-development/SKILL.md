@@ -163,6 +163,8 @@ If a function was created without workflow integration and you later need it cal
 
 Workflows invoke API integration operations using the `api_integrations.{name}.{operationId}` pattern:
 
+> **⚠️ Always use registered integrations.** If an API integration is declared in `manifest.yml`, the workflow MUST call it via `api_integrations.{name}.{operationId}`. Do NOT use a function that makes raw HTTP calls to the same API with hardcoded credentials or template variables like `{{API_TOKEN}}`. The platform manages authentication, rate limiting, and audit logging through the integration.
+
 ```yaml
 actions:
     list_users_action:

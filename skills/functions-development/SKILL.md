@@ -300,7 +300,7 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 - **Using `APIHarnessV2` (Uber class) for collection operations.** Use `CustomStorage` service class instead so the Foundry functions editor can auto-detect OAuth scopes. See the Collection CRUD Pattern in [references/python-patterns.md](references/python-patterns.md).
 - **Manually reading env vars for FalconPy auth.** `Alerts()` with zero arguments handles all credential discovery.
 - **Shared utility files across functions.** `sys.path.append("../")` works locally but not in Foundry's FaaS runtime. Copy shared files into each function directory.
-- **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content.
+- **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content. For bulk reads, use FQL filters to narrow the search rather than fetching all keys and reading them one by one in a loop.
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).
 - **Using PATCH with Go functions.** Go only supports GET, POST, PUT, DELETE.
 - **Using `definition_id` vs. name for API integrations.** When testing locally, use the UUID `definition_id` from `manifest.yml`. In production, the human-readable name (e.g., `"ZscalerAPI"`) works as the `definition_id` value. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.

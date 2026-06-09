@@ -328,7 +328,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 - **Expecting backend to work with `foundry ui run`.** The dev server only serves UI — deploy backend capabilities first.
 - **Shoelace dialogs/drawers white in dark mode.** Override `--sl-panel-background-color` and `--sl-color-neutral-0` with `var(--ground-floor)`. See [references/shoelace-reference.md](references/shoelace-reference.md).
 - **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
-- **Missing CSP for Shoelace icons.** When using `setBasePath()` with the CDN, add `cdn.jsdelivr.net` to both `connect-src` and `img-src` in the manifest's `content_security_policy`.
+- **Missing CSP for Shoelace icons.** The Foundry CSP only allows `assets.foundry.crowdstrike.com`. If using `setBasePath()` with `cdn.jsdelivr.net`, you must add it to `connect-src` and `img-src` in the manifest's `content_security_policy`. Alternatively, copy icon assets to your `dist/` folder and set a relative base path to avoid CDN dependencies entirely.
 
 ## Reading Guide
 
