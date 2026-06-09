@@ -26,7 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **functions-falcon-api** — Strengthened zero-arg constructor pitfall to explicitly call out the `os.environ` anti-pattern. Clarified this applies to FalconPy only (Go requires explicit credential wiring).
 - **functions-falcon-api** — Added Falcon severity values reference table for mapping to external ticketing systems.
 - **functions-development** — Clarified CustomStorage bulk read pattern: use FQL filters instead of sequential GetObject loops.
-- **ui-development** — Improved CSP/Shoelace icons pitfall to mention Foundry's CSP whitelist and local asset alternative.
+- **ui-development** — Improved CSP/Shoelace icons pitfall to mention Foundry's CSP allowlist and local asset alternative.
 - **functions-development** — Corrected `definition_id` vs name guidance: name works in production, UUID only needed for local testing. Fixed raw HTTP claim from "won't work" to "works but credentials are unencrypted."
 - **functions-development** — Added `APIIntegrations().execute_command_proxy()` code examples showing how to call registered third-party API integrations from function code. Includes request body/params patterns, explanation of why the platform proxy is required, and references to 3 sample repos. Added pitfall warning against making raw HTTP calls when an integration is registered.
 - **workflows-development** — Fixed incorrect trigger parameter variable syntax. Was `${data['trigger.param_name']}`, corrected to `${data['param_name']}` (no prefix). Validated against foundry-sample-foundryjs-demo, security-skills (20+ workflows), and all other sample repos that consistently use direct parameter names.
