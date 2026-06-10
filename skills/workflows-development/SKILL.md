@@ -163,6 +163,10 @@ If a function was created without workflow integration and you later need it cal
 
 Workflows invoke API integration operations using the `api_integrations.{name}.{operationId}` pattern:
 
+> **⚠️ Always use registered integrations.** If an API integration is declared in `manifest.yml`, the workflow MUST call it via `api_integrations.{name}.{operationId}`. Do NOT use a function that makes raw HTTP calls to the same API with hardcoded credentials or template variables like `{{API_TOKEN}}`. The platform manages authentication, rate limiting, and audit logging through the integration.
+
+> **💡 HTTP Actions alternative:** For simple API calls that don't need custom logic, consider [HTTP Actions](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/) instead of building a full API integration. HTTP Actions let workflows call external REST APIs directly with no code and no app deployment. Over 130 pre-built templates are available. Use a Foundry API integration only when you also need a custom UI, serverless functions, or complex business logic.
+
 ```yaml
 actions:
     list_users_action:
@@ -343,8 +347,10 @@ workflows:
     workflow_integration:
       id: <generated-id>
       disruptive: false
-      system_action: true   # true = app workflows only, false = also available as Fusion SOAR action
+      system_action: false   # false = available as a Fusion SOAR response action; true = internal app use only
 ```
+
+> **⚠️ SOAR action visibility:** Set `system_action: false` when the workflow should appear as a response action in Falcon Fusion SOAR (analysts can trigger it from detections, incidents, or other workflows). Set `system_action: true` when the workflow is only used internally by the app (e.g., scheduled data sync, internal helper). If the user asks for a "SOAR action" or "response action", always use `false`.
 
 ## Error Handling
 
