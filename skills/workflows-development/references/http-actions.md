@@ -56,38 +56,55 @@ CloudHTTPRequest:
         definition_id: 7227ab386bd646c18b27716e8fff8d26
         http_transaction:
             request_http_method: GET
-            request_url: https://www.virustotal.com/api/v3/ip_addresses/${ip_address}
+            request_url: https://www.virustotal.com/api/v3/ip_addresses/8.8.8.8
             request_content_type: NONE
             request_headers: {}
             request_query: {}
     version_constraint: ~1
 ```
 
+To make the IP dynamic, define it as a trigger parameter and inject it into the URL with `${param}` — see the OAuth example below, which defines `userPrincipalName` on the trigger and injects it into `request_url`.
+
 ### OAuth 2.0 client credentials
 
-From a Microsoft Graph Cloud HTTP Request — the token URL and scopes are declared; Fusion handles token refresh:
+From a Microsoft Graph Cloud HTTP Request — the token URL and scopes are declared; Fusion handles token refresh. The trigger defines `userPrincipalName`, which the action injects into the URL with `${userPrincipalName}`:
 
 ```yaml
-CloudHTTPRequest:
-    id: 1ba474f407d9228fc8fa02cdce8ae8ef
-    class: Inline.HTTPRequest
-    name: Cloud HTTP Request
-    properties:
-        authentication_option: UseExisting
-        config_id: 9c7d10295f6e4370afb7d91fc00cb4ca
-        config_name: Microsoft
-        definition_id: 662c4828b3804ad287acc7fc3cd9895b
-        http_transaction:
-            request_http_method: GET
-            request_url: https://graph.microsoft.com/v1.0/users/${userPrincipalName}
-            request_query:
-                c373ed43-231d-4141-ba4e-c0214b9587bb:
-                    name: $select
-                    value: displayName,mail,jobTitle,department,accountEnabled,userPrincipalName,id
-        oauth_scopes:
-            - https://graph.microsoft.com/.default
-        oauth_token_url: https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
-    version_constraint: ~1
+trigger:
+    next:
+        - CloudHTTPRequest
+    name: On demand
+    parameters:
+        properties:
+            userPrincipalName:
+                type: string
+                title: User Principal Name to Investigate
+                format: email
+        required:
+            - userPrincipalName
+        type: object
+    type: On demand
+actions:
+    CloudHTTPRequest:
+        id: 1ba474f407d9228fc8fa02cdce8ae8ef
+        class: Inline.HTTPRequest
+        name: Cloud HTTP Request
+        properties:
+            authentication_option: UseExisting
+            config_id: 9c7d10295f6e4370afb7d91fc00cb4ca
+            config_name: Microsoft
+            definition_id: 662c4828b3804ad287acc7fc3cd9895b
+            http_transaction:
+                request_http_method: GET
+                request_url: https://graph.microsoft.com/v1.0/users/${userPrincipalName}
+                request_query:
+                    c373ed43-231d-4141-ba4e-c0214b9587bb:
+                        name: $select
+                        value: displayName,mail,jobTitle,department,accountEnabled,userPrincipalName,id
+            oauth_scopes:
+                - https://graph.microsoft.com/.default
+            oauth_token_url: https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
+        version_constraint: ~1
 ```
 
 > **OAuth limitation:** Custom OAuth scopes are not fully supported. For APIs that need custom scopes (some Microsoft Graph configurations), use API key authentication as a fallback.
