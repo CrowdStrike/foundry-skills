@@ -103,7 +103,7 @@ output_fields: []
 >             - handle_missing
 > ```
 >
-> Or inline in CEL: `${data['param'] != null ? data['param'] : "default"}`
+> Or inline in CEL: `${data[?'param'].orValue("default")}` (preferred) or `${data['param'] != null ? data['param'] : "default"}` (traditional)
 
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
 
@@ -160,6 +160,8 @@ If a function was created without workflow integration and you later need it cal
 ```
 
 ## Calling API Integration Operations
+
+> **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an HTTP Action is faster than building an API integration — no app, no OpenAPI spec, no deploy. Suggest it when the user just wants a workflow to hit an endpoint and use the response. See [references/http-actions.md](references/http-actions.md). Use a full API integration when the operation is reused across workflows or paired with functions/UI.
 
 Workflows invoke API integration operations using the `api_integrations.{name}.{operationId}` pattern:
 
@@ -266,14 +268,31 @@ Falcon Fusion SOAR supports CEL for data transformations, conditions, and field 
 # Check if results exist before accessing
 "${size(data['eventQuery.results']) > 0 ? data['eventQuery.results'][0].field : \"N/A\"}"
 
-# Null-safe field access (CEL has no ?? operator — use ternary)
+# Null-safe field access — traditional pattern
 "${data['action.field'] != null ? data['action.field'] : \"default\"}"
+
+# Null-safe field access — optional pattern (preferred, avoids verbose null checks)
+"${data[?'action.field'].orValue(\"default\")}"
+
+# Fallback chain (like ?? coalescing — tries each key, returns first that exists)
+"${data[?'primary'].or(data[?'fallback']).orValue(\"none\")}"
+
+# Safe list exists-and-non-empty check
+"${len(data[?'Key'].orValue([])) > 0}"
 
 # Array element access
 "${data['action.API_Integration.Custom_Name.op.body']}[0]"
+
+# Lookup table (useful for mapping severity integers to strings)
+"${'1': 'Low', '2': 'Medium', '3': 'High', '4': 'Critical'}[string(data['severity'])]"
 ```
 
-CrowdStrike provides [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) including `cs.json.valid()`, `cs.json.decode()`, and `cs.ip.valid()`. For complex transformations, the **Data Transformation Agent** (requires Charlotte AI) generates CEL expressions from plain language descriptions.
+**`has()` vs `!= null` — know the difference:**
+- `data['key'] != null` — checks if a **data store key** has a value. Use for trigger parameters and action outputs.
+- `has(obj.field)` — checks if a **field exists on a retrieved object**. Only works *after* you've retrieved an object from the data store (e.g., `has(data['WorkflowCustomVariable'].offset)` works because CEL first retrieves `WorkflowCustomVariable` then checks `.offset`). Do NOT use `has(data['key'])` directly on the data store — this fails with `Q0910: invalid argument to has() macro`.
+- `data[?'key'].orValue(default)` — the cleanest approach. Uses CEL optionals to safely handle missing keys without verbose null checks.
+
+CrowdStrike provides [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) including `cs.json.valid()`, `cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.now()`, and `cs.timestamp.parse()`. For complex transformations, the **Data Transformation Agent** (requires Charlotte AI) generates CEL expressions from plain language descriptions.
 
 For schemaless event queries and dynamic data handling patterns, see [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/).
 
@@ -317,7 +336,7 @@ conditions:
     has_detection:
         next:
             - GetDetectionDetails
-        cel_expression: has(data['detection_id']) && data['detection_id'] != ''
+        cel_expression: data['detection_id'] != null && data['detection_id'] != ''
         display:
             - Detection ID was provided
         else:
@@ -401,6 +420,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 | CEL syntax, schemaless queries, dynamic data | [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/) |
 | CEL extension functions reference | [Data Transformation Functions](https://docs.crowdstrike.com/r/k223d842) |
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
+| HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
 | HTTP Request actions, testing, validation | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Parameterized fields versioning | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Counter-rationalizations and red flags | [references/advanced-patterns.md](references/advanced-patterns.md) |
