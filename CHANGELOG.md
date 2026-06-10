@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **workflows-development** — Added Response Action Workflow (Contain Host) example showing platform action discovery and usage. Added Contain device action ID to platform actions table.
 - **workflows-development** — Added null-guard warning near trigger parameters explaining they're prompted in the UI but may be empty via API or sub-workflow calls.
 - **functions-development** — Added credential management section with decision table (API integration vs FalconPy vs env vars) and callout that raw HTTP works but credentials are unencrypted and visible in app exports.
-- **functions-falcon-api** — Added OAuth scope reference table mapping FalconPy classes and methods to required manifest scopes, derived from all production sample apps. Notes that built-in capabilities don't need explicit scopes.
+- **functions-falcon-api** — Added OAuth scope reference table mapping FalconPy classes and methods to required manifest scopes, derived from all production sample apps. Notes that built-in capabilities don't need explicit scopes. Eval runs confirmed this corrects invalid scope generation (e.g., `detects-read` → `detects:read`, `collection-management-read` → `custom-storage:read`).
 - **api-integrations** — Added context paragraph explaining API integrations ARE Foundry's credential management system.
 - **ui-development** — Added async `connect()` callout explaining `falcon.connect()` must be in `useEffect` and navigation must be accessed after connect resolves via `useMemo` with `falcon.isConnected`.
 
