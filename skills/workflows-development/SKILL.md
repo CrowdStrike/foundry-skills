@@ -161,7 +161,7 @@ If a function was created without workflow integration and you later need it cal
 
 ## Calling API Integration Operations
 
-> **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an HTTP Action is faster than building an API integration — no app, no OpenAPI spec, no deploy. Suggest it when the user just wants a workflow to hit an endpoint and use the response. See [references/http-actions.md](references/http-actions.md). Use a full API integration when the operation is reused across workflows or paired with functions/UI.
+> **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an HTTP Action is faster than an API integration — no app, no OpenAPI spec, no deploy. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).
 
 Workflows invoke API integration operations using the `api_integrations.{name}.{operationId}` pattern:
 
@@ -266,40 +266,22 @@ The `action_key` is the YAML key of the action (e.g., `list_users` from `actions
 
 ### CEL Expressions
 
-Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Key patterns:
+Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Common patterns:
 
 ```yaml
-# Check if results exist before accessing
-"${size(data['eventQuery.results']) > 0 ? data['eventQuery.results'][0].field : \"N/A\"}"
-# (len() is a null-safe alternative to size() — len(null) returns 0 instead of erroring)
-
-# Null-safe field access — traditional pattern
-"${data['action.field'] != null ? data['action.field'] : \"default\"}"
-
-# Null-safe field access — optional pattern (preferred, avoids verbose null checks)
+# Null-safe field access — optional pattern (preferred)
 "${data[?'action.field'].orValue(\"default\")}"
 
-# Fallback chain (like ?? coalescing — tries each key, returns first that exists)
-"${data[?'primary'].or(data[?'fallback']).orValue(\"none\")}"
-
-# Safe list exists-and-non-empty check
-"${len(data[?'Key'].orValue([])) > 0}"
+# Traditional null check
+"${data['action.field'] != null ? data['action.field'] : \"default\"}"
 
 # Array element access (index goes INSIDE the ${...}, not after it)
 "${data['action.API_Integration.Custom_Name.op.body'][0]}"
-
-# Lookup table (map literal needs its own braces inside ${...})
-"${ {'1': 'Low', '2': 'Medium', '3': 'High', '4': 'Critical'}[string(data['severity'])] }"
 ```
 
-**`has()` vs `!= null` — know the difference:**
-- `data['key'] != null` — checks if a **data store key** has a value. Use for trigger parameters and action outputs.
-- `has(obj.field)` — checks if a **field exists on a retrieved object**. Only works *after* you've retrieved an object from the data store (e.g., `has(data['WorkflowCustomVariable'].offset)` works because CEL first retrieves `WorkflowCustomVariable` then checks `.offset`). Do NOT use `has(data['key'])` directly on the data store — this fails with `Q0910: invalid argument to has() macro`.
-- `data[?'key'].orValue(default)` — the cleanest approach. Uses CEL optionals to safely handle missing keys without verbose null checks.
+**`has()` only works on retrieved objects, not data store keys.** `has(data['key'])` fails with `Q0910`; use `data['key'] != null` for keys, or `has(data['var'].field)` to check a field on an already-retrieved object.
 
-CrowdStrike provides [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) including `cs.json.valid()`, `cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.now()`, and `cs.timestamp.parse()`. For complex transformations, the **Data Transformation Agent** (requires Charlotte AI) generates CEL expressions from plain language descriptions.
-
-For schemaless event queries and dynamic data handling patterns, see [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/).
+CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) (`cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.parse()`, etc.). For the full pattern catalog, the `has()`/`!= null`/optional decision guide, and extension details, see [references/cel-expressions.md](references/cel-expressions.md).
 
 ## Control Flow
 
@@ -423,7 +405,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 |------|-----------|
 | Full workflow examples (RTR, investigation) | [references/workflow-examples.md](references/workflow-examples.md) |
 | Platform action discovery via API | [references/action-discovery.md](references/action-discovery.md) |
-| Charlotte AI and CEL expressions | [references/action-discovery.md](references/action-discovery.md) |
+| CEL expressions (patterns, has() vs null, extensions) | [references/cel-expressions.md](references/cel-expressions.md) |
 | CEL syntax, schemaless queries, dynamic data | [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/) |
 | CEL extension functions reference | [Data Transformation Functions](https://docs.crowdstrike.com/r/k223d842) |
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
