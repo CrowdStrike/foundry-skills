@@ -4,33 +4,46 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] - TBD
 
-> Changes in this release were identified by running automated eval prompts against the skills with Sonnet and Opus, then investigating failures and judge feedback to find skill gaps.
+> Changes in this release were identified by running automated eval prompts against the skills with Sonnet and Opus, then investigating failures and judging feedback to find skill gaps.
 
 ### Added
 
-- **workflows-development** — Added HTTP Actions reference (`references/http-actions.md`) with verified `Inline.HTTPRequest` schema, both auth patterns (API key header and OAuth 2.0 client credentials), status-code conditional routing, and an HTTP-Actions-vs-API-integration decision guide. Added a callout so HTTP Actions are suggested for simple REST calls that don't need an app.
-- **workflows-development** — Added collection config lookup workflow example showing the pattern for reading user-configured settings from a collection before performing an action.
-- **ui-development** — Added Vanilla JS as a first-class template option for pages and extensions. Includes CLI scaffolding examples, note that no npm install/build step is needed, and clarification that vite/build-related pitfalls are React-specific.
-- **workflows-development** — Added Response Action Workflow (Contain Host) example showing platform action discovery and usage. Added Contain device action ID to platform actions table.
-- **workflows-development** — Added null-guard warning near trigger parameters explaining they're prompted in the UI but may be empty via API or sub-workflow calls.
-- **functions-development** — Added credential management section with decision table (API integration vs FalconPy vs env vars) and callout that raw HTTP works but credentials are unencrypted and visible in app exports.
-- **functions-falcon-api** — Added OAuth scope reference table mapping FalconPy classes and methods to required manifest scopes, derived from all production sample apps. Notes that built-in capabilities don't need explicit scopes. Eval runs confirmed this corrects invalid scope generation (e.g., `detects-read` → `detects:read`, `collection-management-read` → `custom-storage:read`).
-- **api-integrations** — Added context paragraph explaining API integrations ARE Foundry's credential management system.
-- **ui-development** — Added async `connect()` callout explaining `falcon.connect()` must be in `useEffect` and navigation must be accessed after connect resolves via `useMemo` with `falcon.isConnected`.
+**Functions & API Integrations:**
+- Credential management section with decision table (API integration vs FalconPy vs env vars) and callout that raw HTTP works but credentials are unencrypted and visible in app exports.
+- OAuth scope reference table mapping FalconPy classes and methods to required manifest scopes, derived from all production sample apps. Notes that built-in capabilities don't need explicit scopes. Eval runs confirmed this corrects invalid scope generation (e.g., `detects-read` → `detects:read`, `collection-management-read` → `custom-storage:read`).
+- Context paragraph explaining API integrations ARE Foundry's credential management system.
+
+**UI:**
+- Vanilla JS as a first-class template option for pages and extensions. Includes CLI scaffolding examples, note that no npm install/build step is needed, and clarification that vite/build-related pitfalls are React-specific.
+- Async `connect()` callout explaining `falcon.connect()` must be in `useEffect` and navigation must be accessed after connect resolves via `useMemo` with `falcon.isConnected`.
+
+**Workflows:**
+- HTTP Actions reference (`references/http-actions.md`) with verified `Inline.HTTPRequest` schema, both auth patterns (API key header and OAuth 2.0 client credentials), status-code conditional routing, and an HTTP-Actions-vs-API-integration decision guide. Added a callout so HTTP Actions are suggested for simple REST calls that don't need an app.
+- Collection config lookup workflow example showing the pattern for reading user-configured settings from a collection before performing an action.
+- Response Action Workflow (Contain Host) example showing platform action discovery and usage. Added Contain device action ID to platform actions table.
+- Null-guard warning near trigger parameters explaining they're prompted in the UI but may be empty via API or sub-workflow calls.
 
 ### Fixed
 
-- **workflows-development** — Clarified `system_action` guidance: `false` exposes the workflow as a SOAR response action, `true` keeps it internal. Changed example default to `false` since most on-demand workflows should be SOAR-visible.
-- **workflows-development** — Added callout that workflows must use registered API integrations, not raw HTTP via functions with hardcoded credentials.
-- **functions-falcon-api** — Strengthened zero-arg constructor pitfall to explicitly call out the `os.environ` anti-pattern. Clarified this applies to FalconPy only (Go requires explicit credential wiring).
-- **functions-falcon-api** — Added Falcon severity values reference table for mapping to external ticketing systems.
-- **functions-development** — Clarified CustomStorage bulk read pattern: use FQL filters instead of sequential GetObject loops.
-- **ui-development** — Improved CSP/Shoelace icons pitfall to mention Foundry's CSP allowlist and local asset alternative.
-- **functions-development** — Corrected `definition_id` vs name guidance: name works in production, UUID only needed for local testing. Fixed raw HTTP claim from "won't work" to "works but credentials are unencrypted."
-- **functions-development** — Added `APIIntegrations().execute_command_proxy()` code examples showing how to call registered third-party API integrations from function code. Includes request body/params patterns, explanation of why the platform proxy is required, and references to 3 sample repos. Added pitfall warning against making raw HTTP calls when an integration is registered.
-- **workflows-development** — Fixed incorrect trigger parameter variable syntax. Was `${data['trigger.param_name']}`, corrected to `${data['param_name']}` (no prefix). Validated against foundry-sample-foundryjs-demo, security-skills (20+ workflows), and all other sample repos that consistently use direct parameter names.
+**Functions & API Integrations:**
+- Strengthened zero-arg constructor pitfall to explicitly call out the `os.environ` anti-pattern. Clarified this applies to FalconPy only (Go requires explicit credential wiring).
+- Added Falcon severity values reference table for mapping to external ticketing systems.
+- Clarified CustomStorage bulk read pattern: use FQL filters instead of sequential GetObject loops.
+- Corrected `definition_id` vs name guidance: name works in production, UUID only needed for local testing. Fixed raw HTTP claim from "won't work" to "works but credentials are unencrypted."
+- Added `APIIntegrations().execute_command_proxy()` code examples showing how to call registered third-party API integrations from function code. Includes request body/params patterns, explanation of why the platform proxy is required, and references to 3 sample repos.
+
+**UI:**
+- Improved CSP/Shoelace icons pitfall to mention Foundry's CSP allowlist and local asset alternative.
+
+**Workflows:**
+- Clarified `system_action` guidance: `false` exposes the workflow as a SOAR response action, `true` keeps it internal. Changed example default to `false` since most on-demand workflows should be SOAR-visible.
+- Added callout that workflows must use registered API integrations, not raw HTTP via functions with hardcoded credentials.
+- Fixed incorrect trigger parameter variable syntax. Was `${data['trigger.param_name']}`, corrected to `${data['param_name']}` (no prefix). Validated against foundry-sample-foundryjs-demo, security-skills (20+ workflows), and all other sample repos.
+- Fixed CEL `has()` usage: `has(data['key'])` doesn't work in Fusion (throws `Q0910: invalid argument to has() macro`). Replaced with `data['key'] != null`. Documented that `has()` works on object fields after retrieval, not directly on data store keys.
+- Added modern optional patterns: `data[?'key'].orValue(default)`, `.or()` fallback chains, safe list existence checks. Preferred over verbose `!= null` ternaries.
+- Fixed version_constraint guidance: was oversimplified ("~0 for functions, ~1 for platform actions"). Corrected to explain it pins against the activity's `semantic_version` field. Some platform actions like "contain device" have no semantic_version and require `~0`.
 
 ## [1.2.0] - 2026-06-03
 
