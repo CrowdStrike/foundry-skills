@@ -286,6 +286,60 @@ loops:
 - `${array.#}` references the current loop iteration item
 - `continue_on_partial_execution: true` — loop continues if individual iterations fail
 
+## Workflow with Collection Config Lookup
+
+Pattern for workflows that read user-configured settings from a collection before performing an action. Use when the app has a settings UI page where users configure values (channels, thresholds, emails) that the workflow needs at runtime.
+
+```yaml
+name: Send Alert to Configured Channel
+description: On-demand workflow that reads channel config from collection then sends alert
+provision_on_install: true
+trigger:
+    next:
+        - get_config
+    name: On demand
+    parameters:
+        properties:
+            alert_name:
+                type: string
+            severity:
+                type: string
+            description:
+                type: string
+        type: object
+    type: On demand
+actions:
+    get_config:
+        id: functions.get-channel-config.get_config
+        next:
+            - send_alert
+        properties: {}
+        version_constraint: ~0
+    send_alert:
+        id: api_integrations.SlackAPI.chatPostMessage
+        next:
+            - print_result
+        properties:
+            channel: "${data['get_config.FaaS.get-channel-config.get_config.channel_id']}"
+            text: "Alert: ${data['alert_name']} (${data['severity']})"
+        version_constraint: ~0
+    print_result:
+        id: aadbf530e35fc452a032f5f8acaaac2a
+        properties:
+            text_data: "Alert sent to configured channel"
+        version_constraint: ~1
+```
+
+**Patterns demonstrated:**
+- Function reads config from collection, returns it as output for downstream actions
+- Workflow uses function output (`data['get_config.FaaS...']`) rather than requiring the value as a trigger parameter
+- Settings UI page writes to collection; workflow reads from it at runtime via a function
+- User doesn't need to pass the channel every time -- it's pre-configured
+
+The `get-channel-config` function reads from the collection using the `CustomStorage` service class — see the Collection CRUD pattern in [functions-development](../../functions-development/references/python-patterns.md).
+
+> **When to use this pattern:** If the app has a settings/config UI page AND a workflow that needs those settings, the workflow should call a function that reads from the collection rather than requiring the user to pass config values as trigger parameters every time.
+
 ## Data Reference Quick Reference
 
 | Syntax | Description |
