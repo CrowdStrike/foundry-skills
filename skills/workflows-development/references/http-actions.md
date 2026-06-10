@@ -130,7 +130,9 @@ conditions:
             - Response Status Code is equal to 404
 ```
 
-The raw response body is available to downstream actions as `${CloudHTTPRequest.raw_response_body}` (or via the action's generated output schema).
+Downstream actions reference the HTTP response body with `${<action_name>.raw_response_body}` (the full JSON string — e.g., `${CloudHTTPRequest.raw_response_body}`, useful for passing to Charlotte AI to summarize). For status-code branching, conditions use the FQL form `<action_name>.response_status_code:200` (see the example above).
+
+In condition `expression:` fields, use the FQL form without `${}` — e.g., `CloudHTTPRequest.response_status_code:200` (see above).
 
 ## Variable injection
 
