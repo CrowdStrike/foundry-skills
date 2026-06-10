@@ -271,6 +271,7 @@ Falcon Fusion SOAR supports CEL for data transformations, conditions, and field 
 ```yaml
 # Check if results exist before accessing
 "${size(data['eventQuery.results']) > 0 ? data['eventQuery.results'][0].field : \"N/A\"}"
+# (len() is a null-safe alternative to size() — len(null) returns 0 instead of erroring)
 
 # Null-safe field access — traditional pattern
 "${data['action.field'] != null ? data['action.field'] : \"default\"}"
@@ -284,11 +285,11 @@ Falcon Fusion SOAR supports CEL for data transformations, conditions, and field 
 # Safe list exists-and-non-empty check
 "${len(data[?'Key'].orValue([])) > 0}"
 
-# Array element access
-"${data['action.API_Integration.Custom_Name.op.body']}[0]"
+# Array element access (index goes INSIDE the ${...}, not after it)
+"${data['action.API_Integration.Custom_Name.op.body'][0]}"
 
-# Lookup table (useful for mapping severity integers to strings)
-"${'1': 'Low', '2': 'Medium', '3': 'High', '4': 'Critical'}[string(data['severity'])]"
+# Lookup table (map literal needs its own braces inside ${...})
+"${ {'1': 'Low', '2': 'Medium', '3': 'High', '4': 'Critical'}[string(data['severity'])] }"
 ```
 
 **`has()` vs `!= null` — know the difference:**
