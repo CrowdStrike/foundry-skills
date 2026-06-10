@@ -42,6 +42,6 @@ Known issues, platform quirks, common mistakes.
 ## Additional Resources
 
 - [Foundry Videos](https://docs.crowdstrike.com/p/foundry-videos) (Overview, API Integrations, App Lifecycle)
-- [Sample App Templates](https://developer.crowdstrike.com/docs/samples/)
+- [Sample App Templates](https://developer.crowdstrike.com/foundry/getting-started/samples/)
 - [Sample App Repos](https://github.com/search?q=topic%3Afalcon-foundry+org%3ACrowdStrike+fork%3Atrue&type=repositories) (GitHub)
 - [Tech Hub NG-SIEM Articles](https://www.crowdstrike.com/tech-hub/ng-siem/?cspage=0&lang=English&type=Article)
