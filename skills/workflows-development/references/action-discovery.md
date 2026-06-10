@@ -42,7 +42,7 @@ curl -s "https://$API_HOST/workflows/combined/activities/v1?sort=name&limit=50&o
 
 ## Charlotte AI Integration
 
-Workflows can invoke Charlotte AI (CrowdStrike's LLM) as a workflow action. Use `foundry workflows actions view --name "charlotte"` to discover the action ID and its input schema (model, prompt, temperature, json_schema), then reference it like any other action with `id:` + `version_constraint:`. See [workflow-examples.md](workflow-examples.md) for a worked Charlotte AI example.
+Workflows can invoke Charlotte AI (CrowdStrike's LLM) as a workflow action. Use `foundry workflows actions view --name "charlotte"` to discover the action ID and its input schema (model, prompt, temperature, json_schema), then reference it like any other action with `id:` + `version_constraint:`.
 
 ## CEL Expressions and Variable Injection
 
