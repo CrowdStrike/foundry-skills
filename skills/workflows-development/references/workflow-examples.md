@@ -336,6 +336,8 @@ actions:
 - Settings UI page writes to collection; workflow reads from it at runtime via a function
 - User doesn't need to pass the channel every time -- it's pre-configured
 
+The `get-channel-config` function reads from the collection using the `CustomStorage` service class — see the Collection CRUD pattern in [functions-development](../../functions-development/references/python-patterns.md).
+
 > **When to use this pattern:** If the app has a settings/config UI page AND a workflow that needs those settings, the workflow should call a function that reads from the collection rather than requiring the user to pass config values as trigger parameters every time.
 
 ## Data Reference Quick Reference
