@@ -19,7 +19,7 @@ Workflows can make HTTP requests to external APIs using three action types:
 |------|--------|------|
 | **Cloud** | External APIs (VirusTotal, Slack, etc.) | API Key or OAuth 2.0 |
 | **CrowdStrike** | CrowdStrike APIs | Automatic (uses app's OAuth) |
-| **On-Premises** | Internal/on-prem APIs via RTR relay | API Key or OAuth 2.0 |
+| **On-Premises** | Internal/on-prem APIs via host group | API Key or OAuth 2.0 |
 
 **Key constraints:**
 - 30-second timeout per HTTP action
@@ -27,21 +27,7 @@ Workflows can make HTTP requests to external APIs using three action types:
 - Response must be a JSON object (not array or primitive)
 - Authentication configuration is **immutable after creation** (delete and recreate to change)
 
-```yaml
-- name: enrich_ip
-  activity: httpRequest
-  config:
-    type: cloud
-    method: GET
-    url: "https://api.greynoise.io/v3/community/${inputs.ip_address}"
-    headers:
-      key: "GREYNOISE-API-KEY"
-      Accept: "application/json"
-    auth:
-      type: api_key
-      header_name: "key"
-      value: "${secrets.greynoise_key}"
-```
+The action class is `Inline.HTTPRequest`. It references a credential configuration created in the Falcon console (via `config_id`/`definition_id`), not inline secrets. For the verified YAML schema, both auth patterns (API key header and OAuth 2.0), and status-code conditional routing, see [http-actions.md](http-actions.md).
 
 ## Step-Level Testing
 

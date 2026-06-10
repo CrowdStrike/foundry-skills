@@ -103,7 +103,7 @@ output_fields: []
 >             - handle_missing
 > ```
 >
-> Or inline in CEL: `${data['param'] != null ? data['param'] : "default"}`
+> Or inline in CEL: `${data[?'param'].orValue("default")}` (preferred) or `${data['param'] != null ? data['param'] : "default"}` (traditional)
 
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
 
@@ -160,6 +160,8 @@ If a function was created without workflow integration and you later need it cal
 ```
 
 ## Calling API Integration Operations
+
+> **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an HTTP Action is faster than an API integration — no app, no OpenAPI spec, no deploy. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).
 
 Workflows invoke API integration operations using the `api_integrations.{name}.{operationId}` pattern:
 
@@ -264,22 +266,22 @@ The `action_key` is the YAML key of the action (e.g., `list_users` from `actions
 
 ### CEL Expressions
 
-Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Key patterns:
+Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Common patterns:
 
 ```yaml
-# Check if results exist before accessing
-"${size(data['eventQuery.results']) > 0 ? data['eventQuery.results'][0].field : \"N/A\"}"
+# Null-safe field access — optional pattern (preferred)
+"${data[?'action.field'].orValue(\"default\")}"
 
-# Null-safe field access (CEL has no ?? operator — use ternary)
+# Traditional null check
 "${data['action.field'] != null ? data['action.field'] : \"default\"}"
 
-# Array element access
-"${data['action.API_Integration.Custom_Name.op.body']}[0]"
+# Array element access (index goes INSIDE the ${...}, not after it)
+"${data['action.API_Integration.Custom_Name.op.body'][0]}"
 ```
 
-CrowdStrike provides [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) including `cs.json.valid()`, `cs.json.decode()`, and `cs.ip.valid()`. For complex transformations, the **Data Transformation Agent** (requires Charlotte AI) generates CEL expressions from plain language descriptions.
+**`has()` only works on retrieved objects, not data store keys.** `has(data['key'])` fails with `Q0910`; use `data['key'] != null` for keys, or `has(data['var'].field)` to check a field on an already-retrieved object.
 
-For schemaless event queries and dynamic data handling patterns, see [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/).
+CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) (`cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.parse()`, etc.). For the full pattern catalog, the `has()`/`!= null`/optional decision guide, and extension details, see [references/cel-expressions.md](references/cel-expressions.md).
 
 ## Control Flow
 
@@ -321,7 +323,7 @@ conditions:
     has_detection:
         next:
             - GetDetectionDetails
-        cel_expression: has(data['detection_id']) && data['detection_id'] != ''
+        cel_expression: data['detection_id'] != null && data['detection_id'] != ''
         display:
             - Detection ID was provided
         else:
@@ -403,10 +405,11 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 |------|-----------|
 | Full workflow examples (RTR, investigation) | [references/workflow-examples.md](references/workflow-examples.md) |
 | Platform action discovery via API | [references/action-discovery.md](references/action-discovery.md) |
-| Charlotte AI and CEL expressions | [references/action-discovery.md](references/action-discovery.md) |
+| CEL expressions (patterns, has() vs null, extensions) | [references/cel-expressions.md](references/cel-expressions.md) |
 | CEL syntax, schemaless queries, dynamic data | [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/) |
 | CEL extension functions reference | [Data Transformation Functions](https://docs.crowdstrike.com/r/k223d842) |
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
+| HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
 | HTTP Request actions, testing, validation | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Parameterized fields versioning | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Counter-rationalizations and red flags | [references/advanced-patterns.md](references/advanced-patterns.md) |

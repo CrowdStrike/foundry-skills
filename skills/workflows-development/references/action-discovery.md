@@ -42,29 +42,8 @@ curl -s "https://$API_HOST/workflows/combined/activities/v1?sort=name&limit=50&o
 
 ## Charlotte AI Integration
 
-Workflows can invoke Charlotte AI (CrowdStrike's LLM) as a workflow step:
-
-```yaml
-- name: analyze_threat
-  activity: charlotteAI
-  config:
-    prompt: "Analyze the following detection and provide a risk assessment: ${steps.fetch_detection.output.description}"
-```
+Workflows can invoke Charlotte AI (CrowdStrike's LLM) as a workflow action. Use `foundry workflows actions view --name "charlotte"` to discover the action ID and its input schema (model, prompt, temperature, json_schema), then reference it like any other action with `id:` + `version_constraint:`.
 
 ## CEL Expressions and Variable Injection
 
-Workflows support Common Expression Language (CEL) for data transformation and `${variable_name}` syntax for variable injection:
-
-```yaml
-- name: transform_data
-  activity: celExpression
-  config:
-    expression: "size(steps.fetch_hosts.output.resources) > 0"
-
-- name: notify
-  activity: httpRequest
-  config:
-    url: "https://hooks.slack.com/services/${secrets.slack_webhook}"
-    body:
-      text: "Found ${steps.fetch_hosts.output.resources.size()} affected hosts"
-```
+CEL handles data transformation and field access; all variable references use `${data['...']}` syntax (NOT `${steps.*.output}` or `${secrets.*}`, which do not resolve). For the full pattern catalog — null-safe access, the `has()` vs `!= null` distinction, optionals, and CrowdStrike extensions — see [cel-expressions.md](cel-expressions.md).
