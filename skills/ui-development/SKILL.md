@@ -145,12 +145,14 @@ const theme = await falcon.theme();
 document.documentElement.classList.add(`sl-theme-${theme}`);
 ```
 
-> **⚠️ `connect()` is async.** In React, `falcon.connect()` must be called inside a `useEffect` and navigation/theme must only be accessed AFTER connect resolves. Use `falcon.isConnected` as a dependency for `useMemo`:
+> **⚠️ `connect()` is async.** In React, `falcon.connect()` must be called inside a `useEffect` and navigation must only be accessed AFTER connect resolves. Use React state (`isInitialized`) as the `useMemo` dependency — not `falcon.isConnected` (which is a plain object property, not reactive state):
 >
 > ```jsx
+> const [isInitialized, setIsInitialized] = useState(false);
+> const falcon = useMemo(() => new FalconApi(), []);
 > const navigation = useMemo(() => {
->   return falcon.isConnected ? falcon.navigation : undefined;
-> }, [falcon.isConnected]);
+>   return isInitialized ? falcon.navigation : undefined;
+> }, [isInitialized]);
 > ```
 >
 > Gate child rendering on `isInitialized` state. See [references/react-patterns.md](references/react-patterns.md) for the full `FalconApiProvider` pattern.
