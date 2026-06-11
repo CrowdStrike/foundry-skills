@@ -132,7 +132,7 @@ foundry apps validate --no-prompt
 foundry functions create --name "my-fn" --language python --description "desc" \
   --handler-name process --handler-method POST --handler-path /api/process --no-prompt
 
-# 5. Workflows
+# 5. Workflows — MUST load workflows-development sub-skill before writing the spec file
 foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
 
 # 6. UI pages (standalone full-page views)
@@ -151,10 +151,12 @@ foundry ui extensions create --name "my-ext" --description "desc" --from-templat
 The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skills:
 
 - **OpenAPI spec** → api-integrations
-- **Workflow YAML** → workflows-development
+- **Workflow YAML** → workflows-development **(MUST load before writing ANY workflow YAML)**
 - **UI components** → ui-development
 - **Function handlers** → functions-development
 - **Collection schemas** → collections-development
+
+> **⚠️ MANDATORY: Load `workflows-development` before writing workflow YAML.** The workflow format is `trigger` + `actions` with `version_constraint` on every action. If you attempt workflow YAML without loading the sub-skill, you WILL hallucinate an incorrect format (`definition/node_types/sdk_type`) that does not exist and causes deploy failures. This is a known failure mode. ALWAYS load the sub-skill first.
 
 ### Step 7: Final Build and Deploy
 
