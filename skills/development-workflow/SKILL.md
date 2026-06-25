@@ -30,9 +30,9 @@ metadata:
 > 3. Delegate capability-specific content to Foundry sub-skills
 > 4. Hand-write ONLY what the CLI cannot generate (OpenAPI content, workflow logic, UI code)
 >
-> **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`, but may still prompt interactively in some CLI versions — delete via Falcon App Manager UI if it hangs), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
+> **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
-> **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list-deployments`.
+> **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
 >
 > **Superpowers skills MAY supplement** (TDD discipline, code review) but MUST NOT replace this workflow.
 
@@ -96,6 +96,7 @@ For other decisions, prefer reasonable defaults: use React for UI, download publ
 ```bash
 foundry version          # Verify CLI installed
 foundry profile active   # Verify authentication
+foundry apps list        # Check existing apps (avoid name collisions)
 ```
 
 If either fails, see [references/headless-operation.md](references/headless-operation.md) for setup options (env vars, non-interactive profile creation).
