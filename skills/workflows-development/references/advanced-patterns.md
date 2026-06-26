@@ -118,19 +118,19 @@ actions:
 | Your Excuse | Reality |
 |-------------|---------|
 | "YAML is simple, I don't need patterns" | Fusion YAML has execution semantics that standard YAML doesn't |
-| "I can chain API calls directly in code" | Workflows handle retries, state persistence, and parallelism automatically |
-| "I'll add error handling later" | Workflow failures without onError blocks corrupt state and lose context |
+| "I can chain API calls directly in code" | Workflows handle state persistence and parallelism automatically |
+| "I'll add error handling later" | Without conditional routing on `Workflow.Execution.Errors` and loop `continue_on_partial_execution`, failures abort the workflow and lose context |
 | "RTR is just like SSH" | RTR has session management, host targeting, and result aggregation built-in |
-| "forEach is overkill for small lists" | forEach with maxConcurrency prevents API rate limiting and resource exhaustion |
+| "A loop is overkill for small lists" | Sequential loops keep stateful and rate-limited actions from racing each other |
 | "Conditional logic belongs in Functions" | Workflow-level conditionals skip steps entirely, saving execution time |
 
 ## Red Flags - STOP Immediately
 
 If you catch yourself:
 - Writing raw API call chains in Functions instead of workflow steps
-- Creating multi-step workflows without onError blocks
+- Creating multi-step workflows without error routing (conditional branches on `Workflow.Execution.Errors`)
 - Hardcoding host IDs instead of using host groups or dynamic queries
-- Using unbounded parallel execution without maxConcurrency
+- Using concurrent loops (`sequential: false`) for stateful or rate-limited actions that should run sequentially
 - Storing secrets in workflow YAML instead of environment variables
 
 **STOP. Follow the patterns above. No shortcuts.**
