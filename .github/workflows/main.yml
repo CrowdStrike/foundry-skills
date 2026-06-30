@@ -148,3 +148,18 @@ jobs:
           node-version: 22
       - name: Run markdownlint
         run: npx markdownlint-cli2 "**/*.md"
+
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install pylint
+      - name: Run pylint
+        run: |
+          source .venv/bin/activate
+          pylint --rcfile=.pylintrc scripts/*.py

@@ -7,13 +7,15 @@
 set -euo pipefail
 
 SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
+RCFILE="$REPO_ROOT/.pylintrc"
 FAIL=0
 
 for py in "$SCRIPTS_DIR"/*.py; do
   [ -f "$py" ] || continue
   name=$(basename "$py")
   printf "%-35s " "$name"
-  score=$(pipx run pylint "$py" 2>&1 | sed -n 's/.*rated at \([0-9.]*\).*/\1/p')
+  score=$(pipx run pylint --rcfile="$RCFILE" "$py" 2>&1 | sed -n 's/.*rated at \([0-9.]*\).*/\1/p')
   [ -z "$score" ] && score="ERR"
   if [ "$score" = "10.00" ] || [ "$score" = "10.0" ]; then
     printf "\033[0;32m%s/10\033[0m\n" "$score"
