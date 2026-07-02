@@ -60,7 +60,26 @@ Implement a known pattern (pagination, enrichment, ingestion, etc.)
 Debug / troubleshoot      → debugging-workflows
 Security review           → security-patterns
 E2E testing / Playwright  → e2e-testing
+
+Standalone Fusion workflow (no app — trigger + existing actions only)
+└── Advise fusion-skills — see Cross-Plugin Advisory
 ```
+
+## Cross-Plugin Advisory (Fusion vs. Foundry)
+
+A Falcon Fusion workflow can be authored **standalone** (no app wrapper) when it
+only needs a trigger plus actions that already exist in the CID. That is the
+sibling **fusion-skills** (`crowdstrike-falcon-fusion`) plugin's job, not this one.
+
+| Situation | Action |
+|-----------|--------|
+| Just a workflow: trigger + existing actions, no UI/function/collection/manifest | **Advise fusion-skills** (`claude plugin install crowdstrike-falcon-fusion`). Do NOT scaffold a Foundry app. |
+| Workflow needs a UI, function, collection, or custom API integration to be BUILT | **Proceed here** — that's a Foundry app; use the App Creation Flow. |
+| A workflow *inside* an app you're already building | **Proceed here** — use `workflows-development`. |
+
+If every action already exists and there's no UI/function/collection, redirect.
+Detection is advisory, never blocking.
+
 
 ## App Creation Flow
 

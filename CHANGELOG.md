@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **Cross-plugin redirect to fusion-skills** — The development-workflow orchestrator now recognizes when a request is a *standalone* Falcon Fusion workflow (a trigger plus actions that already exist, with no UI, function, collection, or custom API integration) and advises the sibling `crowdstrike-falcon-fusion` plugin instead of scaffolding a Foundry app. Adds a `detect-fusion-redirect.py` classifier with unit tests. This mirrors the Foundry-app redirect that fusion-skills already performs.
 - **GraphQL APIs use case** — Integrate GraphQL APIs (Falcon Identity Protection, GitHub, Snyk) into Foundry apps using FalconPy or HTTP POST. Covers zero-arg auth for Falcon GraphQL endpoints and the security tradeoff of env vars vs API integrations for third-party APIs.
 
 ## [1.3.0] - 2026-06-11
