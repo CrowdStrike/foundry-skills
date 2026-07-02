@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Tests for detect-fusion-redirect.py"""
-# pylint: disable=invalid-name,wrong-import-position,global-statement
+"""Tests for detect_fusion_redirect.py"""
+# pylint: disable=wrong-import-position,global-statement
 
 import os
 import sys
-from importlib import import_module
 
 sys.path.insert(0, os.path.dirname(__file__))
-detect = import_module("detect-fusion-redirect")
+import detect_fusion_redirect as detect
 
 PASS = 0
 FAIL = 0

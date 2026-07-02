@@ -35,14 +35,11 @@ jobs:
         run: |
           source .venv/bin/activate
           ./test-hooks.sh
-      - name: Run spec adaptation tests
+      - name: Run unit tests
         run: |
           source .venv/bin/activate
           python scripts/test-adapt-spec.py
-      - name: Run fusion-redirect classifier tests
-        run: |
-          source .venv/bin/activate
-          python scripts/test-detect-fusion-redirect.py
+          python scripts/test_detect_fusion_redirect.py
 
   validate:
     runs-on: ubuntu-latest

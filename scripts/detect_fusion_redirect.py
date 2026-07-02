@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=invalid-name
 """Classify whether a request is a standalone Fusion workflow (redirect to
 fusion-skills) or a Falcon Foundry app (handle here in foundry-skills).
 
@@ -14,8 +13,8 @@ decision ultimately rests with the orchestrator skill (development-workflow),
 which reads the same signals described here.
 
 Usage:
-    detect-fusion-redirect.py "build a workflow that contains a host on detection"
-    echo "<request>" | detect-fusion-redirect.py
+    detect_fusion_redirect.py "build a workflow that contains a host on detection"
+    echo "<request>" | detect_fusion_redirect.py
 Exit code 0 always (advisory). Prints a JSON verdict.
 """
 
