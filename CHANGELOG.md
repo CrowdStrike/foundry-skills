@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **GraphQL APIs use case** — Integrate GraphQL APIs (Falcon Identity Protection, GitHub, Snyk) into Foundry apps using FalconPy or HTTP POST. Covers zero-arg auth for Falcon GraphQL endpoints and the security tradeoff of env vars vs API integrations for third-party APIs.
 - **`scripts/action_search.py`** — API-based action discovery script that works in headless/CI environments where the CLI's interactive `actions view` prompt fails. Uses FalconPy with FQL fuzzy matching and prints action IDs with `version_constraint` values.
 - **CLI guard for `actions view` / `triggers view`** — Hook now catches missing `--no-prompt` on these commands to prevent TTY hangs.
+- **`foundry apps list` in prerequisite check** — New CLI 2.0.2 command that lists all deployed apps on the CID from any directory. Added to Step 3 to help avoid name collisions.
+- **Collection description validation constraints** — Documents the 3–500 character length limit, alphanumeric-start requirement, and allowed character set for collection descriptions.
+- **Function logs in testing-patterns reference** — Added function logs (viewing in UI and Advanced Event Search) to the reference table entry for testing patterns.
 
 ### Changed
 
@@ -20,6 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **Action discovery guidance** — Updated all `actions view` examples to include `--no-prompt` and pointed to `action_search.py` as the primary fallback. The CLI ignores `--no-prompt` for these commands (tracked upstream), so the script is the reliable path.
 - **Alert and detection query routing (population vs. enrich)** — The orchestrator and workflows skills now distinguish two cases. Fetching a *population* the workflow doesn't already have ("summarize all high-severity alerts") goes to a source-of-truth API — a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — since an Event Query against NG-SIEM can silently return nothing (repo contents are connector-dependent). *Enriching* a detection the workflow already holds (query by its ID) stays an Event Query, as does historical/aggregate telemetry. New reference [event-query-vs-api.md](skills/workflows-development/references/event-query-vs-api.md); the functions-falcon-api example keeps the verified `severity_name` + `created_timestamp` FQL filter.
+- **Removed `apps delete` workaround** — The 500/stuck-in-Deleting issue is fixed in CLI 2.0.2. Removed guidance about using Falcon App Manager UI as fallback.
+- **Corrected "commands that work from anywhere"** — Replaced `foundry apps list-deployments` (which requires a manifest) with `foundry apps list` (which actually works from any directory).
+- **Fixed invalid error-handling references in workflow advanced-patterns** — Removed non-existent `onError` blocks, `maxConcurrency`, and automatic retries. Replaced with the real mechanisms: conditional routing on `Workflow.Execution.Errors`, loop `continue_on_partial_execution`, and sequential loops for stateful actions.
 
 ## [1.3.0] - 2026-06-11
 
