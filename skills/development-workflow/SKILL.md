@@ -162,7 +162,8 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 > | Writing... | MUST load | Hallucination without it |
 > |---|---|---|
 > | Workflow YAML | `workflows-development` | Invented `definition/node_types/sdk_type` format instead of correct `trigger` + `actions` with `version_constraint` |
-> | Function code calling Falcon APIs or API integrations | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` or `request.api_integrations.execute(integration_name=...)` instead of FalconPy SDK classes (`from falconpy import Hosts`, `APIIntegrations`) |
+> | Function code calling Falcon APIs | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` instead of FalconPy SDK classes (`from falconpy import Hosts`) |
+> | Function code calling a third-party API (Slack, Jira, PagerDuty, etc.) | `functions-falcon-api` + check `use-cases/` | Invented `falcon.command("createNotification")` or raw HTTP calls instead of `APIIntegrations().execute_command(definition_id="...", operation_id="...")`. The app MUST have an API integration (OpenAPI spec) for the service, then call it from the function via FalconPy `APIIntegrations` class. See foundry-sample-functions-python for reference. |
 > | Function code accessing collections | `collections-development` | Invented REST endpoints for collection CRUD instead of FalconPy `CustomStorage` service class |
 >
 > ALWAYS load the sub-skill first. This is not optional.
