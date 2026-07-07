@@ -152,12 +152,20 @@ foundry ui extensions create --name "my-ext" --description "desc" --from-templat
 The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skills:
 
 - **OpenAPI spec** → api-integrations
-- **Workflow YAML** → workflows-development **(MUST load before writing ANY workflow YAML)**
+- **Workflow YAML** → workflows-development
 - **UI components** → ui-development
 - **Function handlers** → functions-development
 - **Collection schemas** → collections-development
 
-> **⚠️ MANDATORY: Load `workflows-development` before writing workflow YAML.** The workflow format is `trigger` + `actions` with `version_constraint` on every action. If you attempt workflow YAML without loading the sub-skill, you WILL hallucinate an incorrect format (`definition/node_types/sdk_type`) that does not exist and causes deploy failures. This is a known failure mode. ALWAYS load the sub-skill first.
+> **⚠️ MANDATORY: Load the relevant sub-skill BEFORE writing any domain-specific code.** Without the sub-skill loaded, you WILL hallucinate incorrect formats and nonexistent APIs. Known failure modes:
+>
+> | Writing... | MUST load | Hallucination without it |
+> |---|---|---|
+> | Workflow YAML | `workflows-development` | Invented `definition/node_types/sdk_type` format instead of correct `trigger` + `actions` with `version_constraint` |
+> | Function code calling Falcon APIs or API integrations | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` or `request.api_integrations.execute(integration_name=...)` instead of FalconPy SDK classes (`from falconpy import Hosts`, `APIIntegrations`) |
+> | Function code accessing collections | `collections-development` | Invented REST endpoints for collection CRUD instead of FalconPy `CustomStorage` service class |
+>
+> ALWAYS load the sub-skill first. This is not optional.
 
 ### Step 7: Final Build and Deploy
 
