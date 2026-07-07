@@ -70,12 +70,14 @@ Map user requests to Foundry capabilities:
 
 | User Says | Capability | CLI Command |
 |-----------|-----------|-------------|
-| "API integration", "connect to X API" | API Integration | `foundry api-integrations create` |
+| "API integration", "connect to X API", "hooks into X", "sends to X", "integrates with X" | API Integration | `foundry api-integrations create` |
 | "workflow", "on-demand", "automate" | Workflow | `foundry workflows create` |
 | "UI", "page", "dashboard" | UI Page | `foundry ui pages create` |
 | "extension", "sidebar", "widget" | UI Extension | `foundry ui extensions create` |
 | "function", "serverless", "backend" | Function | `foundry functions create` |
 | "store data", "collection", "database" | Collection | `foundry collections create` |
+
+> **⚠️ When the prompt mentions a third-party service (Slack, Jira, PagerDuty, ServiceNow, etc.), ALWAYS create an API integration for it.** The Foundry-native pattern is: API integration (OpenAPI spec) → workflow calls it as an action. Do NOT skip the API integration and call the service directly from a function — that bypasses Foundry's credential management and the action won't be available in Fusion SOAR workflows.
 
 ### Step 1b: Check for Known Patterns
 
