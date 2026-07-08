@@ -159,13 +159,7 @@ If a function was created without workflow integration and you later need it cal
 ❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
 ```
 
-> **⚠️ Querying Falcon platform alerts, detections, or incidents? Use a FalconPy function — NOT an Event Query action.**
->
-> The Event Query action (`Inline.QueryEvent`) runs against NG-SIEM/LogScale repositories (`xdr*`, `search-all`, etc.). Whether Falcon alerts and detections are present there — and in what schema — depends entirely on the customer's NG-SIEM ingestion connectors. A base tenant with no connectors returns audit logs, not alerts. So an Event Query for "high-severity alerts" **silently returns zero or wrong results** on many tenants.
->
-> The reliable, tenant-independent path is a function that calls the FalconPy `Alerts` class (`query_alerts_v2` + `get_alerts_v2`), then wire the function into the workflow. `query_alerts_v2` accepts an FQL `filter` such as `severity_name:'High'+created_timestamp:>'now-24h'` and works on every tenant regardless of NG-SIEM config. See [functions-falcon-api](../functions-falcon-api/SKILL.md) for the handler pattern and OAuth scopes (`alerts:read`).
->
-> Use an Event Query only for data that genuinely lives in NG-SIEM (ingested third-party logs, custom parsers, LogScale search results) — see [ngsiem-query-export.md](../../use-cases/ngsiem-query-export.md).
+> **⚠️ Querying Falcon alerts, detections, or incidents? Use a FalconPy function, NOT an Event Query action.** `Inline.QueryEvent` runs against NG-SIEM/LogScale repos whose alert contents depend on customer ingestion connectors, so it can silently return nothing. Instead call FalconPy `Alerts` (`query_alerts_v2`, FQL `filter="severity_name:'High'+created_timestamp:>'now-24h'"`) from a function and wire it in — see [functions-falcon-api](../functions-falcon-api/SKILL.md) (needs `alerts:read`). Reserve Event Query for data that truly lives in NG-SIEM.
 
 ## Calling API Integration Operations
 
@@ -364,36 +358,7 @@ workflows:
 
 ## Error Handling
 
-Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware.
-
-| Mechanism | Scope | Usage |
-|-----------|-------|-------|
-| `fail_fast_enabled: false` | Function actions | Allow workflow to continue if a function call fails |
-| `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
-| `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
-| `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
-
-```yaml
-# Function-level: suppress non-critical failures
-actions:
-    enrich_data:
-        id: functions.enrichment.Enrich
-        properties:
-            fail_fast_enabled: false
-        version_constraint: ~0
-        next:
-            - process_results
-
-# Loop-level: stop on first error
-loops:
-    ContainDevices:
-        for:
-            input: device_ids
-            continue_on_partial_execution: false
-            sequential: true
-```
-
-No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [references/pagination-patterns.md](references/pagination-patterns.md).
+Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware. Key mechanisms: `fail_fast_enabled: false` (function actions), `continue_on_partial_execution` (loop blocks), and `conditions:`/`else:` routing. No built-in retry or backoff exists. For the full table, examples, and pagination-polling pattern, see [references/advanced-patterns.md](references/advanced-patterns.md).
 
 ## Testing
 
@@ -419,6 +384,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
 | HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
 | HTTP Request actions, testing, validation | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Error handling (fail_fast, partial execution, routing) | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Parameterized fields versioning | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Counter-rationalizations and red flags | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
