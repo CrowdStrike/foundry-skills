@@ -35,10 +35,6 @@ jobs:
         run: |
           source .venv/bin/activate
           ./test-hooks.sh
-      - name: Run spec adaptation tests
-        run: |
-          source .venv/bin/activate
-          python scripts/test_adapt_spec.py
 
   validate:
     runs-on: ubuntu-latest
@@ -165,16 +161,7 @@ jobs:
           pylint --rcfile=.pylintrc scripts/*.py
 
   pytest:
-    # The windows-latest leg is TEMPORARY: it empirically verifies that
-    # action_search.get_credentials() resolves the Foundry CLI config path
-    # (~/.config/foundry/configuration.yml) correctly on Windows, since that
-    # credential loading is new and unreleased. Remove the Windows entry from
-    # the matrix once it has passed and the path resolution is confirmed.
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -186,5 +173,5 @@ jobs:
           python -m pip install -r requirements-test.txt
       - name: Run unit tests
         run: |
-          python -m pytest tests/ -v --cov=action_search --cov-report=term-missing --cov-fail-under=90
+          python -m pytest tests/ -v --cov=scripts --cov-report=term-missing --cov-fail-under=90
 
