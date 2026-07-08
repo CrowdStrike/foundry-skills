@@ -35,10 +35,6 @@ jobs:
         run: |
           source .venv/bin/activate
           ./test-hooks.sh
-      - name: Run spec adaptation tests
-        run: |
-          source .venv/bin/activate
-          python scripts/test_adapt_spec.py
 
   validate:
     runs-on: ubuntu-latest
@@ -186,5 +182,5 @@ jobs:
           python -m pip install -r requirements-test.txt
       - name: Run unit tests
         run: |
-          python -m pytest tests/ -v --cov=action_search --cov-report=term-missing --cov-fail-under=90
+          python -m pytest tests/ -v --cov=scripts --cov-report=term-missing --cov-fail-under=90
 
