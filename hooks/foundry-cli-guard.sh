@@ -118,6 +118,23 @@ if echo "$COMMAND" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
   fi
 fi
 
+# Check for foundry workflows actions/triggers view without --no-prompt
+# The CLI currently ignores --no-prompt for these commands (FOUNDRY-3049) and
+# always launches an interactive Select() prompt. Adding --no-prompt is still
+# correct (for when the bug is fixed), but the real workaround is
+# scripts/action_search.py which queries the API directly.
+if echo "$COMMAND" | grep -qE 'foundry\s+workflows\s+(actions|triggers)\s+view\b'; then
+  if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
+    jq -n '{
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        additionalContext: "The command is missing --no-prompt. The CLI currently ignores this flag for actions/triggers view (known bug), but add it anyway. If the command fails or hangs, use python3 scripts/action_search.py \"name\" instead — it queries the API directly and works in headless environments."
+      }
+    }'
+    exit 0
+  fi
+fi
+
 # Check for Foundry resource-creation commands — remind Claude to confirm name with user.
 # Only matches resource types (not profile create, which is local config).
 # Handles: --name "val", --name 'val', --name val, --name=val, --name="val", --name='val'

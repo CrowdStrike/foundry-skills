@@ -105,13 +105,13 @@ actions:
         version_constraint: ~0
 
     # TODO: Configure this action in Falcon App Builder — use
-    # foundry workflows actions view --name "send email" to discover the action ID
+    # foundry workflows actions view --name "send email" --no-prompt to discover the action ID
     # send_notification:
-    #     id: <find via foundry workflows actions view --name "..." or App Builder>
+    #     id: <find via foundry workflows actions view --name "..." --no-prompt or App Builder>
     #     properties: {}
 ```
 
-> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..."` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
+> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
 
 ## Counter-Rationalizations Table
 
