@@ -79,6 +79,39 @@ npx @redocly/cli lint api-integrations/MyApi.yaml
   timeout: 300  # 5 minutes per step
 ```
 
+## Error Handling
+
+Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware.
+
+| Mechanism | Scope | Usage |
+|-----------|-------|-------|
+| `fail_fast_enabled: false` | Function actions | Allow workflow to continue if a function call fails |
+| `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
+| `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
+| `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
+
+```yaml
+# Function-level: suppress non-critical failures
+actions:
+    enrich_data:
+        id: functions.enrichment.Enrich
+        properties:
+            fail_fast_enabled: false
+        version_constraint: ~0
+        next:
+            - process_results
+
+# Loop-level: stop on first error
+loops:
+    ContainDevices:
+        for:
+            input: device_ids
+            continue_on_partial_execution: false
+            sequential: true
+```
+
+No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [pagination-patterns.md](pagination-patterns.md).
+
 ## Platform Action Fallback Strategy
 
 If you don't know the exact action name:

@@ -46,7 +46,13 @@ def get_alerts(request: Request, config: Union[Dict[str, Any], None], logger: Lo
     falcon = Alerts()  # Zero-arg constructor — auth is automatic
 
     limit = min(int(request.params.get("limit", 50)), 100)
-    response = falcon.query_alerts_v2(limit=limit)
+    # FQL filter: high-severity alerts from the last 24 hours.
+    # Combine conditions with '+' (AND); relative times like 'now-24h' are supported.
+    response = falcon.query_alerts_v2(
+        filter="severity_name:'High'+created_timestamp:>'now-24h'",
+        limit=limit,
+        sort="created_timestamp|desc",
+    )
 
     if response["status_code"] != 200:
         logger.error(f"Failed to query alerts: {response.get('errors')}")

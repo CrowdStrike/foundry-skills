@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Fixed
 
 - **Action discovery guidance** — Updated all `actions view` examples to include `--no-prompt` and pointed to `action_search.py` as the primary fallback. The CLI ignores `--no-prompt` for these commands (tracked upstream), so the script is the reliable path.
+- **Alert and detection queries steer to FalconPy functions** — The orchestrator and workflows skills now direct Falcon platform alert, detection, and incident queries to a FalconPy `Alerts`/`Detects` function instead of a workflow Event Query action, whose NG-SIEM/LogScale results depend on the customer's ingestion connectors and can silently return no alerts. The functions-falcon-api alert example now demonstrates the `severity_name` + `created_timestamp` FQL filter.
 
 ## [1.3.0] - 2026-06-11
 

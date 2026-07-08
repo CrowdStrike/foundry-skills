@@ -159,6 +159,8 @@ If a function was created without workflow integration and you later need it cal
 ❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
 ```
 
+> **⚠️ Querying Falcon alerts, detections, or incidents? Use a FalconPy function, NOT an Event Query action.** `Inline.QueryEvent` runs against NG-SIEM/LogScale repos whose alert contents depend on customer ingestion connectors, so it can silently return nothing. Instead call FalconPy `Alerts` (`query_alerts_v2`, FQL `filter="severity_name:'High'+created_timestamp:>'now-24h'"`) from a function and wire it in — see [functions-falcon-api](../functions-falcon-api/SKILL.md) (needs `alerts:read`). Reserve Event Query for data that truly lives in NG-SIEM.
+
 ## Calling API Integration Operations
 
 > **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an HTTP Action is faster than an API integration — no app, no OpenAPI spec, no deploy. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).
@@ -356,36 +358,7 @@ workflows:
 
 ## Error Handling
 
-Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware.
-
-| Mechanism | Scope | Usage |
-|-----------|-------|-------|
-| `fail_fast_enabled: false` | Function actions | Allow workflow to continue if a function call fails |
-| `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
-| `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
-| `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
-
-```yaml
-# Function-level: suppress non-critical failures
-actions:
-    enrich_data:
-        id: functions.enrichment.Enrich
-        properties:
-            fail_fast_enabled: false
-        version_constraint: ~0
-        next:
-            - process_results
-
-# Loop-level: stop on first error
-loops:
-    ContainDevices:
-        for:
-            input: device_ids
-            continue_on_partial_execution: false
-            sequential: true
-```
-
-No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [references/pagination-patterns.md](references/pagination-patterns.md).
+Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware. Key mechanisms: `fail_fast_enabled: false` (function actions), `continue_on_partial_execution` (loop blocks), and `conditions:`/`else:` routing. No built-in retry or backoff exists. For the full table, examples, and pagination-polling pattern, see [references/advanced-patterns.md](references/advanced-patterns.md).
 
 ## Testing
 
@@ -411,6 +384,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
 | HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
 | HTTP Request actions, testing, validation | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Error handling (fail_fast, partial execution, routing) | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Parameterized fields versioning | [references/advanced-patterns.md](references/advanced-patterns.md) |
 | Counter-rationalizations and red flags | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
