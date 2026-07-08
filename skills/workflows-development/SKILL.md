@@ -159,6 +159,14 @@ If a function was created without workflow integration and you later need it cal
 ❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
 ```
 
+> **⚠️ Querying Falcon platform alerts, detections, or incidents? Use a FalconPy function — NOT an Event Query action.**
+>
+> The Event Query action (`Inline.QueryEvent`) runs against NG-SIEM/LogScale repositories (`xdr*`, `search-all`, etc.). Whether Falcon alerts and detections are present there — and in what schema — depends entirely on the customer's NG-SIEM ingestion connectors. A base tenant with no connectors returns audit logs, not alerts. So an Event Query for "high-severity alerts" **silently returns zero or wrong results** on many tenants.
+>
+> The reliable, tenant-independent path is a function that calls the FalconPy `Alerts` class (`query_alerts_v2` + `get_alerts_v2`), then wire the function into the workflow. `query_alerts_v2` accepts an FQL `filter` such as `severity_name:'High'+created_timestamp:>'now-24h'` and works on every tenant regardless of NG-SIEM config. See [functions-falcon-api](../functions-falcon-api/SKILL.md) for the handler pattern and OAuth scopes (`alerts:read`).
+>
+> Use an Event Query only for data that genuinely lives in NG-SIEM (ingested third-party logs, custom parsers, LogScale search results) — see [ngsiem-query-export.md](../../use-cases/ngsiem-query-export.md).
+
 ## Calling API Integration Operations
 
 > **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an HTTP Action is faster than an API integration — no app, no OpenAPI spec, no deploy. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).

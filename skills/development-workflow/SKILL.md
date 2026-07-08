@@ -77,6 +77,8 @@ Map user requests to Foundry capabilities:
 | "function", "serverless", "backend" | Function | `foundry functions create` |
 | "store data", "collection", "database" | Collection | `foundry collections create` |
 
+> **⚠️ "Summarize/query alerts, detections, or incidents" implies a function.** Falcon platform alert and detection data must be fetched with the FalconPy `Alerts`/`Detects` classes from inside a function — it is NOT reliably queryable via a workflow Event Query action (that runs against NG-SIEM/LogScale repos, whose contents depend on the customer's ingestion connectors). So a request like "a workflow that emails a summary of high-severity alerts" needs BOTH a function (to query alerts via FalconPy) AND a workflow (to schedule it and send email) — plan the `alerts:read` scope and the function up front. See [functions-falcon-api](../functions-falcon-api/SKILL.md).
+
 ### Step 1b: Check for Known Patterns
 
 Before scaffolding, check if the user's request matches a known use case. Glob `use-cases/*.md` and scan the `description` field in each file's frontmatter. If a match is found, read the use case file for implementation context (architecture, capability order, gotchas) before proceeding.
