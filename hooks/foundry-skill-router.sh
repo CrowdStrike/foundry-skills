@@ -79,7 +79,7 @@ case "$HOOK_EVENT" in
         if [ -n "$SPEC_FILE" ] && [ -f "$SPEC_FILE" ]; then
           # Find the adapt script relative to the plugin root
           PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-          ADAPT_SCRIPT="$PLUGIN_ROOT/scripts/adapt-spec-for-foundry.py"
+          ADAPT_SCRIPT="$PLUGIN_ROOT/scripts/adapt_spec_for_foundry.py"
 
           # Run the adapt script automatically to fix known issues
           if [ -f "$ADAPT_SCRIPT" ]; then
@@ -101,7 +101,7 @@ case "$HOOK_EVENT" in
                 jq -n --arg output "$ADAPT_OUTPUT" '{
                   hookSpecificOutput: {
                     hookEventName: "PreToolUse",
-                    additionalContext: ("adapt-spec-for-foundry.py automatically fixed the spec before import:\n" + $output + "\nProceeding with the corrected spec.")
+                    additionalContext: ("adapt_spec_for_foundry.py automatically fixed the spec before import:\n" + $output + "\nProceeding with the corrected spec.")
                   }
                 }'
                 exit 0
@@ -112,7 +112,7 @@ case "$HOOK_EVENT" in
               hookSpecificOutput: {
                 hookEventName: "PreToolUse",
                 decision: "block",
-                reason: ("BLOCKED: adapt-spec-for-foundry.py not found at " + $script + ". This script is required to validate OpenAPI specs before import.")
+                reason: ("BLOCKED: adapt_spec_for_foundry.py not found at " + $script + ". This script is required to validate OpenAPI specs before import.")
               }
             }'
             exit 0

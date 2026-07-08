@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **`scripts/action_search.py`** — API-based action discovery script that works in headless/CI environments where the CLI's interactive `actions view` prompt fails. Uses FalconPy with FQL fuzzy matching and prints action IDs with `version_constraint` values.
 - **CLI guard for `actions view` / `triggers view`** — Hook now catches missing `--no-prompt` on these commands to prevent TTY hangs.
 
+### Changed
+
+- **Renamed Python scripts to snake_case** — `scripts/adapt-spec-for-foundry.py` → `adapt_spec_for_foundry.py` and `scripts/test-adapt-spec.py` → `test_adapt_spec.py`, matching the repo's `snake_case` lint convention and allowing the test to import the module directly. The PreToolUse hook and all skill docs reference the new names; no behavior changed. If you invoked the old path directly in your own tooling, update it to the underscore name.
+
 ### Fixed
 
 - **Action discovery guidance** — Updated all `actions view` examples to include `--no-prompt` and pointed to `action_search.py` as the primary fallback. The CLI ignores `--no-prompt` for these commands (tracked upstream), so the script is the reliable path.

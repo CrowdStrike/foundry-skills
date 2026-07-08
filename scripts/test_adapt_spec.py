@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for adapt-spec-for-foundry.py"""
+"""Tests for adapt_spec_for_foundry.py"""
 # pylint: disable=invalid-name,wrong-import-position,global-statement
 
 import json
@@ -8,10 +8,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(__file__))
-from importlib import import_module
-
-# Import the script as a module
-spec = import_module('adapt-spec-for-foundry')
+import adapt_spec_for_foundry as spec  # noqa: E402
 
 PASS = 0
 FAIL = 0
