@@ -96,7 +96,7 @@ output_fields: []
 Platform response actions (contain device, lift containment, create IOC) use discovered action IDs. To find the ID, run:
 
 ```bash
-foundry workflows actions view --name "contain"
+foundry workflows actions view --name "contain" --no-prompt
 ```
 
 This example demonstrates an on-demand workflow that contains a host by device ID, with a null-guard condition to prevent runtime errors when the parameter is empty.
@@ -140,13 +140,13 @@ conditions:
 ```
 
 **Patterns demonstrated:**
-- Discovering platform actions via `foundry workflows actions view --name "..."`
+- Discovering platform actions via `foundry workflows actions view --name "..." --no-prompt`
 - `conditions:` with `cel_expression:` for null-guarding trigger parameters
 - `else:` routing to a fallback action when the parameter is missing
 - Response action pattern with a real platform action ID (`bec9fbeb4999d207937854fd56088107` = Contain device)
 - CEL null-guard: `data['field'] != null && data['field'] != ''`
 
-> **⚠️ Always discover action IDs** — do NOT guess or hardcode IDs from this example for other actions. Use `foundry workflows actions view --name "..."` or the API query in [action-discovery.md](action-discovery.md) to find the correct ID for your specific use case.
+> **⚠️ Always discover action IDs** — do NOT guess or hardcode IDs from this example for other actions. Use `foundry workflows actions view --name "..." --no-prompt` or the API query in [action-discovery.md](action-discovery.md) to find the correct ID for your specific use case.
 
 ## Scheduled Workflow with Pagination Loop
 

@@ -44,13 +44,13 @@ foundry workflows create --name "my-workflow" --spec /tmp/workflow.yaml --no-pro
 ### Discover Available Actions and Triggers
 
 ```bash
-foundry workflows actions view --name "send email"   # Look up by name (fuzzy matching)
-foundry workflows actions view --name "send email" --output-schema  # Get output schema
-foundry workflows actions view --name "send email" --mock           # Get mock output example
-foundry workflows triggers view                                      # List available triggers
+foundry workflows actions view --name "send email" --no-prompt              # Look up by name
+foundry workflows actions view --name "send email" --no-prompt --output-schema  # Output schema
+foundry workflows actions view --name "send email" --no-prompt --mock       # Mock output
+foundry workflows triggers view --no-prompt                                 # List triggers
 ```
 
-Pass `--name` to avoid a known macOS bug where the interactive selector hangs. The `--name` filter uses fuzzy matching, so partial names work (e.g., `--name "send"` finds "send email"). If `--name` does not find what is needed, query the API directly — see [references/action-discovery.md](references/action-discovery.md).
+> **⚠️ Always use `--no-prompt` on `actions view` and `triggers view`.** The `--name` filter is fuzzy — partial matches trigger an interactive prompt that fails in headless environments (`Error: no TTY available`). If the CLI errors or hangs, use `python3 scripts/action_search.py "name"` instead — see [references/action-discovery.md](references/action-discovery.md).
 
 ## Workflow Structure
 
@@ -112,7 +112,7 @@ output_fields: []
 - `~0` = activity has **no** `semantic_version` defined (functions, API integrations, and some platform actions like "contain device")
 - `~1` = activity **has** a `semantic_version` (most platform actions: Print data, Send email, Create/Update variable, Get device details, etc.)
 
-Use `foundry workflows actions view --name "<action>"` to check. If the activity output shows a semantic_version field, use `~1`. If it does not, use `~0`.
+Use `foundry workflows actions view --name "<action>" --no-prompt` to check. If the activity output shows a semantic_version field, use `~1`. If it does not, use `~0`.
 
 ```yaml
 actions:
@@ -213,7 +213,7 @@ Platform actions (send email, log output, create detection) require platform-spe
 | Get device details | `6265dc947cc2252f74a5f25261ac36a9` |
 | Contain device | `bec9fbeb4999d207937854fd56088107` |
 
-For actions not in this table, use `foundry workflows actions view --name "..."` or the API query in [references/action-discovery.md](references/action-discovery.md). There are 9,000+ platform actions available. MUST NOT guess action IDs — use discovery commands.
+For actions not in this table, use `foundry workflows actions view --name "..." --no-prompt` or the API query in [references/action-discovery.md](references/action-discovery.md). There are 9,000+ platform actions available. MUST NOT guess action IDs — use discovery commands.
 
 ### Common Action Properties
 
@@ -390,8 +390,8 @@ No built-in retry or exponential backoff exists. For pagination polling, use a `
 ## Testing
 
 ```bash
-foundry workflows triggers view --mock       # Example mock trigger
-foundry workflows actions view --mock        # Example mock action
+foundry workflows triggers view --mock --no-prompt       # Example mock trigger
+foundry workflows actions view --mock --no-prompt        # Example mock action
 foundry workflows executions validate --mocks mymocks.json              # Validate mocks
 foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
 foundry workflows executions view <execution_id>                        # View results

@@ -2,9 +2,21 @@
 
 > Parent skill: [workflows-development](../SKILL.md)
 
-## API Query Script for Platform Actions
+## action_search.py (preferred)
 
-When `foundry workflows actions view --name "..."` does not find what is needed, query the API directly using credentials from `~/.config/foundry/configuration.yml`:
+Use `scripts/action_search.py` to search for platform actions by name. This script queries the API directly and works in headless/CI environments where the CLI's interactive prompt fails:
+
+```bash
+python3 scripts/action_search.py "send email"              # Search by name (fuzzy)
+python3 scripts/action_search.py "contain" --details       # Full details with properties
+python3 scripts/action_search.py "get alerts v2"           # Specific action
+```
+
+The script reads credentials from the active Foundry CLI profile, authenticates via OAuth, and prints action IDs with their `version_constraint` values.
+
+## Manual API Query
+
+When the script is not available, query the API directly using credentials from `~/.config/foundry/configuration.yml`:
 
 ```bash
 # 1. Read credentials from the active Foundry profile
@@ -42,7 +54,7 @@ curl -s "https://$API_HOST/workflows/combined/activities/v1?sort=name&limit=50&o
 
 ## Charlotte AI Integration
 
-Workflows can invoke Charlotte AI (CrowdStrike's LLM) as a workflow action. Use `foundry workflows actions view --name "charlotte"` to discover the action ID and its input schema (model, prompt, temperature, json_schema), then reference it like any other action with `id:` + `version_constraint:`.
+Workflows can invoke Charlotte AI (CrowdStrike's LLM) as a workflow action. Use `foundry workflows actions view --name "charlotte" --no-prompt` to discover the action ID and its input schema (model, prompt, temperature, json_schema), then reference it like any other action with `id:` + `version_constraint:`.
 
 ## CEL Expressions and Variable Injection
 
