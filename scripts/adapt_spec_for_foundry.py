@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # pylint: disable=invalid-name
 """
-adapt-spec-for-foundry.py — Transform OpenAPI specs for Falcon Foundry
+adapt_spec_for_foundry.py — Transform OpenAPI specs for Falcon Foundry
 
 Applies deterministic transformations derived from 12 production Foundry sample apps:
   1. Swagger 2.0 conversion: Convert to OpenAPI 3.0 via swagger2openapi (npx)
@@ -13,9 +13,9 @@ Does NOT add x-cs-operation-config — which operations to expose to workflows i
 prompt-driven decision the agent makes based on user requirements.
 
 Usage:
-  python3 scripts/adapt-spec-for-foundry.py /tmp/VendorApi.yaml
-  python3 scripts/adapt-spec-for-foundry.py /tmp/VendorApi.json -o /tmp/adapted.json
-  python3 scripts/adapt-spec-for-foundry.py spec.yaml --dry-run
+  python3 scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
+  python3 scripts/adapt_spec_for_foundry.py /tmp/VendorApi.json -o /tmp/adapted.json
+  python3 scripts/adapt_spec_for_foundry.py spec.yaml --dry-run
 """
 
 import argparse

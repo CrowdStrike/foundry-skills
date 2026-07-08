@@ -38,7 +38,7 @@ jobs:
       - name: Run spec adaptation tests
         run: |
           source .venv/bin/activate
-          python scripts/test-adapt-spec.py
+          python scripts/test_adapt_spec.py
 
   validate:
     runs-on: ubuntu-latest

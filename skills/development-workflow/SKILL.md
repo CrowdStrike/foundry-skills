@@ -147,7 +147,7 @@ foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 foundry ui extensions create --name "my-ext" --description "desc" --from-template React --sockets "activity.detections.details" --no-prompt
 ```
 
-**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt-spec-for-foundry.py` instead.
+**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt_spec_for_foundry.py` instead.
 
 ### Step 6: Write Domain-Specific Content
 
