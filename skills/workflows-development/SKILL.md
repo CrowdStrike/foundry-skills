@@ -159,7 +159,7 @@ If a function was created without workflow integration and you later need it cal
 ❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
 ```
 
-> **⚠️ Querying Falcon alerts, detections, or incidents? Use a FalconPy function, NOT an Event Query action.** `Inline.QueryEvent` runs against NG-SIEM/LogScale repos whose alert contents depend on customer ingestion connectors, so it can silently return nothing. Instead call FalconPy `Alerts` (`query_alerts_v2`, FQL `filter="severity_name:'High'+created_timestamp:>'now-24h'"`) from a function and wire it in — see [functions-falcon-api](../functions-falcon-api/SKILL.md) (needs `alerts:read`). Reserve Event Query for data that truly lives in NG-SIEM.
+> **⚠️ Reading Falcon alerts, detections, or incidents? It depends on whether the workflow already holds the object.** *Enriching* a detection the workflow was triggered on (query by its ID, e.g. `Ngsiem.detection.id = ?detectID`) → Event Query action, go schemaless. *Fetching a population you don't have* ("summarize all high-severity alerts") → source-of-truth API: a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — an Event Query can silently return nothing since NG-SIEM contents are connector-dependent. See [references/event-query-vs-api.md](references/event-query-vs-api.md).
 
 ## Calling API Integration Operations
 
@@ -376,6 +376,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 
 | Task | Reference |
 |------|-----------|
+| Reading alerts/detections: Event Query vs. source-of-truth API | [references/event-query-vs-api.md](references/event-query-vs-api.md) |
 | Full workflow examples (RTR, investigation) | [references/workflow-examples.md](references/workflow-examples.md) |
 | Platform action discovery via API | [references/action-discovery.md](references/action-discovery.md) |
 | CEL expressions (patterns, has() vs null, extensions) | [references/cel-expressions.md](references/cel-expressions.md) |
