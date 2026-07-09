@@ -380,7 +380,7 @@ def test_reads_swagger2_security_definitions():
 def test_load_and_save_yaml_round_trip():
     doc = make_spec()
     with tempfile.NamedTemporaryFile(suffix=".yaml", mode="w", delete=False) as f:
-        import yaml  # provided via requirements-test.txt
+        import yaml  # provided via requirements.txt
 
         yaml.safe_dump(doc, f)
         path = f.name
