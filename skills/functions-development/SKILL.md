@@ -55,7 +55,7 @@ This skill is split across multiple files. Consult these for full examples:
 |------|-----------|
 | Python handler, collection CRUD, error class, batch processing, LogScale ingestion | [references/python-patterns.md](references/python-patterns.md) |
 | Go FDK handler, Falcon client auth, collection CRUD, alerts handler | [references/go-patterns.md](references/go-patterns.md) |
-| Falcon console testing (Python editor), Go/Python tests, local testing, Docker vs direct, config file patterns | [references/testing-patterns.md](references/testing-patterns.md) |
+| Falcon console testing (Python editor), function logs (viewing logs in UI and Advanced Event Search), Go/Python tests, local testing, Docker vs direct, config file patterns | [references/testing-patterns.md](references/testing-patterns.md) |
 
 ## Resource Limits
 
