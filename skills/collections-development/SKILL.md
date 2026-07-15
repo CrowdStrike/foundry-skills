@@ -30,6 +30,15 @@ Falcon Foundry Collections are NoSQL document stores with JSON Schema validation
 | Special characters | Only underscores (`_`) allowed — no hyphens, spaces, or other chars |
 | Case | Case-sensitive |
 
+## Collection Description Constraints
+
+| Constraint | Rule |
+|-----------|------|
+| Length | 3-500 characters |
+| Start | Must begin with an alphanumeric character |
+| Allowed characters | Letters, numbers, spaces, dashes, periods, parentheses, and underscores only |
+| Not allowed | Commas, colons, semicolons, quotes, slashes, or other special characters |
+
 ## JSON Schema Requirements
 
 - **JSON Schema draft 7 only** — newer drafts (`draft/2020-12`, `draft/2019-09`) fail validation
