@@ -12,3 +12,5 @@ updates:
         versions: [">=6.0.3"]
       - dependency-name: "actions/setup-node"
         versions: [">=6.3.0"]
+      - dependency-name: "actions/setup-python"
+        versions: [">=6.3.0"]
