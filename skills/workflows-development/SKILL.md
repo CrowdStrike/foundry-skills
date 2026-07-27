@@ -344,21 +344,11 @@ Workflow names must be unique across all apps in the same tenant. If two apps de
 
 ## NEVER Delete and Recreate Workflows
 
-> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures that often require deleting the entire app to recover.
+> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures requiring a fresh app to recover.
 
-**What happens when you delete + recreate:**
-1. Removing a workflow from the manifest does NOT delete its server-side artifact
-2. Creating a new workflow with the same name triggers `409 name must be unique for an app`
-3. A once-failed workflow artifact taints the app's dependency graph, producing `400 dependent artifact failed` on all subsequent deploys
-4. Recovery typically requires: backup function code → delete the entire app → create a fresh app → restore code
+Removing a workflow from the manifest does NOT delete its server-side artifact. Recreating with the same name → `409 name must be unique for an app`. A once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys.
 
-**Instead, update in place:**
-- To fix workflow YAML errors: edit the YAML file and redeploy
-- To change a workflow's trigger type: edit the `trigger:` block in the YAML and redeploy
-- To re-bind a workflow to a recreated function: update the `id: functions.{name}.{handler}` reference in the workflow YAML, then redeploy
-- To add/change function I/O schemas: recreate the function (not the workflow), then update the workflow's function reference
-
-**The only safe deletion** is removing a workflow you genuinely no longer need (and won't recreate with the same name). Even then, ensure no other workflows reference it via sub-workflow calls before deleting.
+**Instead, update in place** — edit the workflow YAML and redeploy. To re-bind a workflow to a recreated function, update the `id: functions.{name}.{handler}` reference in the YAML. Only delete a workflow if you genuinely no longer need it and won't recreate it with the same name.
 
 ## Workflow Sharing
 
@@ -372,7 +362,7 @@ workflows:
       system_action: false   # false = available as a Fusion SOAR response action; true = internal app use only
 ```
 
-> **⚠️ SOAR action visibility:** Set `system_action: false` when the workflow should appear as a response action in Falcon Fusion SOAR (analysts can trigger it from detections, incidents, or other workflows). Set `system_action: true` when the workflow is only used internally by the app (e.g., scheduled data sync, internal helper). If the user asks for a "SOAR action" or "response action", always use `false`.
+> **⚠️ SOAR action visibility:** `system_action: false` = workflow appears as a Fusion SOAR response action (analysts trigger from detections/incidents). `system_action: true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
 
 ## Error Handling
 
@@ -380,15 +370,7 @@ Foundry workflows handle errors through conditional routing and action-level fla
 
 ## Testing
 
-```bash
-foundry workflows triggers view --mock --no-prompt       # Example mock trigger
-foundry workflows actions view --mock --no-prompt        # Example mock action
-foundry workflows executions validate --mocks mymocks.json              # Validate mocks
-foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
-foundry workflows executions view <execution_id>                        # View results
-```
-
-Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
+See [references/advanced-patterns.md](references/advanced-patterns.md) for workflow testing commands (mock triggers, mock actions, execution validation, and `foundry apps validate`).
 
 ## Reading Guide
 
@@ -402,10 +384,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 | CEL extension functions reference | [Data Transformation Functions](https://docs.crowdstrike.com/r/k223d842) |
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
 | HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
-| HTTP Request actions, testing, validation | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Error handling (fail_fast, partial execution, routing) | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Parameterized fields versioning | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Counter-rationalizations and red flags | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Error handling, HTTP Request actions, parameterized fields, counter-rationalizations | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
 

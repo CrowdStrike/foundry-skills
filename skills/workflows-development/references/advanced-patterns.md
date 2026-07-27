@@ -2,6 +2,18 @@
 
 > Parent skill: [workflows-development](../SKILL.md)
 
+## Testing Workflows
+
+```bash
+foundry workflows triggers view --mock --no-prompt       # Example mock trigger
+foundry workflows actions view --mock --no-prompt        # Example mock action
+foundry workflows executions validate --mocks mymocks.json              # Validate mocks
+foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
+foundry workflows executions view <execution_id>                        # View results
+```
+
+Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
+
 ## Parameterized Fields Versioning Impact
 
 Workflow templates support parameterized fields — values that users configure when provisioning a workflow from the template. Check the "Parameterized" checkbox in the App Builder to mark fields as configurable.

@@ -129,11 +129,11 @@ class TestWorkflowDeletionWarning:
                "name must be unique" in content
 
     def test_recovery_cost_explained(self):
-        """Must explain that recovery often requires deleting the entire app."""
+        """Must explain that recovery often requires a fresh app."""
         content = _read_skill(self.SKILL)
-        assert "delete the entire app" in content or \
-               "deleting the entire app" in content or \
-               "fresh app" in content
+        assert "fresh app" in content or \
+               "delete the entire app" in content or \
+               "deleting the entire app" in content
 
     def test_dependent_artifact_error_documented(self):
         """Must document the cascading 'dependent artifact failed' error."""
