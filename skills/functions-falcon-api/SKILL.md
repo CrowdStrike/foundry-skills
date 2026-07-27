@@ -219,7 +219,6 @@ When you need to **query** LogScale data (e.g., workflow execution stats from th
 ### Query Pattern (Python)
 
 ```python
-import os
 import time
 from logging import Logger
 from typing import Any, Dict, Union
@@ -228,7 +227,8 @@ from falconpy import NGSIEM
 
 func = Function.instance()
 
-REPO = os.environ.get("FH_LOGSCALE_REPO", "search-all")
+# Always "search-all" — see the gotcha below. Scope to a repo in the query, not here.
+REPO = "search-all"
 
 
 def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
@@ -309,7 +309,7 @@ auth:
 
 ### Reference
 
-- [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — Complete async query pattern with CSV export
+- [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — background on async LogScale querying from Foundry, plus CSV export. Note that this post reaches for `FoundryLogScale` with `mode="async"`; the `NGSIEM` pattern above is what has been verified end-to-end against the queryjobs API in a deployed app. Use the pattern above, and treat the post as context for the surrounding workflow (time ranges, result handling, export).
 
 ## The 207 Multi-Status Gotcha
 
@@ -391,7 +391,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `IdentityProtection` | `graphql`, `query_sensors`, `get_sensor_details` | `identity-graphql:write`, `identity-entities:read` | foundry-sample-idp-notifications |
 | `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
-| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Fusion Health Insights app (see LogScale Queries section) |
+| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Verified against FalconPy source; see LogScale Queries section |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |

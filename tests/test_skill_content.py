@@ -26,12 +26,12 @@ class TestNGSIEMQueryRecipe:
     SKILL = "skills/functions-falcon-api/SKILL.md"
 
     def test_class_disambiguation_present(self):
-        """Must clarify when to use NGSIEM vs FoundryLogScale."""
+        """Must state which class to use for querying vs ingestion."""
         content = _read_skill(self.SKILL)
-        assert "NGSIEM" in content
-        assert "FoundryLogScale" in content
-        # Must explicitly state NGSIEM is for querying
-        assert "querying" in content.lower() or "query" in content.lower()
+        # Anchor on the disambiguation callout, not the bare class names —
+        # both appear in the scope table on main.
+        assert "Class Disambiguation" in content
+        assert "ingest_data" in content, "must name FoundryLogScale's ingestion method"
 
     def test_search_all_repository_documented(self):
         """Must document 'search-all' as the required repository value."""
@@ -74,38 +74,45 @@ class TestFunctionSchemaRequirements:
     SKILL = "skills/functions-development/SKILL.md"
 
     def test_output_schema_requirement_documented(self):
-        """Must state that output_schema is required at creation time."""
+        """Must state output schema is required at creation time."""
         content = _read_skill(self.SKILL)
-        assert "output_schema" in content
-        # Must be framed as a requirement, not optional
-        assert "MUST" in content or "Required" in content or "CRITICAL" in content
+        assert "Function I/O Schemas" in content
+        assert "--output-schema" in content
 
     def test_missing_schema_consequence_explained(self):
-        """Must explain what happens without output schema."""
+        """Must explain what happens without an output schema."""
         content = _read_skill(self.SKILL)
-        # Must mention that actions show no output
         assert "no visible output" in content or "zero output" in content
 
-    def test_schema_manifest_example_provided(self):
-        """Must show a manifest.yml example with workflow_integration schemas."""
-        content = _read_skill(self.SKILL)
-        assert "workflow_integration" in content
-        assert "input_schema" in content
-        assert "output_schema" in content
+    def test_uses_real_manifest_field_names(self):
+        """Must use the field names the CLI actually writes.
 
-    def test_does_not_recommend_manifest_edit_to_fix_schema(self):
-        """Must NOT claim that editing manifest and redeploying binds schemas."""
+        The CLI records schemas as request_schema/response_schema on the
+        handler. An earlier draft used input_schema/output_schema nested under
+        workflow_integration, which does not exist in a real manifest.
+        """
         content = _read_skill(self.SKILL)
-        # Find the schema section and verify it explains schemas can't be added after creation
+        assert "request_schema" in content
+        assert "response_schema" in content
+
+    def test_wf_expose_alone_is_insufficient(self):
+        """Must warn that --wf-expose does not generate schemas."""
+        content = _read_skill(self.SKILL)
+        assert "--wf-expose" in content
+        assert "null" in content, "must state schema fields are null without the flags"
+
+    def test_does_not_claim_manifest_edit_binds_schemas(self):
+        """Must state that hand-editing the manifest does not bind schemas."""
+        content = _read_skill(self.SKILL)
         schema_section_start = content.find("Function I/O Schemas")
         assert schema_section_start != -1
         schema_section = content[schema_section_start:schema_section_start + 3000]
         assert "does NOT bind" in schema_section or "does not bind" in schema_section.lower()
 
     def test_creation_time_requirement_emphasized(self):
-        """Must state schemas are bound at creation time via CLI flags."""
+        """Must show both CLI schema flags."""
         content = _read_skill(self.SKILL)
-        assert "--input-schema" in content or "--output-schema" in content
+        assert "--input-schema" in content and "--output-schema" in content
 
 
 # ── Workflow deletion warning (workflows-development) ───────────────────────
@@ -141,13 +148,43 @@ class TestWorkflowDeletionWarning:
         assert "dependent artifact" in content
 
     def test_alternatives_provided(self):
-        """Must provide safe alternatives (update in place, redeploy)."""
+        """Must direct the reader to update in place rather than recreate."""
         content = _read_skill(self.SKILL)
-        assert "update in place" in content.lower() or "edit" in content.lower()
-        assert "redeploy" in content or "deploy" in content
+        # Anchor on the specific instruction — "edit"/"deploy" appear all over
+        # this file for unrelated reasons and pass even without the warning.
+        assert "update in place" in content.lower()
 
     def test_old_delete_advice_removed(self):
         """Must NOT advise 'delete and re-create' as a fix for missing workflow_integration."""
         content = _read_skill(self.SKILL)
         # The old advice was exactly this sentence:
         assert "delete and re-create it with the appropriate flags" not in content
+
+
+# ── Cross-skill consistency ─────────────────────────────────────────────────
+
+
+class TestCrossSkillConsistency:
+    """Guard against the two skills giving opposite advice for one task.
+
+    An earlier draft of this branch had workflows-development saying to fix a
+    missing workflow_integration by editing the manifest and redeploying, while
+    functions-development said to recreate the function. Both load together for
+    workflow+function apps, so the contradiction was reachable.
+    """
+
+    FUNCTIONS = "skills/functions-development/SKILL.md"
+    WORKFLOWS = "skills/workflows-development/SKILL.md"
+
+    def test_neither_skill_claims_manifest_edit_adds_workflow_integration(self):
+        """Both skills must agree that recreation, not a manifest edit, is the fix."""
+        workflows = _read_skill(self.WORKFLOWS)
+        assert "add the `workflow_integration` block to the function's manifest entry and redeploy" \
+            not in workflows
+
+    def test_both_skills_point_at_creation_time_binding(self):
+        """Both must name the CLI flags as the binding mechanism."""
+        for skill in (self.FUNCTIONS, self.WORKFLOWS):
+            content = _read_skill(skill)
+            assert "--input-schema" in content or "--wf-expose" in content, \
+                f"{skill} should reference the creation-time flags"

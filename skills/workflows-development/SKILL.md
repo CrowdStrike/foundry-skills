@@ -150,9 +150,9 @@ For full RTR multi-host orchestration and investigation pipeline examples, see [
 
 ## Calling Functions from Workflows
 
-Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` configured in the manifest. The `foundry functions create` CLI command handles this automatically when you specify the appropriate flags. Do not manually edit `manifest.yml` to add `workflow_integration` — use the CLI.
+Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` in the manifest. This binds only at creation time, via `foundry functions create --wf-expose` (plus `--input-schema`/`--output-schema`) — hand-editing `manifest.yml` does not work.
 
-If a function was created without workflow integration and you later need it callable from workflows, add the `workflow_integration` block to the function's manifest entry and redeploy. Do NOT delete and recreate the function — see the warning below.
+If a function was created without it, recreate the function. That changes its `workflow_integration.id`, so update the `id: functions.{name}.{handler}` reference in your workflow YAML in place. Do NOT delete and recreate the workflow itself — see the warning below.
 
 **Deploy error if missing:**
 ```
