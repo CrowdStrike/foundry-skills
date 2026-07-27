@@ -208,6 +208,109 @@ def enrich_host_context(request: Request, config, logger) -> Response:
     return Response(body={"host": host, "detections": detections, "alerts": alerts}, code=200)
 ```
 
+## LogScale / NG-SIEM Queries from Functions
+
+When you need to **query** LogScale data (e.g., workflow execution stats from the "fusion" repo, detection telemetry, custom ingested events), use the `NGSIEM` class. This is distinct from **ingestion** (covered in functions-development).
+
+> **⚠️ Class Disambiguation:**
+> - `NGSIEM` — Use for **querying** (async search jobs) and file uploads (lookup files, CSV imports). This is the query interface.
+> - `FoundryLogScale` — Use only for **ingestion** (`ingest_data`). Despite the name suggesting broad LogScale functionality, it does NOT have the search methods.
+
+### Query Pattern (Python)
+
+```python
+import os
+import time
+from logging import Logger
+from typing import Any, Dict, Union
+from crowdstrike.foundry.function import Function, Request, Response
+from falconpy import NGSIEM
+
+func = Function.instance()
+
+REPO = os.environ.get("FH_LOGSCALE_REPO", "search-all")
+
+
+def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
+    """Execute a CQL query as an async search job and return result rows.
+
+    ``start`` / ``end`` accept Humio relative strings ("24h", "7d", "30d",
+    "now") or epoch-millisecond integers.
+    """
+    body = {"queryString": query_string, "start": start, "end": end, "isLive": False}
+    started = ngsiem.start_search(repository=REPO, body=body)
+
+    if not isinstance(started, dict) or started.get("status_code", 500) >= 300:
+        logger.error(f"start_search failed: {started}")
+        return None
+
+    job_id = (started.get("body") or {}).get("id")
+    if not job_id:
+        logger.error(f"start_search returned no job id: {started.get('body')}")
+        return None
+
+    # Poll until done
+    waited = 0.0
+    poll_interval = 1.5
+    while waited < max_wait:
+        time.sleep(poll_interval)
+        waited += poll_interval
+        status = ngsiem.get_search_status(repository=REPO, id=job_id)
+        if not isinstance(status, dict) or status.get("status_code", 500) >= 300:
+            logger.error(f"get_search_status failed: {status}")
+            return None
+        sbody = status.get("body") or {}
+        if sbody.get("done"):
+            return sbody.get("events", []) or []
+
+    logger.warning(f"query timed out after {max_wait}s: {query_string}")
+    return None
+
+
+@func.handler(method='POST', path='/api/query')
+def handle_query(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
+    ngsiem = NGSIEM()  # Zero-arg auth — automatic in Foundry
+
+    query = request.body.get("query", "")
+    start = request.body.get("start", "24h")
+    end = request.body.get("end", "now")
+
+    events = run_logscale_query(ngsiem, query, start, end, logger)
+    if events is None:
+        return Response(body={"error": "LogScale query failed"}, code=500)
+
+    return Response(body={"results": events, "count": len(events)}, code=200)
+
+if __name__ == '__main__':
+    func.run()
+```
+
+### The "search-all" Repository Gotcha
+
+**CRITICAL:** Always pass `repository="search-all"` when querying from Foundry functions. Passing a specific repository name (e.g., `"fusion"`, `"main"`) causes **403 Forbidden** errors at runtime (`"scope not permitted"`), even if the repository exists and the app has `humio-auth-proxy` scopes granted.
+
+The NG-SIEM queryjobs API is addressed by **searchable view**, not by raw repo name. Use `search-all` as the repository and add `#repo=fusion` (or whichever repo you need) as a filter prefix in your query string:
+
+```python
+# Filter to a specific repo within the query itself
+query = "#repo=fusion | execution_log_type=summary | execution_log_subtype=end | groupby([status], function=count(execution_id, distinct=true))"
+events = run_logscale_query(ngsiem, query, "24h", "now", logger)
+```
+
+### Required OAuth Scopes
+
+```yaml
+# manifest.yml
+auth:
+    scopes:
+        - humio-auth-proxy:read     # Required for queries
+        - humio-auth-proxy:write    # Required only if also uploading lookup files
+```
+
+### Reference
+
+- [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — Complete async query pattern with CSV export
+
 ## The 207 Multi-Status Gotcha
 
 CrowdStrike APIs may return `207 Multi-Status` responses that look successful but contain embedded errors. Check the errors array:
@@ -288,6 +391,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `IdentityProtection` | `graphql`, `query_sensors`, `get_sensor_details` | `identity-graphql:write`, `identity-entities:read` | foundry-sample-idp-notifications |
 | `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
+| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Fusion Health Insights app (see LogScale Queries section) |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |

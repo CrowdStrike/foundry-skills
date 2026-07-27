@@ -152,7 +152,7 @@ For full RTR multi-host orchestration and investigation pipeline examples, see [
 
 Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` configured in the manifest. The `foundry functions create` CLI command handles this automatically when you specify the appropriate flags. Do not manually edit `manifest.yml` to add `workflow_integration` — use the CLI.
 
-If a function was created without workflow integration and you later need it callable from workflows, delete and re-create it with the appropriate flags.
+If a function was created without workflow integration and you later need it callable from workflows, add the `workflow_integration` block to the function's manifest entry and redeploy. Do NOT delete and recreate the function — see the warning below.
 
 **Deploy error if missing:**
 ```
@@ -341,6 +341,24 @@ See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha) for th
 ## Workflow Name Uniqueness
 
 Workflow names must be unique across all apps in the same tenant. If two apps deploy workflows with the same name, the second deploy fails silently or produces an "Unknown error." Use app-specific prefixes when the workflow name is generic.
+
+## NEVER Delete and Recreate Workflows
+
+> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures that often require deleting the entire app to recover.
+
+**What happens when you delete + recreate:**
+1. Removing a workflow from the manifest does NOT delete its server-side artifact
+2. Creating a new workflow with the same name triggers `409 name must be unique for an app`
+3. A once-failed workflow artifact taints the app's dependency graph, producing `400 dependent artifact failed` on all subsequent deploys
+4. Recovery typically requires: backup function code → delete the entire app → create a fresh app → restore code
+
+**Instead, update in place:**
+- To fix workflow YAML errors: edit the YAML file and redeploy
+- To change a workflow's trigger type: edit the `trigger:` block in the YAML and redeploy
+- To re-bind a workflow to a recreated function: update the `id: functions.{name}.{handler}` reference in the workflow YAML, then redeploy
+- To add/change function I/O schemas: recreate the function (not the workflow), then update the workflow's function reference
+
+**The only safe deletion** is removing a workflow you genuinely no longer need (and won't recreate with the same name). Even then, ensure no other workflows reference it via sub-workflow calls before deleting.
 
 ## Workflow Sharing
 

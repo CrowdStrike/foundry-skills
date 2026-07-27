@@ -87,6 +87,62 @@ foundry functions create \
   --no-prompt
 ```
 
+## Function I/O Schemas — Required at Creation Time
+
+> **⚠️ CRITICAL:** Functions that will be called from workflows MUST define `input_schema` and `output_schema` in the manifest at creation time. Functions created without an output schema produce **no visible output** in Fusion workflow actions — the action completes but downstream steps cannot reference any data from it.
+
+### Why This Matters
+
+When the CLI creates a function with `workflow_integration`, the platform registers the function's schema with the workflow engine. If `output_schema` is missing:
+- The corresponding Fusion action shows zero output fields
+- Workflow variable references like `${data['my_function.output.field']}` resolve to nothing
+- The workflow appears to work but produces empty results
+
+### Manifest Example
+
+```yaml
+functions:
+  - name: query-stats
+    description: "Query execution statistics"
+    language: python
+    path: "functions/query-stats"
+    handlers:
+      - name: query
+        method: POST
+        path: "/api/query"
+    workflow_integration:
+      id: <generated-after-first-deploy>
+      input_schema:
+        properties:
+          time_range:
+            type: string
+            description: "Time range for the query (e.g., 24h, 7d)"
+        required:
+          - time_range
+        type: object
+      output_schema:
+        properties:
+          results:
+            type: array
+            items:
+              type: object
+          total_count:
+            type: integer
+        type: object
+```
+
+### Fixing a Function Missing Schemas
+
+If a function was deployed without schemas, **adding them to the manifest and redeploying does NOT bind them.** The I/O schema binding happens only at function creation time via the `--input-schema`/`--output-schema` CLI flags.
+
+To fix this:
+1. Delete the function from the manifest
+2. Recreate it with schemas: `foundry functions create --name "my-func" --input-schema request_schema.json --output-schema response_schema.json --wf-expose --no-prompt`
+3. Update any workflow YAML that references the function (the `workflow_integration.id` will change)
+4. Redeploy the app
+
+**Warning:** Deleting and recreating a function changes its workflow integration ID. You MUST update workflow YAML references. But do NOT delete and recreate the *workflows themselves* to fix this — that causes cascading "duplicate name" errors (see the workflows-development skill for details). Instead, edit the workflow YAML in place to reference the new function ID, then redeploy.
+
 ## Language Comparison
 
 | Feature | Go | Python |
