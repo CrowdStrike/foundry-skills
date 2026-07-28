@@ -87,6 +87,69 @@ foundry functions create \
   --no-prompt
 ```
 
+## Function I/O Schemas — Required at Creation Time
+
+> **⚠️ CRITICAL:** Functions called from workflows MUST be created with `--input-schema` and `--output-schema`. Schemas bind only at creation time. A function created without an output schema produces **no visible output** in its Fusion action — the action completes, but downstream steps cannot reference any data from it.
+
+### Why This Matters
+
+The platform registers a handler's schemas with the workflow engine when the function is created. Without a response schema:
+- The Fusion action shows zero output fields
+- Workflow references like `${data['my_function.output.field']}` resolve to nothing
+- The workflow appears to run but produces empty results
+
+Passing `--wf-expose` alone is not enough. It creates the workflow binding; the schema fields are still written as `null`.
+
+### Create the Function with Schemas
+
+Write the two JSON Schema files first, then pass them to `foundry functions create`. The CLI copies them into the function directory and records them in the manifest:
+
+```bash
+foundry functions create \
+  --name "query-stats" \
+  --language python \
+  --description "Query execution statistics" \
+  --handler-name query \
+  --handler-method POST \
+  --handler-path /api/query \
+  --input-schema request_schema.json \
+  --output-schema response_schema.json \
+  --wf-expose \
+  --no-prompt
+```
+
+The resulting manifest entry references the schemas **by filename on the handler** — not as inline JSON, and not under `workflow_integration`:
+
+```yaml
+functions:
+    - name: query-stats
+      path: functions/query-stats
+      handlers:
+        - name: query
+          method: POST
+          api_path: /api/query
+          request_schema: request_schema.json
+          response_schema: response_schema.json
+          workflow_integration:
+            id: <generated>
+            disruptive: false
+            system_action: true
+      language: python
+```
+
+Without `--input-schema`/`--output-schema`, both fields are written as `null` — including when `--wf-expose` is set. `--wf-expose` creates the workflow binding but does NOT generate schemas.
+
+### Fixing a Function Missing Schemas
+
+Adding `request_schema`/`response_schema` to the manifest by hand and redeploying does NOT bind them. The binding happens only at creation time via the CLI flags. To fix a function that was created without them:
+
+1. Remove the function's entry from `manifest.yml` and delete its directory
+2. Recreate it with `--input-schema`/`--output-schema` as shown above
+3. Update any workflow YAML referencing it — the `workflow_integration.id` changes
+4. Redeploy
+
+**Warning:** Step 3 matters. Recreating the function gives it a new workflow integration ID, so existing workflow YAML points at nothing. Edit the workflow YAML in place to reference the new ID — do NOT delete and recreate the *workflows* to force a refresh, which triggers `409 name must be unique for an app` and can corrupt the app's dependency graph. See [workflows-development](../workflows-development/SKILL.md) for details.
+
 ## Language Comparison
 
 | Feature | Go | Python |

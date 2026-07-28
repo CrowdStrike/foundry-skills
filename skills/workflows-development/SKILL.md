@@ -150,9 +150,9 @@ For full RTR multi-host orchestration and investigation pipeline examples, see [
 
 ## Calling Functions from Workflows
 
-Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` configured in the manifest. The `foundry functions create` CLI command handles this automatically when you specify the appropriate flags. Do not manually edit `manifest.yml` to add `workflow_integration` — use the CLI.
+Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` in the manifest. This binds only at creation time, via `foundry functions create --wf-expose` (plus `--input-schema`/`--output-schema`) — hand-editing `manifest.yml` does not work.
 
-If a function was created without workflow integration and you later need it callable from workflows, delete and re-create it with the appropriate flags.
+If a function was created without it, recreate the function. That changes its `workflow_integration.id`, so update the `id: functions.{name}.{handler}` reference in your workflow YAML in place. Do NOT delete and recreate the workflow itself — see the warning below.
 
 **Deploy error if missing:**
 ```
@@ -342,6 +342,14 @@ See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha) for th
 
 Workflow names must be unique across all apps in the same tenant. If two apps deploy workflows with the same name, the second deploy fails silently or produces an "Unknown error." Use app-specific prefixes when the workflow name is generic.
 
+## NEVER Delete and Recreate Workflows
+
+> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures requiring a fresh app to recover.
+
+Removing a workflow from the manifest does NOT delete its server-side artifact. Recreating with the same name → `409 name must be unique for an app`. A once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys.
+
+**Instead, update in place** — edit the workflow YAML and redeploy. To re-bind a workflow to a recreated function, update the `id: functions.{name}.{handler}` reference in the YAML. Only delete a workflow if you genuinely no longer need it and won't recreate it with the same name.
+
 ## Workflow Sharing
 
 ```yaml
@@ -354,7 +362,7 @@ workflows:
       system_action: false   # false = available as a Fusion SOAR response action; true = internal app use only
 ```
 
-> **⚠️ SOAR action visibility:** Set `system_action: false` when the workflow should appear as a response action in Falcon Fusion SOAR (analysts can trigger it from detections, incidents, or other workflows). Set `system_action: true` when the workflow is only used internally by the app (e.g., scheduled data sync, internal helper). If the user asks for a "SOAR action" or "response action", always use `false`.
+> **⚠️ SOAR action visibility:** `system_action: false` = workflow appears as a Fusion SOAR response action (analysts trigger from detections/incidents). `system_action: true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
 
 ## Error Handling
 
@@ -362,15 +370,7 @@ Foundry workflows handle errors through conditional routing and action-level fla
 
 ## Testing
 
-```bash
-foundry workflows triggers view --mock --no-prompt       # Example mock trigger
-foundry workflows actions view --mock --no-prompt        # Example mock action
-foundry workflows executions validate --mocks mymocks.json              # Validate mocks
-foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
-foundry workflows executions view <execution_id>                        # View results
-```
-
-Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
+See [references/advanced-patterns.md](references/advanced-patterns.md) for workflow testing commands (mock triggers, mock actions, execution validation, and `foundry apps validate`).
 
 ## Reading Guide
 
@@ -384,10 +384,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 | CEL extension functions reference | [Data Transformation Functions](https://docs.crowdstrike.com/r/k223d842) |
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
 | HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
-| HTTP Request actions, testing, validation | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Error handling (fail_fast, partial execution, routing) | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Parameterized fields versioning | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Counter-rationalizations and red flags | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Error handling, HTTP Request actions, parameterized fields, counter-rationalizations | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
 
