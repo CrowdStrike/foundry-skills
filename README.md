@@ -92,7 +92,7 @@ EOF
 
 Cursor activates the rule automatically when your prompt matches the description.
 
-### Antigravity CLI
+### Antigravity CLI (Experimental)
 
 Link the skills so Antigravity discovers them as native Agent Skills:
 
