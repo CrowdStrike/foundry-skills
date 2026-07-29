@@ -58,7 +58,7 @@ mkdir -p ~/.agents/skills
 ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
 ```
 
-Restart Codex to discover the skills. See the [Codex skills docs](https://developers.openai.com/codex/skills) for details.
+Restart Codex to discover the skills. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
 
 ### Copilot CLI (Experimental)
 
