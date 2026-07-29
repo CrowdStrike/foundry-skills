@@ -8,19 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **LogScale query recipe** — Complete `NGSIEM.start_search()` / `get_search_status()` pattern for querying LogScale from Foundry functions. Documents the `search-all` repository requirement (specific repo names cause 403), clarifies that `NGSIEM` is the query class while `FoundryLogScale` is ingestion-only, and adds `humio-auth-proxy:read` to the scope reference table.
+- **Function I/O schema requirements** — Functions called from workflows must be created with `--input-schema` and `--output-schema`. Schemas bind only at creation time; the CLI writes `null` for both without these flags, even when `--wf-expose` is set. Functions without a response schema produce no visible output in Fusion actions.
+- **Workflow deletion warning** — Documents that deleting a workflow and recreating it with the same name causes `409 name must be unique for an app` followed by `400 dependent artifact failed`, blocking all further deploys. Recovery requires a fresh app.
+- **Cross-plugin redirect to fusion-skills** — The development-workflow orchestrator now recognizes standalone Falcon Fusion workflow requests (trigger + actions, no UI/function/collection/API integration) and advises the `crowdstrike-falcon-fusion` plugin instead of scaffolding a Foundry app. Adds `detect_fusion_redirect.py` classifier with unit tests.
 - **GraphQL APIs use case** — Integrate GraphQL APIs (Falcon Identity Protection, GitHub, Snyk) into Foundry apps using FalconPy or HTTP POST. Covers zero-arg auth for Falcon GraphQL endpoints and the security tradeoff of env vars vs API integrations for third-party APIs.
 - **`scripts/action_search.py`** — API-based action discovery script that works in headless/CI environments where the CLI's interactive `actions view` prompt fails. Uses FalconPy with FQL fuzzy matching and prints action IDs with `version_constraint` values.
 - **CLI guard for `actions view` / `triggers view`** — Hook now catches missing `--no-prompt` on these commands to prevent TTY hangs.
 - **`foundry apps list` in prerequisite check** — New CLI 2.0.2 command that lists all deployed apps on the CID from any directory. Added to Step 3 to help avoid name collisions.
 - **Collection description validation constraints** — Documents the 3–500 character length limit, alphanumeric-start requirement, and allowed character set for collection descriptions.
 - **Function logs in testing-patterns reference** — Added function logs (viewing in UI and Advanced Event Search) to the reference table entry for testing patterns.
+- **Content regression tests** — `tests/test_skill_content.py` guards critical documentation (LogScale recipe, schema requirements, workflow deletion warning) against accidental removal.
 
 ### Changed
 
+- **Gemini CLI → Antigravity CLI** — Google transitioned Gemini CLI to Antigravity CLI (binary: `agy`). Updated README with new command, skills paths (`~/.gemini/antigravity-cli/skills/` for user scope, `.agents/skills/` for workspace scope). Removed `GEMINI.md` since we never shipped Gemini CLI support; Antigravity reads `AGENTS.md` directly.
+- **Codex docs link** — Updated from `developers.openai.com/codex/skills` to `learn.chatgpt.com/docs/build-skills`.
 - **Renamed Python scripts to snake_case** — `scripts/adapt-spec-for-foundry.py` → `adapt_spec_for_foundry.py` and `scripts/test-adapt-spec.py` → `test_adapt_spec.py`, matching the repo's `snake_case` lint convention and allowing the test to import the module directly. The PreToolUse hook and all skill docs reference the new names; no behavior changed. If you invoked the old path directly in your own tooling, update it to the underscore name.
 
 ### Fixed
 
+- **Removed "delete and re-create" advice** — The old guidance for fixing missing `workflow_integration` said to delete and recreate the function. This is technically correct (schemas only bind at creation), but was misleading about workflows: you must never delete and recreate a *workflow* to refresh a binding. Both skills now give consistent guidance — recreate the function, update the workflow YAML reference in place.
 - **Action discovery guidance** — Updated all `actions view` examples to include `--no-prompt` and pointed to `action_search.py` as the primary fallback. The CLI ignores `--no-prompt` for these commands (tracked upstream), so the script is the reliable path.
 - **Alert and detection query routing (population vs. enrich)** — The orchestrator and workflows skills now distinguish two cases. Fetching a *population* the workflow doesn't already have ("summarize all high-severity alerts") goes to a source-of-truth API — a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — since an Event Query against NG-SIEM can silently return nothing (repo contents are connector-dependent). *Enriching* a detection the workflow already holds (query by its ID) stays an Event Query, as does historical/aggregate telemetry. New reference [event-query-vs-api.md](skills/workflows-development/references/event-query-vs-api.md); the functions-falcon-api example keeps the verified `severity_name` + `created_timestamp` FQL filter.
 - **Removed `apps delete` workaround** — The 500/stuck-in-Deleting issue is fixed in CLI 2.0.2. Removed guidance about using Falcon App Manager UI as fallback.
@@ -142,5 +150,4 @@ Initial public release of Falcon Foundry Skills — AI coding assistant skills f
 - **`AGENTS.md`** — Canonical AI agent instruction file with tool-agnostic Foundry development guidance (CLI commands, skills ecosystem, quality guidelines, contribution conventions).
 - **`CLAUDE.md`** — Claude Code-specific plugin additions (hooks, superpowers integration, safety enforcement). References `AGENTS.md` for the full development guide.
 - **`.github/copilot-instructions.md`** — Redirect for GitHub Copilot.
-- **`GEMINI.md`** — Redirect for Gemini CLI.
 - **`.cursorrules`** — Redirect for Cursor.
