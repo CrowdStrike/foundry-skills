@@ -2,6 +2,18 @@
 
 > Parent skill: [workflows-development](../SKILL.md)
 
+## Testing Workflows
+
+```bash
+foundry workflows triggers view --mock --no-prompt       # Example mock trigger
+foundry workflows actions view --mock --no-prompt        # Example mock action
+foundry workflows executions validate --mocks mymocks.json              # Validate mocks
+foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
+foundry workflows executions view <execution_id>                        # View results
+```
+
+Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
+
 ## Parameterized Fields Versioning Impact
 
 Workflow templates support parameterized fields — values that users configure when provisioning a workflow from the template. Check the "Parameterized" checkbox in the App Builder to mark fields as configurable.
@@ -79,6 +91,39 @@ npx @redocly/cli lint api-integrations/MyApi.yaml
   timeout: 300  # 5 minutes per step
 ```
 
+## Error Handling
+
+Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware.
+
+| Mechanism | Scope | Usage |
+|-----------|-------|-------|
+| `fail_fast_enabled: false` | Function actions | Allow workflow to continue if a function call fails |
+| `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
+| `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
+| `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
+
+```yaml
+# Function-level: suppress non-critical failures
+actions:
+    enrich_data:
+        id: functions.enrichment.Enrich
+        properties:
+            fail_fast_enabled: false
+        version_constraint: ~0
+        next:
+            - process_results
+
+# Loop-level: stop on first error
+loops:
+    ContainDevices:
+        for:
+            input: device_ids
+            continue_on_partial_execution: false
+            sequential: true
+```
+
+No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [pagination-patterns.md](pagination-patterns.md).
+
 ## Platform Action Fallback Strategy
 
 If you don't know the exact action name:
@@ -105,13 +150,13 @@ actions:
         version_constraint: ~0
 
     # TODO: Configure this action in Falcon App Builder — use
-    # foundry workflows actions view --name "send email" to discover the action ID
+    # foundry workflows actions view --name "send email" --no-prompt to discover the action ID
     # send_notification:
-    #     id: <find via foundry workflows actions view --name "..." or App Builder>
+    #     id: <find via foundry workflows actions view --name "..." --no-prompt or App Builder>
     #     properties: {}
 ```
 
-> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..."` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
+> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
 
 ## Counter-Rationalizations Table
 

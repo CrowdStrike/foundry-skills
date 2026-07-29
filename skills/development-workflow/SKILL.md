@@ -96,6 +96,8 @@ Map user requests to Foundry capabilities:
 | "function", "serverless", "backend" | Function | `foundry functions create` |
 | "store data", "collection", "database" | Collection | `foundry collections create` |
 
+> **⚠️ "Summarize/list alerts, detections, or incidents" (a population the workflow doesn't already have) implies a source-of-truth fetch.** A request like "a workflow that emails a summary of high-severity alerts" needs the *set* of alerts, which is not reliably in NG-SIEM (Event Query can silently return nothing — repo contents are connector-dependent). Fetch it from the source of truth: a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — so the app needs BOTH that capability (plan the `alerts:read` scope) AND a workflow to schedule it and send email. **Exception:** *enriching* a detection the workflow was already triggered on (query by its ID) stays an Event Query and needs no function. See [functions-falcon-api](../functions-falcon-api/SKILL.md) and [workflows-development event-query-vs-api](../workflows-development/references/event-query-vs-api.md).
+
 ### Step 1b: Check for Known Patterns
 
 Before scaffolding, check if the user's request matches a known use case. Glob `use-cases/*.md` and scan the `description` field in each file's frontmatter. If a match is found, read the use case file for implementation context (architecture, capability order, gotchas) before proceeding.
@@ -164,19 +166,28 @@ foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 foundry ui extensions create --name "my-ext" --description "desc" --from-template React --sockets "activity.detections.details" --no-prompt
 ```
 
-**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt-spec-for-foundry.py` instead.
+**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt_spec_for_foundry.py` instead.
 
 ### Step 6: Write Domain-Specific Content
 
 The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skills:
 
 - **OpenAPI spec** → api-integrations
-- **Workflow YAML** → workflows-development **(MUST load before writing ANY workflow YAML)**
+- **Workflow YAML** → workflows-development
 - **UI components** → ui-development
 - **Function handlers** → functions-development
 - **Collection schemas** → collections-development
 
-> **⚠️ MANDATORY: Load `workflows-development` before writing workflow YAML.** The workflow format is `trigger` + `actions` with `version_constraint` on every action. If you attempt workflow YAML without loading the sub-skill, you WILL hallucinate an incorrect format (`definition/node_types/sdk_type`) that does not exist and causes deploy failures. This is a known failure mode. ALWAYS load the sub-skill first.
+> **⚠️ MANDATORY: Load the relevant sub-skill BEFORE writing any domain-specific code.** Without the sub-skill loaded, you WILL hallucinate incorrect formats and nonexistent APIs. Known failure modes:
+>
+> | Writing... | MUST load | Hallucination without it |
+> |---|---|---|
+> | Workflow YAML | `workflows-development` | Invented `definition/node_types/sdk_type` format instead of correct `trigger` + `actions` with `version_constraint` |
+> | Function code calling Falcon APIs | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` instead of FalconPy SDK classes (`from falconpy import Hosts`) |
+> | Function code calling a third-party API (Slack, Jira, PagerDuty, etc.) | `functions-falcon-api` + check `use-cases/` | Invented `falcon.command("createNotification")` or raw HTTP calls instead of `APIIntegrations().execute_command(definition_id="...", operation_id="...")`. The app MUST have an API integration (OpenAPI spec) for the service, then call it from the function via FalconPy `APIIntegrations` class. See foundry-sample-functions-python for reference. |
+> | Function code accessing collections | `collections-development` | Invented REST endpoints for collection CRUD instead of FalconPy `CustomStorage` service class |
+>
+> ALWAYS load the sub-skill first. This is not optional.
 
 ### Step 7: Final Build and Deploy
 

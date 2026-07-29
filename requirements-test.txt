@@ -1,0 +1,5 @@
+# Test dependencies for foundry-skills scripts.
+# Runtime deps (crowdstrike-falconpy, pyyaml) live in requirements.txt.
+-r requirements.txt
+pytest
+pytest-cov

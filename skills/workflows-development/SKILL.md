@@ -44,13 +44,13 @@ foundry workflows create --name "my-workflow" --spec /tmp/workflow.yaml --no-pro
 ### Discover Available Actions and Triggers
 
 ```bash
-foundry workflows actions view --name "send email"   # Look up by name (fuzzy matching)
-foundry workflows actions view --name "send email" --output-schema  # Get output schema
-foundry workflows actions view --name "send email" --mock           # Get mock output example
-foundry workflows triggers view                                      # List available triggers
+foundry workflows actions view --name "send email" --no-prompt              # Look up by name
+foundry workflows actions view --name "send email" --no-prompt --output-schema  # Output schema
+foundry workflows actions view --name "send email" --no-prompt --mock       # Mock output
+foundry workflows triggers view --no-prompt                                 # List triggers
 ```
 
-Pass `--name` to avoid a known macOS bug where the interactive selector hangs. The `--name` filter uses fuzzy matching, so partial names work (e.g., `--name "send"` finds "send email"). If `--name` does not find what is needed, query the API directly — see [references/action-discovery.md](references/action-discovery.md).
+> **⚠️ Always use `--no-prompt` on `actions view` and `triggers view`.** The `--name` filter is fuzzy — partial matches trigger an interactive prompt that fails in headless environments (`Error: no TTY available`). If the CLI errors or hangs, use `python3 scripts/action_search.py "name"` instead — see [references/action-discovery.md](references/action-discovery.md).
 
 ## Workflow Structure
 
@@ -112,7 +112,7 @@ output_fields: []
 - `~0` = activity has **no** `semantic_version` defined (functions, API integrations, and some platform actions like "contain device")
 - `~1` = activity **has** a `semantic_version` (most platform actions: Print data, Send email, Create/Update variable, Get device details, etc.)
 
-Use `foundry workflows actions view --name "<action>"` to check. If the activity output shows a semantic_version field, use `~1`. If it does not, use `~0`.
+Use `foundry workflows actions view --name "<action>" --no-prompt` to check. If the activity output shows a semantic_version field, use `~1`. If it does not, use `~0`.
 
 ```yaml
 actions:
@@ -150,14 +150,16 @@ For full RTR multi-host orchestration and investigation pipeline examples, see [
 
 ## Calling Functions from Workflows
 
-Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` configured in the manifest. The `foundry functions create` CLI command handles this automatically when you specify the appropriate flags. Do not manually edit `manifest.yml` to add `workflow_integration` — use the CLI.
+Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` in the manifest. This binds only at creation time, via `foundry functions create --wf-expose` (plus `--input-schema`/`--output-schema`) — hand-editing `manifest.yml` does not work.
 
-If a function was created without workflow integration and you later need it callable from workflows, delete and re-create it with the appropriate flags.
+If a function was created without it, recreate the function. That changes its `workflow_integration.id`, so update the `id: functions.{name}.{handler}` reference in your workflow YAML in place. Do NOT delete and recreate the workflow itself — see the warning below.
 
 **Deploy error if missing:**
 ```
 ❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
 ```
+
+> **⚠️ Reading Falcon alerts, detections, or incidents? It depends on whether the workflow already holds the object.** *Enriching* a detection the workflow was triggered on (query by its ID, e.g. `Ngsiem.detection.id = ?detectID`) → Event Query action, go schemaless. *Fetching a population you don't have* ("summarize all high-severity alerts") → source-of-truth API: a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — an Event Query can silently return nothing since NG-SIEM contents are connector-dependent. See [references/event-query-vs-api.md](references/event-query-vs-api.md).
 
 ## Calling API Integration Operations
 
@@ -213,7 +215,7 @@ Platform actions (send email, log output, create detection) require platform-spe
 | Get device details | `6265dc947cc2252f74a5f25261ac36a9` |
 | Contain device | `bec9fbeb4999d207937854fd56088107` |
 
-For actions not in this table, use `foundry workflows actions view --name "..."` or the API query in [references/action-discovery.md](references/action-discovery.md). There are 9,000+ platform actions available. MUST NOT guess action IDs — use discovery commands.
+For actions not in this table, use `foundry workflows actions view --name "..." --no-prompt` or the API query in [references/action-discovery.md](references/action-discovery.md). There are 9,000+ platform actions available. MUST NOT guess action IDs — use discovery commands.
 
 ### Common Action Properties
 
@@ -340,6 +342,14 @@ See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha) for th
 
 Workflow names must be unique across all apps in the same tenant. If two apps deploy workflows with the same name, the second deploy fails silently or produces an "Unknown error." Use app-specific prefixes when the workflow name is generic.
 
+## NEVER Delete and Recreate Workflows
+
+> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures requiring a fresh app to recover.
+
+Removing a workflow from the manifest does NOT delete its server-side artifact. Recreating with the same name → `409 name must be unique for an app`. A once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys.
+
+**Instead, update in place** — edit the workflow YAML and redeploy. To re-bind a workflow to a recreated function, update the `id: functions.{name}.{handler}` reference in the YAML. Only delete a workflow if you genuinely no longer need it and won't recreate it with the same name.
+
 ## Workflow Sharing
 
 ```yaml
@@ -352,57 +362,21 @@ workflows:
       system_action: false   # false = available as a Fusion SOAR response action; true = internal app use only
 ```
 
-> **⚠️ SOAR action visibility:** Set `system_action: false` when the workflow should appear as a response action in Falcon Fusion SOAR (analysts can trigger it from detections, incidents, or other workflows). Set `system_action: true` when the workflow is only used internally by the app (e.g., scheduled data sync, internal helper). If the user asks for a "SOAR action" or "response action", always use `false`.
+> **⚠️ SOAR action visibility:** `system_action: false` = workflow appears as a Fusion SOAR response action (analysts trigger from detections/incidents). `system_action: true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
 
 ## Error Handling
 
-Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware.
-
-| Mechanism | Scope | Usage |
-|-----------|-------|-------|
-| `fail_fast_enabled: false` | Function actions | Allow workflow to continue if a function call fails |
-| `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
-| `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
-| `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
-
-```yaml
-# Function-level: suppress non-critical failures
-actions:
-    enrich_data:
-        id: functions.enrichment.Enrich
-        properties:
-            fail_fast_enabled: false
-        version_constraint: ~0
-        next:
-            - process_results
-
-# Loop-level: stop on first error
-loops:
-    ContainDevices:
-        for:
-            input: device_ids
-            continue_on_partial_execution: false
-            sequential: true
-```
-
-No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [references/pagination-patterns.md](references/pagination-patterns.md).
+Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware. Key mechanisms: `fail_fast_enabled: false` (function actions), `continue_on_partial_execution` (loop blocks), and `conditions:`/`else:` routing. No built-in retry or backoff exists. For the full table, examples, and pagination-polling pattern, see [references/advanced-patterns.md](references/advanced-patterns.md).
 
 ## Testing
 
-```bash
-foundry workflows triggers view --mock       # Example mock trigger
-foundry workflows actions view --mock        # Example mock action
-foundry workflows executions validate --mocks mymocks.json              # Validate mocks
-foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
-foundry workflows executions view <execution_id>                        # View results
-```
-
-Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
+See [references/advanced-patterns.md](references/advanced-patterns.md) for workflow testing commands (mock triggers, mock actions, execution validation, and `foundry apps validate`).
 
 ## Reading Guide
 
 | Task | Reference |
 |------|-----------|
+| Reading alerts/detections: Event Query vs. source-of-truth API | [references/event-query-vs-api.md](references/event-query-vs-api.md) |
 | Full workflow examples (RTR, investigation) | [references/workflow-examples.md](references/workflow-examples.md) |
 | Platform action discovery via API | [references/action-discovery.md](references/action-discovery.md) |
 | CEL expressions (patterns, has() vs null, extensions) | [references/cel-expressions.md](references/cel-expressions.md) |
@@ -410,9 +384,7 @@ Use `foundry apps validate --no-prompt` to validate the manifest and schemas wit
 | CEL extension functions reference | [Data Transformation Functions](https://docs.crowdstrike.com/r/k223d842) |
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
 | HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
-| HTTP Request actions, testing, validation | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Parameterized fields versioning | [references/advanced-patterns.md](references/advanced-patterns.md) |
-| Counter-rationalizations and red flags | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Error handling, HTTP Request actions, parameterized fields, counter-rationalizations | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
 

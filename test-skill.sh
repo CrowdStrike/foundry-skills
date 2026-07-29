@@ -11,6 +11,9 @@
 #   ./test-skill.sh --baseline prev.json               # Run and compare against baseline
 #   ./test-skill.sh --save new.json --baseline old.json --runs 5  # Full A/B comparison
 #
+# Environment variables:
+#   EVAL_MODEL  — Model used to generate each app (default: opus, the latest Opus alias; set to sonnet to test with a weaker model)
+#
 set -euo pipefail
 
 RUNS=5
@@ -185,7 +188,7 @@ for i in $(seq 1 $RUNS); do
   FOUNDRY_SKIP_NAME_CONFIRM=1 env -u CLAUDECODE claude -p "$RUN_PROMPT" \
     ${PLUGIN_DIR_FLAGS[@]+"${PLUGIN_DIR_FLAGS[@]}"} \
     --dangerously-skip-permissions \
-    --model claude-opus-4-6 \
+    --model "${EVAL_MODEL:-opus}" \
     --verbose \
     --output-format stream-json \
     > "$LOG_FILE" 2>&1 &

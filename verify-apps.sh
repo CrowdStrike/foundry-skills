@@ -17,6 +17,7 @@
 #   FALCON_URL     — Falcon console URL (default: https://falcon.us-2.crowdstrike.com)
 #   SKIP_RELEASE   — Set to 1 to skip release step
 #   SKIP_BROWSER   — Set to 1 to run only Phase 1
+#   VERIFY_MODEL   — Model driving Phase 2 browser verification (default: opus, the latest Opus alias; set to sonnet to test with a weaker model)
 #
 set -euo pipefail
 
@@ -630,7 +631,7 @@ printf "  Log: %s\n\n" "$LOG_FILE"
 
 env -u CLAUDECODE claude -p "$BROWSER_PROMPT" \
   --dangerously-skip-permissions \
-  --model claude-opus-4-6 \
+  --model "${VERIFY_MODEL:-opus}" \
   --verbose \
   --output-format stream-json \
   > "$LOG_FILE" 2>&1 || true
