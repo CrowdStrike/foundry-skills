@@ -14,7 +14,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 - **Foundry CLI**: Install with `brew tap crowdstrike/foundry-cli && brew install crowdstrike/foundry-cli/foundry` (macOS/Linux) or [download for Windows](https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip)
 - **CrowdStrike Account**: With Falcon Foundry access
 - **Authentication**: Run `foundry login` to authenticate
-- **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Gemini CLI, or any tool that supports loading reference documentation
+- **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI, or any tool that supports loading reference documentation
 
 ### Claude Code (Tested)
 
@@ -58,7 +58,7 @@ mkdir -p ~/.agents/skills
 ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
 ```
 
-Restart Codex to discover the skills. See the [Codex skills docs](https://developers.openai.com/codex/skills) for details.
+Restart Codex to discover the skills. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
 
 ### Copilot CLI (Experimental)
 
@@ -92,18 +92,18 @@ EOF
 
 Cursor activates the rule automatically when your prompt matches the description.
 
-### Gemini CLI (Experimental)
+### Antigravity CLI (Experimental)
 
-Link the skills so Gemini discovers them as native Agent Skills:
+Link the skills so Antigravity discovers them as native Agent Skills:
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
-gemini skills link /path/to/foundry-skills/skills --scope user
+agy skills link /path/to/foundry-skills/skills --scope user
 ```
 
-This creates symlinks in `~/.gemini/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.gemini/skills/` instead. Verify with `gemini skills list` or `/skills list` inside a session.
+This creates symlinks in `~/.gemini/antigravity-cli/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.agents/skills/` instead. Verify with `agy skills list` or `/skills list` inside a session.
 
-Gemini activates the right skill on demand based on your prompt.
+Antigravity activates the right skill on demand based on your prompt.
 
 ### Other Tools
 
@@ -115,13 +115,7 @@ These skills are plain markdown files. Any AI coding assistant that can read loc
 
 This prompt exercises the full skill set — API integration, workflow, and UI:
 
-```
-Can you create a Falcon Foundry app for me that has an Okta API integration
-with openapi? Share its listusers endpoint with Falcon Fusion SOAR. Then,
-create a workflow that can be run on-demand to email or print the list of
-users. Finally, create a UI extension that calls the listusers endpoint and
-displays the results.
-```
+> Can you create a Falcon Foundry app for me that has an Okta API integration with openapi? Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
 
 ### How skill routing works
 
