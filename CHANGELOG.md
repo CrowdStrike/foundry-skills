@@ -142,5 +142,4 @@ Initial public release of Falcon Foundry Skills — AI coding assistant skills f
 - **`AGENTS.md`** — Canonical AI agent instruction file with tool-agnostic Foundry development guidance (CLI commands, skills ecosystem, quality guidelines, contribution conventions).
 - **`CLAUDE.md`** — Claude Code-specific plugin additions (hooks, superpowers integration, safety enforcement). References `AGENTS.md` for the full development guide.
 - **`.github/copilot-instructions.md`** — Redirect for GitHub Copilot.
-- **`GEMINI.md`** — Backwards-compatibility redirect for legacy Gemini CLI installations (Antigravity CLI reads `AGENTS.md` directly).
 - **`.cursorrules`** — Redirect for Cursor.
