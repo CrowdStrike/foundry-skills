@@ -105,8 +105,6 @@ This creates symlinks in `~/.gemini/antigravity-cli/skills/` so all skills are a
 
 Antigravity activates the right skill on demand based on your prompt.
 
-> **Migrating from Gemini CLI?** Run `agy` and follow the interactive migration checklist, or see [the migration guide](https://antigravity.google/docs/cli/gcli-migration). Key changes: `GEMINI.md` → `AGENTS.md`, `.gemini/skills/` → `.agents/skills/`.
-
 ### Other Tools
 
 These skills are plain markdown files. Any AI coding assistant that can read local files can use them. See `AGENTS.md` for the full development guide, or point your tool at the `skills/` directory and start with `development-workflow/SKILL.md` as the entry point.
