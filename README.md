@@ -14,7 +14,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 - **Foundry CLI**: Install with `brew tap crowdstrike/foundry-cli && brew install crowdstrike/foundry-cli/foundry` (macOS/Linux) or [download for Windows](https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip)
 - **CrowdStrike Account**: With Falcon Foundry access
 - **Authentication**: Run `foundry login` to authenticate
-- **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Gemini CLI, or any tool that supports loading reference documentation
+- **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI, or any tool that supports loading reference documentation
 
 ### Claude Code (Tested)
 
@@ -92,18 +92,20 @@ EOF
 
 Cursor activates the rule automatically when your prompt matches the description.
 
-### Gemini CLI (Experimental)
+### Antigravity CLI
 
-Link the skills so Gemini discovers them as native Agent Skills:
+Link the skills so Antigravity discovers them as native Agent Skills:
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
-gemini skills link /path/to/foundry-skills/skills --scope user
+agy skills link /path/to/foundry-skills/skills --scope user
 ```
 
-This creates symlinks in `~/.gemini/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.gemini/skills/` instead. Verify with `gemini skills list` or `/skills list` inside a session.
+This creates symlinks in `~/.gemini/antigravity-cli/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.agents/skills/` instead. Verify with `agy skills list` or `/skills list` inside a session.
 
-Gemini activates the right skill on demand based on your prompt.
+Antigravity activates the right skill on demand based on your prompt.
+
+> **Migrating from Gemini CLI?** Run `agy` and follow the interactive migration checklist, or see [the migration guide](https://antigravity.google/docs/cli/gcli-migration). Key changes: `GEMINI.md` → `AGENTS.md`, `.gemini/skills/` → `.agents/skills/`.
 
 ### Other Tools
 
