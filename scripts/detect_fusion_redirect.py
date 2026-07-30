@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Classify whether a request is a standalone Fusion workflow (redirect to
-fusion-skills) or a Falcon Foundry app (handle here in foundry-skills).
+the crowdstrike-falcon-fusion plugin) or a Falcon Foundry app (handle here).
 
 A standalone Fusion workflow needs only a trigger plus actions that already
 exist in the CID — no UI, no serverless function, no collection, no custom API
 integration to be built, no manifest.yml. Those app-only capabilities are what
 keep a request in foundry-skills. When none are present, the request belongs to
-the sibling fusion-skills (crowdstrike-falcon-fusion) plugin.
+the sibling crowdstrike-falcon-fusion plugin.
 
 This is a heuristic used to *advise* a redirect; it never blocks. The routing
 decision ultimately rests with the orchestrator skill (development-workflow),
@@ -68,19 +68,54 @@ def _matches(patterns, text):
     return hits
 
 
+# Negation cues that *withdraw* a capability rather than request it. A prompt
+# saying "no UI, no functions" is describing what it does NOT need, so those
+# words must not count as app signals — the naive read inverts the verdict and
+# keeps a standalone-workflow request in foundry-skills.
+_NEGATION_CUE = (
+    r"(?:no|not|without|excluding|skip|omit|"
+    r"(?:do(?:n't|es not|esn't| not)? (?:need|want|require))|"
+    r"(?:no need for)|(?:isn't|is not|aren't|are not))"
+)
+
+# A negation scopes over the capabilities that follow it, including across a
+# comma/"or"/"and" series: "no UI, no functions" and "without a UI or function".
+# Stop at sentence-ending punctuation so a later clause isn't swallowed.
+_NEGATED_SPAN = re.compile(
+    rf"\b{_NEGATION_CUE}\b[^.;!?\n]*",
+    re.IGNORECASE,
+)
+
+
+def _strip_negated_spans(text):
+    """Blank out spans where capabilities are explicitly ruled out.
+
+    Replaces with spaces rather than deleting so surrounding word boundaries
+    survive and offsets stay comparable.
+    """
+    return _NEGATED_SPAN.sub(lambda m: " " * len(m.group(0)), text or "")
+
+
 def classify(request):
     """Classify a natural-language request.
 
     Returns a dict:
       redirect        - True if it looks like a standalone Fusion workflow
-      target          - "fusion-skills" when redirecting, else "foundry-skills"
+      target          - "crowdstrike-falcon-fusion" when redirecting, else
+                        "crowdstrike-falcon-foundry"
       is_workflow     - whether the request mentions a workflow/automation
       app_signals     - app-capability patterns that matched (block redirect)
       reason          - one-line human-readable explanation
     """
     text = request or ""
     workflow_hits = _matches(WORKFLOW_PATTERNS, text)
-    app_hits = _matches(APP_CAPABILITY_PATTERNS, text)
+    # Match app signals only against text with negated spans removed, so
+    # "no UI, no functions" reads as an absence of those capabilities.
+    affirmative = _strip_negated_spans(text)
+    app_hits = _matches(APP_CAPABILITY_PATTERNS, affirmative)
+    negated_app_hits = [
+        p for p in _matches(APP_CAPABILITY_PATTERNS, text) if p not in app_hits
+    ]
 
     is_workflow = bool(workflow_hits)
     # Redirect only when it's clearly a workflow AND carries no app-only signal.
@@ -96,14 +131,15 @@ def classify(request):
     else:
         reason = (
             "Standalone Fusion workflow (trigger + existing actions, no app "
-            "capability) — advise fusion-skills (crowdstrike-falcon-fusion)."
+            "capability) — advise the crowdstrike-falcon-fusion plugin."
         )
 
     return {
         "redirect": redirect,
-        "target": "fusion-skills" if redirect else "foundry-skills",
+        "target": "crowdstrike-falcon-fusion" if redirect else "crowdstrike-falcon-foundry",
         "is_workflow": is_workflow,
         "app_signals": app_hits,
+        "negated_app_signals": negated_app_hits,
         "reason": reason,
     }
 

@@ -62,23 +62,25 @@ Security review           → security-patterns
 E2E testing / Playwright  → e2e-testing
 
 Standalone Fusion workflow (no app — trigger + existing actions only)
-└── Advise fusion-skills — see Cross-Plugin Advisory
+└── Advise the Falcon Fusion plugin — see Cross-Plugin Advisory
 ```
 
 ## Cross-Plugin Advisory (Fusion vs. Foundry)
 
 A Falcon Fusion workflow can be authored **standalone** (no app wrapper) when it
 only needs a trigger plus actions that already exist in the CID. That is the
-sibling **fusion-skills** (`crowdstrike-falcon-fusion`) plugin's job, not this one.
+sibling **Falcon Fusion** plugin's job (`crowdstrike-falcon-fusion`), not this one.
 
 | Situation | Action |
 |-----------|--------|
-| Just a workflow: trigger + existing actions, no UI/function/collection/manifest | **Advise fusion-skills** (`claude plugin install crowdstrike-falcon-fusion`). Do NOT scaffold a Foundry app. |
+| Just a workflow: trigger + existing actions, no UI/function/collection/manifest | **Advise the Falcon Fusion plugin** — `/plugin install crowdstrike-falcon-fusion`, or https://claude.com/plugins/crowdstrike-falcon-fusion. Do NOT scaffold a Foundry app. |
 | Workflow needs a UI, function, collection, or custom API integration to be BUILT | **Proceed here** — that's a Foundry app; use the App Creation Flow. |
 | A workflow *inside* an app you're already building | **Proceed here** — use `workflows-development`. |
 
-If every action already exists and there's no UI/function/collection, redirect.
-Detection is advisory, never blocking.
+Name the plugin (`crowdstrike-falcon-fusion`) and the install command, not a
+GitHub repo — most users install from the marketplace and a repo link is a
+detour. If every action already exists and there's no UI/function/collection,
+redirect. Detection is advisory, never blocking.
 
 
 ## App Creation Flow

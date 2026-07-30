@@ -95,20 +95,74 @@ def test_empty_request_does_not_redirect():
 # ── Field-level checks ──────────────────────────────────────────────────────
 
 
-def test_redirect_target_is_fusion_skills():
+def test_redirect_target_is_fusion_plugin():
     result = detect.classify(
         "Build a workflow to contain a host on detection."
     )
-    assert result["target"] == "fusion-skills"
+    assert result["target"] == "crowdstrike-falcon-fusion"
 
 
-def test_app_shaped_request_target_is_foundry_skills():
+def test_app_shaped_request_target_is_foundry_plugin():
     result = detect.classify(
         "Build a Foundry app with a UI extension and a workflow."
     )
-    assert result["target"] == "foundry-skills"
+    assert result["target"] == "crowdstrike-falcon-foundry"
 
 
 def test_non_workflow_is_workflow_false():
     result = detect.classify("Add a bar chart to my dashboard page.")
     assert result["is_workflow"] is False
+
+
+# ── Negated capabilities must not count as app signals ──────────────────────
+#
+# A prompt that rules a capability OUT ("no UI, no functions") was previously
+# read as requesting it, inverting the verdict and keeping standalone-workflow
+# requests in the Foundry plugin. This is the exact prompt from the
+# fusion-redirect eval, which failed 0/5 before the fix.
+
+
+def test_explicit_no_app_no_ui_no_functions_redirects():
+    result = detect.classify(
+        "I just need a standalone Falcon Fusion workflow — no Foundry app, no "
+        "UI, no functions. When a critical detection fires, contain the host "
+        "and post a message to our Slack channel. Use actions that already "
+        "exist in my CID."
+    )
+    assert result["redirect"] is True
+    assert result["app_signals"] == []
+    # The negated words are still reported, just not counted.
+    assert result["negated_app_signals"]
+
+
+def test_without_a_ui_redirects():
+    result = detect.classify(
+        "Create a workflow that emails me on detection, without a UI."
+    )
+    assert result["redirect"] is True
+
+
+def test_dont_need_a_function_redirects():
+    result = detect.classify(
+        "Automate host containment on detection. I don't need a function or a "
+        "collection for this."
+    )
+    assert result["redirect"] is True
+
+
+def test_affirmative_capability_after_negated_clause_still_blocks():
+    """A negation must not swallow a later sentence that genuinely asks for an app."""
+    result = detect.classify(
+        "No dashboard needed. Build a workflow plus a UI extension that shows "
+        "the results."
+    )
+    assert result["redirect"] is False
+    assert result["app_signals"]
+
+
+def test_affirmative_ui_request_still_blocks():
+    """Guard against the fix over-reaching: a plain UI request must not redirect."""
+    result = detect.classify(
+        "Build a workflow and a UI page to review the results."
+    )
+    assert result["redirect"] is False
