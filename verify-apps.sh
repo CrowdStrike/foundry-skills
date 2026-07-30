@@ -262,6 +262,18 @@ printf "${GREEN}JSON report written: %s${RESET}\n\n" "$REPORT_FILE"
 # Set APP_COUNT for use in functions and Phase 2
 APP_COUNT=$(echo "$APPS_JSON" | jq 'length')
 
+# No apps discovered means the run directories held no manifest.yml — usually the
+# wrong --dir, or a stale directory from an earlier harness. Reporting "0/0 verified"
+# reads as a pass, so fail loudly instead.
+if [ "$APP_COUNT" -eq 0 ]; then
+  printf "${RED}ERROR: No apps discovered in %s${RESET}\n" "$BASE_DIR" >&2
+  printf "  %d run directory(ies) were found, but none contained a manifest.yml.\n\n" "${#RUN_DIRS[@]}" >&2
+  printf "  Verifying A/B test runs? Use the matching flag:\n" >&2
+  printf "    %s --green            # /tmp/foundry-skill-ab/green-runs\n" "$0" >&2
+  printf "    %s --dir <path>       # any other directory\n\n" "$0" >&2
+  exit 1
+fi
+
 # ── Phase 1 summary table ──
 printf "${BLUE}==========================================${RESET}\n"
 printf "${BLUE}  Phase 1 Summary${RESET}\n"
@@ -290,7 +302,7 @@ print_phase1_advice() {
   # Analyze spec issues across all apps
   local combobox_count=0
   local textbox_count=0
-  for idx in $(seq 0 $((APP_COUNT - 1))); do
+  for ((idx=0; idx<APP_COUNT; idx++)); do
     local dtype
     dtype=$(echo "$APPS_JSON" | jq -r ".[$idx].domain_field_type")
     case "$dtype" in
@@ -316,7 +328,7 @@ print_phase1_advice() {
 
   # Check if any apps failed to deploy
   local no_deploy_count=0
-  for idx in $(seq 0 $((APP_COUNT - 1))); do
+  for ((idx=0; idx<APP_COUNT; idx++)); do
     local did
     did=$(echo "$APPS_JSON" | jq -r ".[$idx].deployment_id")
     [ -z "$did" ] && no_deploy_count=$((no_deploy_count + 1))
@@ -332,7 +344,7 @@ print_phase1_advice() {
 
   # Check if any releases failed
   local no_release_count=0
-  for idx in $(seq 0 $((APP_COUNT - 1))); do
+  for ((idx=0; idx<APP_COUNT; idx++)); do
     local rel
     rel=$(echo "$APPS_JSON" | jq -r ".[$idx].released")
     [ "$rel" != "true" ] && no_release_count=$((no_release_count + 1))
@@ -365,7 +377,7 @@ print_phase2_advice() {
   count_failures() {
     local status_type="$1"
     local count=0
-    for idx in $(seq 0 $((APP_COUNT - 1))); do
+    for ((idx=0; idx<APP_COUNT; idx++)); do
       local app_run app_name status
       app_run=$(echo "$APPS_JSON" | jq -r ".[$idx].run")
       app_name=$(echo "$APPS_JSON" | jq -r ".[$idx].name")
@@ -470,7 +482,7 @@ printf "\n"
 APP_INSTRUCTIONS=""
 APP_COUNT=$(echo "$APPS_JSON" | jq 'length')
 
-for idx in $(seq 0 $((APP_COUNT - 1))); do
+for ((idx=0; idx<APP_COUNT; idx++)); do
   APP=$(echo "$APPS_JSON" | jq ".[$idx]")
   APP_NAME=$(echo "$APP" | jq -r '.name')
   APP_RUN=$(echo "$APP" | jq -r '.run')
@@ -746,7 +758,7 @@ printf "${BLUE}==========================================${RESET}\n"
 FULLY_VERIFIED=0
 TOTAL_APPS=$APP_COUNT
 
-for idx in $(seq 0 $((APP_COUNT - 1))); do
+for ((idx=0; idx<APP_COUNT; idx++)); do
   APP=$(echo "$APPS_JSON" | jq ".[$idx]")
   APP_NAME=$(echo "$APP" | jq -r '.name')
   APP_RUN=$(echo "$APP" | jq -r '.run')
