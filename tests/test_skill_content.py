@@ -59,6 +59,30 @@ class TestNGSIEMQueryRecipe:
         content = _read_skill(self.SKILL)
         assert "#repo=" in content
 
+    def test_start_search_uses_search_keyword(self):
+        """start_search must be called with search=, never body=.
+
+        FalconPy's guard reads only kwargs["search"], so a body= call returns a
+        locally-generated error and never issues a request. See falconpy#1491.
+        """
+        content = _read_skill(self.SKILL)
+        assert "start_search(repository=REPO, search=" in content, \
+            "start_search must be called with search=, not body="
+        assert "start_search(repository=REPO, body=" not in content, \
+            "body= never reaches the API — see falconpy#1491"
+
+    def test_start_search_reads_resources_key(self):
+        """The job id must be read from 'resources', not 'body'.
+
+        start_search renames its success payload to 'resources';
+        get_search_status does not. Reading 'body' yields None every time.
+        """
+        content = _read_skill(self.SKILL)
+        assert 'started.get("resources")' in content, \
+            "job id must be read from the resources key"
+        assert 'started.get("body")' not in content, \
+            "start_search renames body -> resources on success"
+
     def test_blog_reference_included(self):
         """Must link to the Tech Hub blog post as reference."""
         content = _read_skill(self.SKILL)
