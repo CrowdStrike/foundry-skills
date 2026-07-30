@@ -399,7 +399,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `IdentityProtection` | `graphql`, `query_sensors`, `get_sensor_details` | `identity-graphql:write`, `identity-entities:read` | foundry-sample-idp-notifications |
 | `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
-| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Inferred from endpoint path, not yet confirmed in a sample app; see LogScale Queries section |
+| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Verified against a live CID (200 + results); see LogScale Queries section |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
