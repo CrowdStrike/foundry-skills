@@ -237,16 +237,20 @@ def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
     ``start`` / ``end`` accept Humio relative strings ("24h", "7d", "30d",
     "now") or epoch-millisecond integers.
     """
-    body = {"queryString": query_string, "start": start, "end": end, "isLive": False}
-    started = ngsiem.start_search(repository=REPO, body=body)
+    payload = {"queryString": query_string, "start": start, "end": end, "isLive": False}
+    # Pass the payload as `search=`, NOT `body=` — FalconPy's guard only reads
+    # the `search` kwarg, so `body=` returns a local error without calling the API.
+    started = ngsiem.start_search(repository=REPO, search=payload)
 
     if not isinstance(started, dict) or started.get("status_code", 500) >= 300:
         logger.error(f"start_search failed: {started}")
         return None
 
-    job_id = (started.get("body") or {}).get("id")
+    # start_search renames its response payload to "resources" (not "body").
+    # get_search_status does NOT rename — hence the asymmetry further down.
+    job_id = (started.get("resources") or {}).get("id")
     if not job_id:
-        logger.error(f"start_search returned no job id: {started.get('body')}")
+        logger.error(f"start_search returned no job id: {started}")
         return None
 
     # Poll until done
@@ -284,6 +288,12 @@ def handle_query(request: Request, config: Union[Dict[str, Any], None], logger: 
 if __name__ == '__main__':
     func.run()
 ```
+
+### The `search=` Keyword Gotcha
+
+**CRITICAL:** Pass the query payload as `search=`, not `body=`. FalconPy's `start_search` guard reads only `kwargs.get("search")`, so `body=` leaves it unsatisfied and returns a locally-generated error (`"You must provide a repository and search arguments"`) without ever issuing a request. The docstring lists `body` as accepted, but the guard does not honor it — see [CrowdStrike/falconpy#1491](https://github.com/CrowdStrike/falconpy/issues/1491).
+
+Response shapes are also asymmetric: on success `start_search` renames its payload to `resources`, so read `started["resources"]["id"]`. `get_search_status` does **not** rename, so read `status["body"]`. Verified against FalconPy 1.6.3 and 1.6.4.
 
 ### The "search-all" Repository Gotcha
 
@@ -391,7 +401,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `IdentityProtection` | `graphql`, `query_sensors`, `get_sensor_details` | `identity-graphql:write`, `identity-entities:read` | foundry-sample-idp-notifications |
 | `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
-| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Verified against FalconPy source; see LogScale Queries section |
+| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Inferred from endpoint path, not yet confirmed in a sample app; see LogScale Queries section |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
