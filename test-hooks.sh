@@ -1411,7 +1411,17 @@ assert_contains "$OUTPUT" "FOUNDRY PLUGIN DETECTED" "10.6  app request → norma
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Build a foundry workflow to automate host containment on detection. I do not need a UI or a function."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
 assert_contains "$OUTPUT" "STANDALONE FUSION" "10.7  negated capabilities still redirect"
 
-# A bare Fusion request (no Foundry noun) is not this router's business.
+# Wording adapts to whether the sibling plugin is already installed, so we don't
+# tell users to install what they have. Assert on the stable half of the message.
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_contains "$OUTPUT" "crowdstrike-falcon-fusion" "10.9  advisory names the plugin either way"
+assert_contains "$OUTPUT" "Do NOT scaffold a Foundry app" "10.10 advisory forbids scaffolding either way"
+
+# A bare Fusion request (no Foundry noun) is not this router's business — the
+# crowdstrike-falcon-fusion plugin's own router matches "build a Fusion workflow"
+# and routes to its workflows orchestrator. The two routers partition the space;
+# this redirect exists for the ambiguous middle, where someone says "Foundry" but
+# describes work that needs no app.
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Build a Fusion workflow to contain a host on detection."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
 assert_empty "$OUTPUT" "10.8  bare Fusion request → router abstains"
 

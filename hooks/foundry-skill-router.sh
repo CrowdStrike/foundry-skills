@@ -65,10 +65,19 @@ case "$HOOK_EVENT" in
       if [ -f "$REDIRECT_SCRIPT" ]; then
         VERDICT=$(printf '%s' "$USER_PROMPT" | python3 "$REDIRECT_SCRIPT" 2>/dev/null || true)
         if echo "$VERDICT" | grep -q '"redirect": true'; then
-          jq -n '{
+          # If the sibling plugin is already installed, say "use it" rather than
+          # "install it". Best-effort: the file may be absent, in which case we
+          # fall back to the install wording. Mirrors the check in
+          # fusion-skills' fusion-foundry-bridge.sh.
+          FUSION_HINT="Advise the crowdstrike-falcon-fusion plugin — /plugin install crowdstrike-falcon-fusion, or https://claude.com/plugins/crowdstrike-falcon-fusion."
+          if [ -f "$HOME/.claude/plugins/installed_plugins.json" ] &&
+             grep -q "crowdstrike-falcon-fusion" "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null; then
+            FUSION_HINT="The crowdstrike-falcon-fusion plugin is already installed — hand off to its workflows skill."
+          fi
+          jq -n --arg hint "$FUSION_HINT" '{
             hookSpecificOutput: {
               hookEventName: "UserPromptSubmit",
-              additionalContext: "STANDALONE FUSION WORKFLOW DETECTED: this request looks like a trigger plus actions that already exist in the CID — no UI, function, collection, or API integration to build. It does NOT need a Foundry app. Advise the crowdstrike-falcon-fusion plugin (/plugin install crowdstrike-falcon-fusion, or https://claude.com/plugins/crowdstrike-falcon-fusion) and do NOT scaffold a Foundry app. Naming the plugin is required output — declining to scaffold is only half the redirect, and hand-writing the workflow YAML yourself defeats the purpose since that plugin discovers real action IDs, validates against the platform schema, and imports to the CID. This detection is advisory: if the request genuinely needs an app capability built, proceed with crowdstrike-falcon-foundry:development-workflow instead."
+              additionalContext: ("STANDALONE FUSION WORKFLOW DETECTED: this request looks like a trigger plus actions that already exist in the CID — no UI, function, collection, or API integration to build. It does NOT need a Foundry app. " + $hint + " Do NOT scaffold a Foundry app. Naming the plugin is required output — declining to scaffold is only half the redirect, and hand-writing the workflow YAML yourself defeats the purpose since that plugin discovers real action IDs, validates against the platform schema, and imports to the CID. This detection is advisory: if the request genuinely needs an app capability built, proceed with crowdstrike-falcon-foundry:development-workflow instead.")
             }
           }'
           exit 0
