@@ -238,16 +238,14 @@ def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
     "now") or epoch-millisecond integers.
     """
     payload = {"queryString": query_string, "start": start, "end": end, "isLive": False}
-    # Pass the payload as `search=`, NOT `body=` — FalconPy's guard only reads
-    # the `search` kwarg, so `body=` returns a local error without calling the API.
+    # Must be search=, not body= — see the keyword gotcha below.
     started = ngsiem.start_search(repository=REPO, search=payload)
 
     if not isinstance(started, dict) or started.get("status_code", 500) >= 300:
         logger.error(f"start_search failed: {started}")
         return None
 
-    # start_search renames its response payload to "resources" (not "body").
-    # get_search_status does NOT rename — hence the asymmetry further down.
+    # start_search returns "resources"; get_search_status returns "body".
     job_id = (started.get("resources") or {}).get("id")
     if not job_id:
         logger.error(f"start_search returned no job id: {started}")
@@ -291,9 +289,9 @@ if __name__ == '__main__':
 
 ### The `search=` Keyword Gotcha
 
-**CRITICAL:** Pass the query payload as `search=`, not `body=`. FalconPy's `start_search` guard reads only `kwargs.get("search")`, so `body=` leaves it unsatisfied and returns a locally-generated error (`"You must provide a repository and search arguments"`) without ever issuing a request. The docstring lists `body` as accepted, but the guard does not honor it — see [CrowdStrike/falconpy#1491](https://github.com/CrowdStrike/falconpy/issues/1491).
+**CRITICAL:** Pass the query payload as `search=`, not `body=`. FalconPy's guard reads only `kwargs.get("search")`, so `body=` returns a local error without issuing a request. The docstring lists `body` as accepted, but the guard ignores it ([falconpy#1491](https://github.com/CrowdStrike/falconpy/issues/1491)).
 
-Response shapes are also asymmetric: on success `start_search` renames its payload to `resources`, so read `started["resources"]["id"]`. `get_search_status` does **not** rename, so read `status["body"]`. Verified against FalconPy 1.6.3 and 1.6.4.
+Response keys are asymmetric: `start_search` renames its payload to `resources` (read `started["resources"]["id"]`), while `get_search_status` does not (read `status["body"]`).
 
 ### The "search-all" Repository Gotcha
 
