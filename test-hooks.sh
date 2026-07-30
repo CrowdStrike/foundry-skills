@@ -1385,6 +1385,36 @@ OUTPUT=$(cat "$ENV_TMP")
 assert_empty "$OUTPUT" "9.10 does NOT set FOUNDRY_UI_HEADLESS_MODE for 2.0.1+"
 rm -rf "$FAKE_BIN" "$ENV_TMP"
 
+# ---------- 10. Fusion redirect wiring (UserPromptSubmit) ----------
+#
+# The classifier existed but no hook invoked it, so its verdict never reached
+# the agent. The fusion-redirect eval passed only 1/5 trials: the agent declined
+# to scaffold but never named the plugin, and once scaffolded an app anyway.
+
+printf "\n${BOLD}10. Fusion redirect wiring${RESET}\n"
+
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a Falcon Fusion workflow — no Foundry app, no UI, no functions. When a critical detection fires, contain the host and post to Slack. Use actions that already exist in my CID."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_contains "$OUTPUT" "STANDALONE FUSION WORKFLOW DETECTED" "10.1  standalone fusion prompt → redirect advisory"
+assert_contains "$OUTPUT" "crowdstrike-falcon-fusion" "10.2  advisory names the plugin"
+assert_contains "$OUTPUT" "Naming the plugin is required output" "10.3  advisory makes naming mandatory"
+assert_not_contains "$OUTPUT" "IMMEDIATELY invoke" "10.4  does not also steer into app scaffolding"
+
+# A genuine app request must NOT be redirected — guards against over-reach.
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a Foundry app with a UI extension and a workflow that shows detections."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_not_contains "$OUTPUT" "STANDALONE FUSION" "10.5  app request → no fusion redirect"
+assert_contains "$OUTPUT" "FOUNDRY PLUGIN DETECTED" "10.6  app request → normal foundry advisory"
+
+# Negated capabilities must not block the redirect (the original bug). Note the
+# prompt must still name a Foundry noun for the router to engage at all — a bare
+# "Fusion workflow" request never reaches this plugin's router, which is correct:
+# the user is already asking for Fusion, not Foundry.
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Build a foundry workflow to automate host containment on detection. I do not need a UI or a function."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_contains "$OUTPUT" "STANDALONE FUSION" "10.7  negated capabilities still redirect"
+
+# A bare Fusion request (no Foundry noun) is not this router's business.
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Build a Fusion workflow to contain a host on detection."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_empty "$OUTPUT" "10.8  bare Fusion request → router abstains"
+
 # ---------- Cleanup and Summary ----------
 
 cleanup

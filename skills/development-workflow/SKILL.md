@@ -73,14 +73,38 @@ sibling **Falcon Fusion** plugin's job (`crowdstrike-falcon-fusion`), not this o
 
 | Situation | Action |
 |-----------|--------|
-| Just a workflow: trigger + existing actions, no UI/function/collection/manifest | **Advise the Falcon Fusion plugin** — `/plugin install crowdstrike-falcon-fusion`, or https://claude.com/plugins/crowdstrike-falcon-fusion. Do NOT scaffold a Foundry app. |
+| Just a workflow: trigger + existing actions, no UI/function/collection/manifest | **Advise the Falcon Fusion plugin** — see the required response below. Do NOT scaffold a Foundry app. |
 | Workflow needs a UI, function, collection, or custom API integration to be BUILT | **Proceed here** — that's a Foundry app; use the App Creation Flow. |
 | A workflow *inside* an app you're already building | **Proceed here** — use `workflows-development`. |
 
-Name the plugin (`crowdstrike-falcon-fusion`) and the install command, not a
-GitHub repo — most users install from the marketplace and a repo link is a
-detour. If every action already exists and there's no UI/function/collection,
-redirect. Detection is advisory, never blocking.
+> **⚠️ MUST NOT silently do the Fusion plugin's job.** The common failure is to
+> recognize no app is needed, then hand the user workflow YAML anyway without
+> ever telling them a better-suited plugin exists. Declining to scaffold is only
+> half the redirect — **naming the plugin is required output.**
+
+When redirecting, your response MUST contain all three:
+
+1. A statement that this needs no Foundry app
+2. The plugin name **`crowdstrike-falcon-fusion`** written out
+3. How to get it: `/plugin install crowdstrike-falcon-fusion` or
+   https://claude.com/plugins/crowdstrike-falcon-fusion
+
+Name the plugin, not a GitHub repo — most users install from the marketplace and
+a repo link is a detour.
+
+**Do not hand-write the workflow YAML in a redirect.** Producing the artifact
+yourself defeats the purpose: the Fusion plugin discovers real action IDs from
+the live API, validates against the platform schema, and imports and releases to
+the CID. A YAML block with placeholder action IDs is strictly worse than sending
+the user somewhere that can finish the job. Offer a one-line sketch of the shape
+if it helps, then redirect.
+
+A negated capability is not a request for it. "no UI", "without a function",
+"I don't need a collection" all mean the request is *smaller*, not larger — so
+they push **toward** redirecting, never away. If every action already exists and
+there's no UI/function/collection to build, redirect. The routing decision is
+yours; `scripts/detect_fusion_redirect.py` is available as a heuristic
+cross-check and never blocks.
 
 
 ## App Creation Flow
