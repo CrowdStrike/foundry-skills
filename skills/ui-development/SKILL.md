@@ -173,6 +173,16 @@ const body = result.resources?.[0]?.response_body;
 const status = result.resources?.[0]?.status_code;
 ```
 
+Query and path parameters must match the types declared in the OpenAPI spec. `execute()` types params as `Record<string, unknown>`, so a quoted number compiles and ships fine, then fails server-side schema validation at runtime with `got string want integer`. The extension still renders, so this looks like an API or credential error rather than a bug in your code.
+
+```javascript
+// spec declares: - name: limit / schema: { type: integer }
+request: { params: { query: { limit: 25 } } }    // ✅ number
+request: { params: { query: { limit: '25' } } }  // ❌ got string want integer
+```
+
+Check the `schema.type` of each parameter in the spec before passing it. Numbers and booleans are unquoted; only `type: string` parameters take quotes.
+
 ### Collection Operations
 
 ```javascript
@@ -330,6 +340,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 - **Expecting backend to work with `foundry ui run`.** The dev server only serves UI — deploy backend capabilities first.
 - **Shoelace dialogs/drawers white in dark mode.** Override `--sl-panel-background-color` and `--sl-color-neutral-0` with `var(--ground-floor)`. See [references/shoelace-reference.md](references/shoelace-reference.md).
 - **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
+- **Quoting numeric query parameters.** `execute()` accepts `Record<string, unknown>`, so `limit: '25'` passes type-checking and fails server-side with `got string want integer`. Match the `schema.type` declared in the OpenAPI spec — the extension still renders, so this reads as an API error rather than a code bug.
 - **Missing CSP for Shoelace icons.** The Foundry CSP only allows `assets.foundry.crowdstrike.com`. If using `setBasePath()` with `cdn.jsdelivr.net`, you must add it to `connect-src` and `img-src` in the manifest's `content_security_policy`. Alternatively, copy icon assets to your `dist/` folder and set a relative base path to avoid CDN dependencies entirely.
 
 ## Reading Guide

@@ -63,6 +63,25 @@ RED_DIR="$AB_RESULTS_DIR/red-runs"
 GREEN_DIR="$AB_RESULTS_DIR/green-runs"
 BASELINE_JSON="$AB_RESULTS_DIR/baseline.json"
 
+# ── Validate the baseline ref up front ───────────────────────
+# Without this an unknown ref fails silently: rev-parse is muted by 2>/dev/null,
+# `git archive` then writes nothing, and its failure is masked because it is piped
+# into tar (pipefail does not help when the last command in the pipe succeeds).
+# The script runs on with an empty baseline and exits 0 having printed nothing,
+# which reads as "the script did nothing" rather than "that ref is not here".
+if [ "$NO_SKILL" != "1" ]; then
+  if ! git -C "$REPO_ROOT" rev-parse --verify --quiet "${BASELINE_REF}^{commit}" >/dev/null 2>&1; then
+    echo "ERROR: baseline ref '$BASELINE_REF' does not exist in $REPO_ROOT" >&2
+    echo "" >&2
+    echo "  Release tags available here:" >&2
+    git -C "$REPO_ROOT" tag --list 'v*' --sort=-v:refname 2>/dev/null | head -5 | sed 's/^/    /' >&2
+    echo "" >&2
+    echo "  Pass one of the above with --ref, or a branch or commit SHA." >&2
+    exit 1
+  fi
+fi
+
+
 # Delete Foundry apps from a phase directory
 cleanup_phase_apps() {
   local phase_dir="$1"

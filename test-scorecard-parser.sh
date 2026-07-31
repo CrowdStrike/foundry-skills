@@ -43,6 +43,22 @@ assert_eq() {
   fi
 }
 
+# ── count_over_apps: matches the advice loops in verify-apps.sh ──
+# The C-style form must not iterate when APP_COUNT is 0. The earlier
+# `seq 0 $((APP_COUNT - 1))` form emitted "0" and "-1", so a zero-app
+# report counted two phantom failures against a total of 0 ("2/0 apps
+# failed to release") and printed "App null: null" scorecard rows.
+count_over_apps() {
+  local app_count="$1" json="$2" field="$3" expected="$4"
+  local n=0
+  for ((idx=0; idx<app_count; idx++)); do
+    local val
+    val=$(echo "$json" | jq -r ".[$idx].$field")
+    [ "$val" != "$expected" ] && n=$((n + 1))
+  done
+  echo "$n"
+}
+
 # ══════════════════════════════════════════════════════════════
 # JSON format: all fields present, all PASS
 # ══════════════════════════════════════════════════════════════
@@ -122,6 +138,17 @@ printf "${BOLD}JSON: Notes field${RESET}\n"
 
 assert_eq "json: notes present" "Install failed: combobox field" "$(parse_app_status 2 notes "$MIXED_JSON" "okta-user-mgr")"
 assert_eq "json: notes absent" "N/A" "$(parse_app_status 1 notes "$MIXED_JSON" "okta-user-manager")"
+
+# ══════════════════════════════════════════════════════════════
+# Zero-app advice loops (regression: "2/0 apps failed to release")
+# ══════════════════════════════════════════════════════════════
+printf "${BOLD}Zero-app advice loops${RESET}\n"
+
+assert_eq "zero apps: no phantom release failures" "0" "$(count_over_apps 0 '[]' released true)"
+assert_eq "zero apps: no phantom deploy failures" "0" "$(count_over_apps 0 '[]' deployment_id abc)"
+assert_eq "one app: counts a real failure" "1" "$(count_over_apps 1 '[{"released":false}]' released true)"
+assert_eq "one app: counts a real pass" "0" "$(count_over_apps 1 '[{"released":true}]' released true)"
+assert_eq "two apps: counts only the failure" "1" "$(count_over_apps 2 '[{"released":true},{"released":false}]' released true)"
 
 # ══════════════════════════════════════════════════════════════
 # Summary
