@@ -1,8 +1,8 @@
 ---
 name: collections-development
 description: Design JSON Schema collections and CRUD patterns for Falcon Foundry apps. TRIGGER when user asks to "create a collection", "define a JSON schema", "store data in Foundry", runs `foundry collections create`, or needs help with indexable fields, FQL queries, or collection access patterns. DO NOT TRIGGER for workflow YAML, function handlers, or UI components — use the appropriate sub-skill.
-version: 1.3.0
-updated: 2026-06-11
+version: 1.4.0
+updated: 2026-07-31
 tags: [foundry, collections, json-schema, nosql]
 author: CrowdStrike
 license: MIT
