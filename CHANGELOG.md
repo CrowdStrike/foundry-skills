@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **`foundry apps list` in prerequisite check** — New CLI 2.0.2 command that lists all deployed apps on the CID from any directory. Added to Step 3 to help avoid name collisions.
 - **Collection description validation constraints** — Documents the 3–500 character length limit, alphanumeric-start requirement, and allowed character set for collection descriptions.
 - **Function logs in testing-patterns reference** — Added function logs (viewing in UI and Advanced Event Search) to the reference table entry for testing patterns.
+- **Query parameter type matching for API integrations** — Documents that `apiIntegration().execute()` types params as `Record<string, unknown>`, so a quoted number like `limit: '25'` passes type-checking and fails server-side with `got string want integer`. The extension still renders, so the failure reads as an API or credential error rather than a code bug.
 - **Content regression tests** — `tests/test_skill_content.py` guards critical documentation (LogScale recipe, schema requirements, workflow deletion warning) against accidental removal.
 
 ### Changed
