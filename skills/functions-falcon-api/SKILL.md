@@ -18,10 +18,18 @@ metadata:
 > If you are loading this skill, your role is **Falcon API integration specialist for Foundry functions**.
 >
 > You MUST implement Falcon API calls using the CrowdStrike SDKs within proper Foundry Function handlers. Authentication is automatic when using the FDK handler pattern.
+>
+> The FalconPy `Detects` class is **removed**. Do not import it. Use `Alerts` for detection queries.
 
 This skill covers calling CrowdStrike Falcon APIs from within Foundry functions (serverless Go or Python code). Authentication is completely automatic when code runs inside Foundry function handlers — the platform handles all OAuth flows, token management, and credential injection.
 
 For exposing external APIs to Foundry via OpenAPI specs, see **api-integrations** instead.
+
+> **🚫 DEPRECATED API — NEVER USE:**
+>
+> **Do NOT import or use the `Detects` class from FalconPy.** The Detects API (`/detects/entities/detects/v2`) is deprecated and returns **405 Method Not Allowed**. Any code using `Detects()`, `query_detects()`, or `get_detect_summaries()` will fail at runtime.
+>
+> **Use instead:** `from falconpy import Alerts` with `query_alerts_v2()` / `get_alerts_v2()`. Filter by `product:'detections'` to scope to detections only.
 
 ## Reference Files
 
@@ -338,10 +346,6 @@ if response["status_code"] == 207:
         return Response(body={"error": "Rate limited", "failed_ids": [e.get("id") for e in rate_limited]}, code=429)
 ```
 
-## Multi-Region Support
-
-The SDKs handle region discovery automatically when called from within Foundry Function handlers. No configuration needed.
-
 ## Testing
 
 Mock Falcon APIs in tests instead of making real API calls (they are slow, flaky, and quota-consuming):
@@ -437,7 +441,6 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 
 ## Common Pitfalls
 
-- **Using the deprecated `Detects` class.** Use `Alerts()` with `query_alerts_v2` / `get_alerts_v2` instead. Filter by `product:'detections'` to scope to detections only.
 - **Writing OAuth code or credential management.** Auth is automatic inside FDK handlers. The zero-arg pattern (`Hosts()`, `Alerts()`) handles all auth. (Go requires `fdk.FalconClientOpts()` -- see above.)
 - **Using `requests` library instead of CrowdStrike SDKs.** SDKs handle auth, retries, pagination, and region discovery.
 - **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.
