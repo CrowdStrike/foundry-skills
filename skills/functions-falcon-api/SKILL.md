@@ -37,7 +37,7 @@ FalconPy Service Classes require zero arguments when called inside Foundry Funct
 from logging import Logger
 from typing import Any, Dict, Union
 from crowdstrike.foundry.function import Function, Request, Response
-from falconpy import Alerts, Hosts, Detects
+from falconpy import Alerts, Hosts
 
 func = Function.instance()
 
@@ -125,27 +125,33 @@ func main() {
 
 ## Common API Patterns
 
-### Detection Queries
+### Detection Queries (via Alerts API)
+
+> **⚠️ The legacy Detects API (`/detects/entities/detects/v2`) is deprecated and returns 405 Method Not Allowed.** Use the Alerts API (`/alerts/entities/alerts/v3`) for all detection queries — it covers both detections and cases.
 
 ```python
 @func.handler(method='GET', path='/api/detections')
 def get_detections(request: Request, config, logger) -> Response:
-    falcon = Detects()  # Zero-arg — auth is automatic
+    falcon = Alerts()  # Zero-arg — auth is automatic
 
     severity_min = int(request.params.get("severity_min", 3))
     limit = min(int(request.params.get("limit", 50)), 100)
 
-    query_response = falcon.query_detects(filter=f"max_severity_displayname:>'{severity_min}'",
-                                          limit=limit,
-                                          sort="last_behavior|desc")
+    # Use Alerts v2 methods — these hit /alerts/entities/alerts/v3 under the hood.
+    # FQL filter: severity threshold + product "detections" (excludes cases/incidents).
+    query_response = falcon.query_alerts_v2(
+        filter=f"severity:>='{severity_min}'+product:'detections'",
+        limit=limit,
+        sort="created_timestamp|desc",
+    )
     if query_response["status_code"] != 200:
         return Response(body={"error": "Failed to query detections"}, code=500)
 
-    detection_ids = query_response.get("body", {}).get("resources", [])
-    if not detection_ids:
+    alert_ids = query_response.get("body", {}).get("resources", [])
+    if not alert_ids:
         return Response(body={"detections": []}, code=200)
 
-    details = falcon.get_detect_summaries(ids=detection_ids)
+    details = falcon.get_alerts_v2(ids=alert_ids)
     if details["status_code"] != 200:
         return Response(body={"error": "Failed to get details"}, code=500)
 
@@ -182,7 +188,6 @@ def get_host_details(request: Request, config, logger) -> Response:
 @func.handler(method='POST', path='/api/enrich')
 def enrich_host_context(request: Request, config, logger) -> Response:
     hosts_api = Hosts()
-    detects_api = Detects()
     alerts_api = Alerts()
 
     hostname = request.body.get("hostname")
@@ -197,11 +202,11 @@ def enrich_host_context(request: Request, config, logger) -> Response:
 
     host = hosts_api.get_device_details(ids=host_ids).get("body", {}).get("resources", [{}])[0]
 
-    # Get detections
-    detect_ids = detects_api.query_detects(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
-    detections = detects_api.get_detect_summaries(ids=detect_ids).get("body", {}).get("resources", []) if detect_ids else []
+    # Get detections (via Alerts API with product filter)
+    detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'detections'", limit=10).get("body", {}).get("resources", [])
+    detections = alerts_api.get_alerts_v2(ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
 
-    # Get alerts
+    # Get all alerts (includes detections + cases)
     alert_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
     alerts = alerts_api.get_alerts_v2(ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
 
@@ -441,6 +446,7 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 
 ## Common Pitfalls
 
+- **Using the deprecated `Detects` class.** The Detects API (`/detects/entities/detects/v2`) is deprecated and returns 405 Method Not Allowed. Use `Alerts()` with `query_alerts_v2` / `get_alerts_v2` instead. Filter by `product:'detections'` if you only want detections (not cases/incidents).
 - **Writing OAuth code or credential management.** Auth is completely automatic for FalconPy inside FDK handlers. NEVER use `os.environ.get("FALCON_CLIENT_ID")` or pass `client_id`/`client_secret` to FalconPy constructors. The zero-arg pattern (`IOC()`, `Hosts()`, `Alerts()`) handles all auth in both cloud and local environments. (Go requires explicit credential wiring via `fdk.FalconClientOpts()` -- see the Go section above.)
 - **Using `requests` library instead of CrowdStrike SDKs.** SDKs handle auth, retries, pagination, and region discovery.
 - **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.

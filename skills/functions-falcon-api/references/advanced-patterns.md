@@ -43,28 +43,28 @@ def with_retry(
         return wrapper
     return decorator
 
-# functions/detections/main.py
+# functions/alerts/main.py
 from crowdstrike.foundry.function import Function, Request, Response
-from falconpy import Detects
+from falconpy import Alerts
 from common.retry import with_retry
 
 func = Function.instance()
 
-@func.handler(method='GET', path='/api/detections')
-def get_detections(request: Request, config, logger) -> Response:
-    falcon = Detects()
+@func.handler(method='GET', path='/api/alerts')
+def get_alerts(request: Request, config, logger) -> Response:
+    falcon = Alerts()
 
     @with_retry(max_retries=3)
     def query_with_retry():
-        return falcon.query_detects(limit=50)
+        return falcon.query_alerts_v2(limit=50, sort="created_timestamp|desc")
 
     response = query_with_retry()
 
     if response["status_code"] != 200:
         return Response(body={"error": "Failed after retries"}, code=500)
 
-    detection_ids = response.get("body", {}).get("resources", [])
-    return Response(body={"detection_ids": detection_ids}, code=200)
+    alert_ids = response.get("body", {}).get("resources", [])
+    return Response(body={"alert_ids": alert_ids}, code=200)
 
 if __name__ == '__main__':
     func.run()
@@ -81,3 +81,4 @@ if __name__ == '__main__':
 | "I'll handle errors generically" | Specific error handling enables proper user feedback |
 | "Mocking is extra work" | Real API calls in tests are slow, flaky, and quota-consuming |
 | "I can skip the FDK handler pattern" | Handler pattern is required for automatic auth injection |
+| "I'll use the Detects class for detection queries" | The Detects API is deprecated (405 errors). Use `Alerts()` with `query_alerts_v2` — filter by `product:'detections'` to scope to detections only |
