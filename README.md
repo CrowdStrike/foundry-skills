@@ -48,7 +48,7 @@ The `--plugin-dir` flag loads the plugin for that session. To make it permanent,
 
 Changes to skill files take effect on the next Claude Code session — no reinstall needed.
 
-### Codex (Experimental)
+### Codex
 
 Codex discovers skills from `~/.agents/skills/`. Clone and symlink:
 
@@ -60,17 +60,21 @@ ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
 
 Restart Codex to discover the skills. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
 
-### Copilot CLI (Experimental)
+`~/.agents/skills/` is the preferred location; `~/.codex/skills/` also works for backward compatibility. Codex 0.146.0 recognizes this repo's existing plugin manifest, so no Codex-specific manifest is needed.
 
-Copilot CLI shares the `~/.agents/skills/` discovery directory with Codex:
+### Copilot CLI
+
+Install directly from this repository:
 
 ```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-mkdir -p ~/.agents/skills
-ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+copilot plugin install CrowdStrike/foundry-skills
 ```
 
-Restart Copilot CLI to discover the skills.
+This installs all 10 skills, reading the plugin manifest already in the repo. Verify with `copilot plugin list`.
+
+Copilot warns that direct repository installs are deprecated in favor of `plugin@marketplace` installs. The command works today; a marketplace listing is tracked separately.
+
+Copilot CLI also shares the `~/.agents/skills/` discovery directory with Codex, so the clone-and-symlink approach above works as an alternative.
 
 ### Cursor (Experimental)
 
@@ -92,16 +96,24 @@ EOF
 
 Cursor activates the rule automatically when your prompt matches the description.
 
-### Antigravity CLI (Experimental)
+### Antigravity CLI
 
-Link the skills so Antigravity discovers them as native Agent Skills:
+Install directly from this repository:
+
+```bash
+agy plugin install https://github.com/CrowdStrike/foundry-skills
+```
+
+This installs all 10 skills plus the session hook, reading the plugin manifest already in the repo. Verify with `agy plugin list`.
+
+Alternatively, link the skills so Antigravity discovers them as native Agent Skills:
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
 agy skills link /path/to/foundry-skills/skills --scope user
 ```
 
-This creates symlinks in `~/.gemini/antigravity-cli/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.agents/skills/` instead. Verify with `agy skills list` or `/skills list` inside a session.
+Use `--scope workspace` to install into the current project's `.agents/skills/` instead. Verify with `agy skills list` or `/skills list` inside a session.
 
 Antigravity activates the right skill on demand based on your prompt.
 
