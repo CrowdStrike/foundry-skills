@@ -2,7 +2,7 @@
 
 # Falcon Foundry Skills
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/CrowdStrike/foundry-skills/releases/tag/v1.4.0)
 [![CI](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml)
 
 AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, and collections — all scaffolded with the Foundry CLI and deployed to the Falcon console.

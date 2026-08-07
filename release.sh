@@ -162,6 +162,9 @@ main() {
   # Use portable sed with temp file pattern (macOS and Linux compatible)
   sed 's/badge\/version-[0-9.]*-blue/badge\/version-'"$NEXT_VERSION"'-blue/' "$SCRIPT_DIR/README.md" > /tmp/README.md.tmp
   mv /tmp/README.md.tmp "$SCRIPT_DIR/README.md"
+  # Update the badge release link target
+  sed 's|releases/tag/v[0-9.]*|releases/tag/v'"$NEXT_VERSION"'|' "$SCRIPT_DIR/README.md" > /tmp/README.md.tmp
+  mv /tmp/README.md.tmp "$SCRIPT_DIR/README.md"
   printf "${GREEN}✓${RESET} README badge → v${NEXT_VERSION}\n"
 
   printf "\n${BLUE}Step 3: Update SKILL.md versions${RESET}\n"
