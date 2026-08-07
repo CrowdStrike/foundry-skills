@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - TBD
+
+### Fixed
+
+- **Replaced deprecated Detects API with Alerts API** — The `functions-falcon-api` skill now directs users to `from falconpy import Alerts` with `query_alerts_v2()` / `get_alerts_v2()` instead of the deprecated `Detects` class, which returns 405 Method Not Allowed. Filter by `product:'detections'` to scope results to detections only.
+
 ## [1.4.0] - 2026-07-31
 
 ### Added
