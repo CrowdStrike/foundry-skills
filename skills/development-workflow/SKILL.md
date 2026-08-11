@@ -250,7 +250,7 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 ## Multi-Cloud Deployment
 
-To deploy the same app to multiple clouds (US-1, US-2, EU-1, etc.):
+To deploy the same app to multiple clouds (US-1, US-2, US-3, EU-1, etc.):
 
 1. **Strip all IDs** before deploying to a new cloud — IDs are cloud-specific:
    ```bash

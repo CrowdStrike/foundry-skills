@@ -376,7 +376,7 @@ The sample apps use a shared `e2e.yml` workflow pattern. Rather than duplicating
 | `FOUNDRY_API_CLIENT_ID` | Foundry CLI authentication |
 | `FOUNDRY_API_CLIENT_SECRET` | Foundry CLI authentication |
 | `FOUNDRY_CID` | CrowdStrike Customer ID |
-| `FOUNDRY_CLOUD_REGION` | Cloud region (us-1, us-2, eu-1) |
+| `FOUNDRY_CLOUD_REGION` | Cloud region (us-1, us-2, us-3, eu-1) |
 | `FALCON_USERNAME` | Falcon console login for Playwright |
 | `FALCON_PASSWORD` | Falcon console password |
 | `FALCON_AUTH_SECRET` | TOTP secret for 2FA |

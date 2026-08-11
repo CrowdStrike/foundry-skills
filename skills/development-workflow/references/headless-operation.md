@@ -14,7 +14,7 @@ Set these environment variables to bypass local credential storage entirely:
 export FOUNDRY_API_CLIENT_ID="<your-api-client-id>"
 export FOUNDRY_API_CLIENT_SECRET="<your-api-client-secret>"
 export FOUNDRY_CID="<your-customer-id>"
-export FOUNDRY_CLOUD_REGION="us-1"  # us-1, us-2, eu-1, us-gov-1, us-gov-2
+export FOUNDRY_CLOUD_REGION="us-1"  # us-1, us-2, us-3, eu-1, us-gov-1, us-gov-2
 ```
 
 Environment variables override local credentials. No `foundry login` needed.

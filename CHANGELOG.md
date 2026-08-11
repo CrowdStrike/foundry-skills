@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - TBD
+
+### Added
+
+- US-3 cloud region to the cloud-region documentation: added `us-3` to the `FOUNDRY_CLOUD_REGION` value lists (headless-operation reference, e2e-testing env var table) and the multi-cloud deployment section. Foundry CLI 2.0.2 added US-3 support; the base URL (`api.us-3.crowdstrike.com`) is in FalconPy as of v1.6.4.
+
 ## [1.4.1] - 2026-08-07
 
 ### Fixed
