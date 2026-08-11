@@ -39,6 +39,18 @@ Falcon Foundry Collections are NoSQL document stores with JSON Schema validation
 | Allowed characters | Letters, numbers, spaces, dashes, periods, parentheses, and underscores only |
 | Not allowed | Commas, colons, semicolons, quotes, slashes, or other special characters |
 
+## Collection Limits
+
+| Resource | Limit |
+|----------|-------|
+| Single object size | ~50 MB |
+| Schema size | 256 KB |
+| Object key length | 1-1,000 characters |
+| Indexed fields per schema | 10 |
+| Objects per collection | No enforced limit |
+| Collections per app | No enforced limit |
+| Search results per page | 500 max (default 50) |
+
 ## JSON Schema Requirements
 
 - **JSON Schema draft 7 only** — newer drafts (`draft/2020-12`, `draft/2019-09`) fail validation
