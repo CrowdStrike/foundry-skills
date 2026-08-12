@@ -226,8 +226,7 @@ def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
     "now") or epoch-millisecond integers.
     """
     payload = {"queryString": query_string, "start": start, "end": end, "isLive": False}
-    # Pass the payload as search= — works on all FalconPy versions (body= only
-    # works on 1.6.5+; see the keyword note below).
+    # Must be search=, not body= — see the keyword gotcha below.
     started = ngsiem.start_search(repository=REPO, search=payload)
 
     if not isinstance(started, dict) or started.get("status_code", 500) >= 300:
