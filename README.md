@@ -44,12 +44,15 @@ the next time you start Claude Code with `--plugin-dir`; no reinstall is needed.
 
 ### Codex
 
-Codex discovers skills from `~/.agents/skills/`. Clone and symlink:
+Codex discovers individual skill directories from `~/.agents/skills/`. Clone
+the repository and symlink each skill:
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
 mkdir -p ~/.agents/skills
-ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+for skill in /path/to/foundry-skills/skills/*; do
+  ln -s "$skill" ~/.agents/skills/
+done
 ```
 
 Restart Codex to discover the skills. Run `/skills` to verify that all 10 skills
@@ -108,7 +111,19 @@ agy plugin install https://github.com/CrowdStrike/foundry-skills
 
 This installs all 10 skills plus the session hook, reading the plugin manifest already in the repo. Verify with `agy plugin list`.
 
-The first Antigravity session opens a Google OAuth login if the client is not
+Alternatively, symlink the skills into `~/.agents/skills/` so Antigravity discovers them as native Agent Skills:
+
+```bash
+git clone https://github.com/CrowdStrike/foundry-skills.git
+mkdir -p ~/.agents/skills
+for skill in /path/to/foundry-skills/skills/*; do
+  ln -s "$skill" ~/.agents/skills/
+done
+```
+
+Use `.agents/skills/` instead for workspace scope. Verify with `agy plugin list` or `/skills list` inside a session.
+
+The first Antigravity session opens an authentication prompt if the client is not
 already authenticated. Complete that login, then start a new session.
 Antigravity activates the right skill on demand based on your prompt.
 
