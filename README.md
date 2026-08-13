@@ -38,15 +38,9 @@ git clone https://github.com/CrowdStrike/foundry-skills.git
 claude --plugin-dir /path/to/foundry-skills
 ```
 
-The `--plugin-dir` flag loads the plugin for that session. To make it permanent, add it to your `.claude/settings.json`:
-
-```json
-{
-  "plugins": ["/path/to/foundry-skills"]
-}
-```
-
-Changes to skill files take effect on the next Claude Code session — no reinstall needed.
+The `--plugin-dir` flag loads the plugin for that session only. Run Claude with
+the flag again for each development session. Changes to skill files take effect
+the next time you start Claude Code with `--plugin-dir`; no reinstall is needed.
 
 ### Codex
 
@@ -58,9 +52,13 @@ mkdir -p ~/.agents/skills
 ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
 ```
 
-Restart Codex to discover the skills. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
+Restart Codex to discover the skills. Run `/skills` to verify that all 10 skills
+are available. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills)
+for details. If authentication is required, run `codex login`.
 
-`~/.agents/skills/` is the preferred location; `~/.codex/skills/` also works for backward compatibility. Codex 0.146.0 recognizes this repo's existing plugin manifest, so no Codex-specific manifest is needed.
+`~/.agents/skills/` is the preferred location; `~/.codex/skills/` also works
+for backward compatibility. Local skill discovery does not require a
+Codex-specific manifest.
 
 ### Copilot CLI
 
@@ -75,6 +73,10 @@ This installs all 10 skills, reading the plugin manifest already in the repo. Ve
 Copilot warns that direct repository installs are deprecated in favor of `plugin@marketplace` installs. The command works today; a marketplace listing is tracked separately.
 
 Copilot CLI also shares the `~/.agents/skills/` discovery directory with Codex, so the clone-and-symlink approach above works as an alternative.
+
+Before invoking the skills, authenticate with `gh auth login` or start
+`copilot` and use `/login`. Run `copilot skill list` to verify that all 10
+skills are available.
 
 ### Cursor (Experimental)
 
@@ -106,15 +108,8 @@ agy plugin install https://github.com/CrowdStrike/foundry-skills
 
 This installs all 10 skills plus the session hook, reading the plugin manifest already in the repo. Verify with `agy plugin list`.
 
-Alternatively, link the skills so Antigravity discovers them as native Agent Skills:
-
-```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-agy skills link /path/to/foundry-skills/skills --scope user
-```
-
-Use `--scope workspace` to install into the current project's `.agents/skills/` instead. Verify with `agy skills list` or `/skills list` inside a session.
-
+The first Antigravity session opens a Google OAuth login if the client is not
+already authenticated. Complete that login, then start a new session.
 Antigravity activates the right skill on demand based on your prompt.
 
 ### Other Tools
