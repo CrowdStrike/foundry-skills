@@ -61,7 +61,7 @@ case "$HOOK_EVENT" in
       # steering into app scaffolding. Without this the classifier is never
       # consulted at runtime and the agent tends to quietly author the workflow
       # itself, never telling the user a better-suited plugin exists.
-      REDIRECT_SCRIPT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/scripts/detect_fusion_redirect.py"
+      REDIRECT_SCRIPT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/skills/development-workflow/scripts/detect_fusion_redirect.py"
       if [ -f "$REDIRECT_SCRIPT" ]; then
         VERDICT=$(printf '%s' "$USER_PROMPT" | python3 "$REDIRECT_SCRIPT" 2>/dev/null || true)
         if echo "$VERDICT" | grep -q '"redirect": true'; then
@@ -106,11 +106,20 @@ case "$HOOK_EVENT" in
         if [ -n "$SPEC_FILE" ] && [ -f "$SPEC_FILE" ]; then
           # Find the adapt script relative to the plugin root
           PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-          ADAPT_SCRIPT="$PLUGIN_ROOT/scripts/adapt_spec_for_foundry.py"
+          ADAPT_SCRIPT="$PLUGIN_ROOT/skills/api-integrations/scripts/adapt_spec_for_foundry.py"
 
           # Run the adapt script automatically to fix known issues
           if [ -f "$ADAPT_SCRIPT" ]; then
-            ADAPT_OUTPUT=$(python3 "$ADAPT_SCRIPT" "$SPEC_FILE" 2>&1) || true
+            if ! ADAPT_OUTPUT=$(python3 "$ADAPT_SCRIPT" "$SPEC_FILE" 2>&1); then
+              jq -n --arg output "$ADAPT_OUTPUT" --arg requirements "$PLUGIN_ROOT/requirements.txt" '{
+                hookSpecificOutput: {
+                  hookEventName: "PreToolUse",
+                  decision: "block",
+                  reason: ("BLOCKED: OpenAPI adaptation failed:\n" + $output + "\n\nInstall the required Python packages, then retry:\npython3 -m pip install -r " + $requirements)
+                }
+              }'
+              exit 0
+            fi
             if [ -n "$ADAPT_OUTPUT" ]; then
               # Check for validation-only warnings (block, don't auto-fix)
               if echo "$ADAPT_OUTPUT" | grep -q 'expose_to_workflow.*directly under'; then

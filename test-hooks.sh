@@ -434,6 +434,23 @@ EOF
 OUTPUT=$(run_spec_hook "/tmp/test-spec-3-10.yaml")
 assert_empty "$OUTPUT" "3.10 no expose_to_workflow → ALLOW"
 
+# 3.10b — adapter dependency failure → BLOCK with install instructions
+cleanup
+cat > /tmp/test-spec-3-10b.json <<'EOF'
+{"openapi":"3.0.0","info":{"title":"Test","version":"1.0"},"paths":{}}
+EOF
+mkdir -p /tmp/foundry-test-fake-bin
+cat > /tmp/foundry-test-fake-bin/python3 <<'EOF'
+#!/usr/bin/env bash
+echo "ModuleNotFoundError: No module named 'yaml'" >&2
+exit 1
+EOF
+chmod +x /tmp/foundry-test-fake-bin/python3
+OUTPUT=$(PATH="/tmp/foundry-test-fake-bin:$PATH" run_spec_hook "/tmp/test-spec-3-10b.json")
+rm -rf /tmp/foundry-test-fake-bin
+assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.10b adapter dependency failure → BLOCK"
+assert_contains "$OUTPUT" "python3 -m pip install -r" "3.10b dependency failure includes install command"
+
 # 3.11 — JSON spec: default without enum → auto-fixed
 cleanup
 cat > /tmp/test-spec-3-11.json <<'EOF'

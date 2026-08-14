@@ -1,4 +1,4 @@
-"""Tests for scripts/action_search.py.
+"""Tests for skills/workflows-development/scripts/action_search.py.
 
 All CrowdStrike API calls are mocked; no credentials are needed. The
 credential tests drive get_credentials() through a patched Path.home() so the

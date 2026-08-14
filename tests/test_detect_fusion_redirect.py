@@ -1,4 +1,4 @@
-"""Tests for scripts/detect_fusion_redirect.py.
+"""Tests for skills/development-workflow/scripts/detect_fusion_redirect.py.
 
 Ported from the standalone scripts/test_detect_fusion_redirect.py assertion
 script to pytest so it runs under the coverage-gated CI job. No network or

@@ -1,4 +1,4 @@
-"""Tests for scripts/adapt_spec_for_foundry.py.
+"""Tests for skills/api-integrations/scripts/adapt_spec_for_foundry.py.
 
 Ported from the standalone scripts/test-adapt-spec.py assertion script to
 pytest so it runs under the same coverage-gated CI job as the other script

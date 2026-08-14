@@ -43,7 +43,7 @@ CrowdStrike Falcon API
 
 ## Workflow: Download, Adapt, Register
 
-**Always follow this order.** The adapt script is enforced by a PreToolUse hook that runs it automatically before `foundry api-integrations create`, but running it explicitly gives you visibility into what changed.
+**Always follow this order.** Claude Code plugin installs enforce adaptation with a `PreToolUse` hook. Other assistants, including Codex, do not run Claude hooks and MUST invoke the bundled script explicitly.
 
 ### 1. Download the vendor's spec
 
@@ -61,14 +61,15 @@ For detailed download commands and structural fix patterns, see [references/spec
 ### 2. Adapt the spec for Foundry (MANDATORY)
 
 ```bash
-# Adapt the spec — fixes auth, server URLs, deduplicates params
-python3 /path/to/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
+python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
 
 # Preview changes without writing
-python3 /path/to/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
+python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
 ```
 
-> **Note:** The PreToolUse hook runs this script automatically before `foundry api-integrations create`. Running it explicitly is optional — it lets you see what changed. The script is at the plugin root: `scripts/adapt_spec_for_foundry.py`.
+> **Dependencies:** The script requires `pyyaml`. Install dependencies once with `python3 -m pip install -r /path/to/foundry-skills/requirements.txt`. This applies to Claude Code plugin installs and other assistants; plugin installation does not install Python packages.
+
+The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 
 The script applies fixes derived from 12 production Foundry sample apps:
 - **Swagger 2.0 conversion**: Converts to OpenAPI 3.0 via `swagger2openapi` (npx)
@@ -90,7 +91,7 @@ foundry api-integrations create --name "VendorApi" --description "Vendor API" --
 
 Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose operations to workflows, or a UI extension / workflow in the app needs a specific endpoint. See [Expose Operations to Workflows](#expose-operations-to-workflows) below.
 
-**Safety net**: The PreToolUse hook runs `adapt_spec_for_foundry.py` automatically if you forget step 2. But running it explicitly lets you see what changed before registering.
+**Claude Code safety net:** The plugin hook runs `adapt_spec_for_foundry.py` automatically if step 2 is missed. Do not assume that protection exists in Codex, Copilot CLI, Cursor, or other assistants.
 
 ## Authentication Configuration
 
@@ -220,7 +221,7 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 - **Writing specs from scratch** when the vendor publishes one. Hand-written specs miss edge cases.
 - **Running spec linters before importing.** Foundry's import handles vendor specs with lint errors. Linting wastes time and tempts trimming.
 - **Trimming vendor specs.** Keep the full spec. Foundry handles large specs and unused operations gracefully.
-- **Skipping `adapt_spec_for_foundry.py`.** The hook runs it automatically, but explicit runs let you verify fixes. The script converts unsupported auth schemes and fixes server URLs that would otherwise block saving in the Foundry console.
+- **Skipping `adapt_spec_for_foundry.py`.** Only Claude Code plugin installs run the automatic hook. Other assistants must invoke the bundled helper. The script converts unsupported auth schemes and fixes server URLs that would otherwise block saving in the Falcon console.
 - **Including `https://` in server URLs** with variables. The Falcon console adds the protocol separately.
 - **Adding `default` to server variables** for dynamic domains. This renders a dropdown instead of a text field.
 - **Splitting domains** into `{subdomain}.vendor.com` instead of `{yourDomain}` for the full domain.

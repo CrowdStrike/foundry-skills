@@ -2,8 +2,8 @@
 """Search Foundry workflow actions by name via the CrowdStrike API.
 
 Usage:
-    python3 scripts/action_search.py "send email"
-    python3 scripts/action_search.py "contain" --details
+    python3 skills/workflows-development/scripts/action_search.py "send email"
+    python3 skills/workflows-development/scripts/action_search.py "contain" --details
 
 Reads credentials from the active Foundry CLI profile.
 Requires: falconpy, pyyaml (pip install crowdstrike-falconpy pyyaml)

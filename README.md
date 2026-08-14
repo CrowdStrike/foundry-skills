@@ -48,17 +48,28 @@ The `--plugin-dir` flag loads the plugin for that session. To make it permanent,
 
 Changes to skill files take effect on the next Claude Code session — no reinstall needed.
 
-### Codex (Experimental)
+### Codex
 
-Codex discovers skills from `~/.agents/skills/`. Clone and symlink:
+Install from the OpenAI Plugins Directory:
 
 ```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-mkdir -p ~/.agents/skills
-ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+codex plugin add crowdstrike-falcon-foundry
 ```
 
-Restart Codex to discover the skills. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
+Or register this repository as a plugin marketplace, then install:
+
+```bash
+codex plugin marketplace add CrowdStrike/foundry-skills
+codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
+```
+
+After the marketplace is registered, installing on another machine is one command:
+
+```bash
+codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
+```
+
+Codex discovers the bundled skills automatically. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
 
 ### Copilot CLI (Experimental)
 
@@ -117,9 +128,9 @@ This prompt exercises the full skill set — API integration, workflow, and UI:
 
 > Can you create a Falcon Foundry app for me that has an Okta API integration with openapi? Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
 
-### How skill routing works
+### How Claude Code skill routing works
 
-The skills include hooks that ensure the right skills get used:
+The Claude Code plugin includes hooks that ensure the right skills get used:
 
 1. **`UserPromptSubmit` hook** — Matches an action verb paired with a Foundry noun — e.g., "create a foundry app". Explicit CLI commands and skill requests also trigger it.
 
@@ -128,6 +139,8 @@ The skills include hooks that ensure the right skills get used:
 3. **`PreToolUse` hook (CLI guard)** — Validates all Bash commands to ensure Foundry CLI commands include `--no-prompt` flag (prevents `Error: EOF` failures) and blocks manual directory creation for app structure (prevents invalid `manifest.yml`). This enforcement is automatic and transparent — you'll only see it when it catches an error.
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
+
+Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the XDG configuration and network-sandbox diagnostics.
 
 ## Skills
 

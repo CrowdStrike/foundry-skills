@@ -1,0 +1,21 @@
+{
+  "name": "foundry-marketplace",
+  "interface": {
+    "displayName": "CrowdStrike Falcon Foundry"
+  },
+  "plugins": [
+    {
+      "name": "crowdstrike-falcon-foundry",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/CrowdStrike/foundry-skills.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

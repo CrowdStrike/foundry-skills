@@ -7,12 +7,12 @@
 #   ./release.sh --version X  # release exact version (e.g., first release)
 #
 # 1. Prompt for semantic version bump (or use --version)
-# 2. Update version in .claude-plugin/plugin.json
+# 2. Update Claude and Codex plugin metadata
 # 3. Update README version badge
 # 4. Update SKILL.md version and updated date
 # 5. Update CHANGELOG date (TBD → today)
-# 6. Commit, tag, and push
-# 7. Print instructions for the marketplace PR
+# 6. Commit and create a release PR
+# 7. Print post-merge marketplace instructions
 #
 set -euo pipefail
 
@@ -23,7 +23,10 @@ RED='\033[0;31m'
 RESET='\033[0m'
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PLUGIN_JSON="$SCRIPT_DIR/.claude-plugin/plugin.json"
+CLAUDE_PLUGIN_JSON="$SCRIPT_DIR/.claude-plugin/plugin.json"
+CODEX_PLUGIN_JSON="$SCRIPT_DIR/.codex-plugin/plugin.json"
+CLAUDE_MARKETPLACE_JSON="$SCRIPT_DIR/.claude-plugin/marketplace.json"
+CODEX_MARKETPLACE_JSON="$SCRIPT_DIR/.agents/plugins/marketplace.json"
 MARKETPLACE_URL="https://github.com/CrowdStrike/foundry-skills.git"
 EXPLICIT_VERSION=""
 
@@ -43,7 +46,7 @@ done
 
 # Read current version from plugin.json
 get_current_version() {
-  jq -r '.version' "$PLUGIN_JSON" 2>/dev/null || echo "0.0.0"
+  jq -r '.version' "$CLAUDE_PLUGIN_JSON" 2>/dev/null || echo "0.0.0"
 }
 
 # Parse semantic version into "major minor patch"
@@ -147,16 +150,21 @@ main() {
     exit 0
   fi
 
-  printf "\n${BLUE}Step 1: Update plugin.json${RESET}\n"
-  jq --arg v "$NEXT_VERSION" '.version = $v' "$PLUGIN_JSON" > /tmp/plugin.json.tmp
-  mv /tmp/plugin.json.tmp "$PLUGIN_JSON"
-  printf "${GREEN}✓${RESET} Updated to v${NEXT_VERSION}\n"
+  printf "\n${BLUE}Step 1: Update plugin manifests${RESET}\n"
+  jq --arg v "$NEXT_VERSION" '.version = $v' "$CLAUDE_PLUGIN_JSON" > /tmp/claude-plugin.json.tmp
+  mv /tmp/claude-plugin.json.tmp "$CLAUDE_PLUGIN_JSON"
+  jq --arg v "$NEXT_VERSION" '.version = $v' "$CODEX_PLUGIN_JSON" > /tmp/codex-plugin.json.tmp
+  mv /tmp/codex-plugin.json.tmp "$CODEX_PLUGIN_JSON"
+  printf "${GREEN}✓${RESET} Claude and Codex manifests → v${NEXT_VERSION}\n"
 
-  printf "\n${BLUE}Step 1b: Update marketplace.json${RESET}\n"
-  MARKETPLACE_JSON="$SCRIPT_DIR/.claude-plugin/marketplace.json"
-  jq --arg v "$NEXT_VERSION" '.plugins[0].version = $v' "$MARKETPLACE_JSON" > /tmp/marketplace.json.tmp
-  mv /tmp/marketplace.json.tmp "$MARKETPLACE_JSON"
-  printf "${GREEN}✓${RESET} Updated to v${NEXT_VERSION}\n"
+  printf "\n${BLUE}Step 1b: Update marketplace metadata${RESET}\n"
+  jq --arg v "$NEXT_VERSION" '.plugins[0].version = $v' "$CLAUDE_MARKETPLACE_JSON" > /tmp/claude-marketplace.json.tmp
+  mv /tmp/claude-marketplace.json.tmp "$CLAUDE_MARKETPLACE_JSON"
+  jq --arg ref "v${NEXT_VERSION}" \
+    '(.plugins[] | select(.name == "crowdstrike-falcon-foundry").source.ref) = $ref' \
+    "$CODEX_MARKETPLACE_JSON" > /tmp/codex-marketplace.json.tmp
+  mv /tmp/codex-marketplace.json.tmp "$CODEX_MARKETPLACE_JSON"
+  printf "${GREEN}✓${RESET} Marketplace metadata → v${NEXT_VERSION}\n"
 
   printf "\n${BLUE}Step 2: Update README badge${RESET}\n"
   # Use portable sed with temp file pattern (macOS and Linux compatible)
@@ -188,7 +196,10 @@ main() {
   printf "\n${BLUE}Step 5: Commit and create PR${RESET}\n"
   local release_branch="release/v${NEXT_VERSION}"
   git checkout -b "$release_branch"
-  git add "$PLUGIN_JSON" "$MARKETPLACE_JSON" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md "$SCRIPT_DIR/CHANGELOG.md" "$SCRIPT_DIR/release.sh"
+  git add "$CLAUDE_PLUGIN_JSON" "$CODEX_PLUGIN_JSON" \
+    "$CLAUDE_MARKETPLACE_JSON" "$CODEX_MARKETPLACE_JSON" \
+    "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md \
+    "$SCRIPT_DIR/CHANGELOG.md" "$SCRIPT_DIR/release.sh"
   git commit -m "Release v${NEXT_VERSION}"
   printf "${GREEN}✓${RESET} Committed v${NEXT_VERSION}\n"
 
@@ -211,6 +222,12 @@ main() {
   printf "  SHA: \$(git rev-parse v${NEXT_VERSION})\n\n"
   printf "Anthropic handles the marketplace pin bump internally. Do not open PRs to\n"
   printf "anthropics/claude-plugins-official or re-submit through the plugin submission form.\n\n"
+
+  printf "${BLUE}Step 9: Update OpenAI Plugins Directory${RESET}\n"
+  printf "\nAfter publishing the GitHub release, upload the updated skills-only bundle at:\n"
+  printf "  https://platform.openai.com/plugins\n\n"
+  printf "Submit the new version for review, then publish it after approval. The public\n"
+  printf "Plugins Directory uses reviewed snapshots rather than the repository marketplace ref.\n\n"
   printf "${GREEN}Done.${RESET}\n"
 }
 
