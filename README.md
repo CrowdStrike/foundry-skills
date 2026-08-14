@@ -79,23 +79,24 @@ skills are available.
 
 ### Cursor (Experimental)
 
-Add a rule file to your project's `.cursor/rules/` directory:
+Cursor discovers Agent Skills from `~/.agents/skills/` — the same directory Codex
+and Copilot CLI use. Clone the repo and symlink the skills:
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
-mkdir -p .cursor/rules
-cat > .cursor/rules/foundry-skills.mdc << 'EOF'
----
-description: Use when building Falcon Foundry apps — API integrations, workflows, UI pages, functions, collections
-alwaysApply: false
----
-
-Reference the Falcon Foundry skills in /path/to/foundry-skills/skills/ for building Foundry apps.
-The primary orchestrator is development-workflow/SKILL.md.
-EOF
+mkdir -p ~/.agents/skills
+for skill in /path/to/foundry-skills/skills/*; do
+  ln -s "$skill" ~/.agents/skills/
+done
 ```
 
-Cursor activates the rule automatically when your prompt matches the description.
+Use `.agents/skills/` inside a project for workspace scope instead. As an
+alternative to cloning, add the repo through the UI: **Customize → Rules → Add
+Rule → Remote Rule (GitHub)** and enter the repository URL.
+
+Cursor discovers skills on startup and activates the right one on demand based on
+your prompt; invoke one explicitly with `/<skill-name>`. Type `/` in Agent chat and
+confirm all 10 skills appear.
 
 ### Antigravity CLI
 
