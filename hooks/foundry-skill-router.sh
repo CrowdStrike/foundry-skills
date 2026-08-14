@@ -110,7 +110,16 @@ case "$HOOK_EVENT" in
 
           # Run the adapt script automatically to fix known issues
           if [ -f "$ADAPT_SCRIPT" ]; then
-            ADAPT_OUTPUT=$(python3 "$ADAPT_SCRIPT" "$SPEC_FILE" 2>&1) || true
+            if ! ADAPT_OUTPUT=$(python3 "$ADAPT_SCRIPT" "$SPEC_FILE" 2>&1); then
+              jq -n --arg output "$ADAPT_OUTPUT" --arg requirements "$PLUGIN_ROOT/requirements.txt" '{
+                hookSpecificOutput: {
+                  hookEventName: "PreToolUse",
+                  decision: "block",
+                  reason: ("BLOCKED: OpenAPI adaptation failed:\n" + $output + "\n\nInstall the required Python packages, then retry:\npython3 -m pip install -r " + $requirements)
+                }
+              }'
+              exit 0
+            fi
             if [ -n "$ADAPT_OUTPUT" ]; then
               # Check for validation-only warnings (block, don't auto-fix)
               if echo "$ADAPT_OUTPUT" | grep -q 'expose_to_workflow.*directly under'; then

@@ -67,7 +67,7 @@ python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_f
 python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
 ```
 
-> **Dependencies:** The script requires `pyyaml`. Claude Code plugin installs handle this automatically. Other assistants should install dependencies once: `pip install -r /path/to/foundry-skills/requirements.txt`
+> **Dependencies:** The script requires `pyyaml`. Install dependencies once with `python3 -m pip install -r /path/to/foundry-skills/requirements.txt`. This applies to Claude Code plugin installs and other assistants; plugin installation does not install Python packages.
 
 The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 
