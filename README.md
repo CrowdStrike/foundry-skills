@@ -50,18 +50,17 @@ Changes to skill files take effect on the next Claude Code session — no reinst
 
 ### Codex
 
-Register this repository as a Codex plugin marketplace, then install:
+Install from the OpenAI Plugins Directory:
+
+```bash
+codex plugin add crowdstrike-falcon-foundry
+```
+
+Or register this repository as a plugin marketplace, then install:
 
 ```bash
 codex plugin marketplace add CrowdStrike/foundry-skills
 codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-After the plugin is accepted into the universal Plugins Directory, installation
-will not require registering this repository:
-
-```bash
-codex plugin add crowdstrike-falcon-foundry
 ```
 
 After the marketplace is registered, installing on another machine is one command:
