@@ -44,8 +44,26 @@ foundry profile activate --name "my-profile"
 Run `foundry login --no-config` once in an interactive environment. This outputs credentials to stdout instead of saving to the config file, allowing you to capture and store them as environment variables.
 
 **Configuration File Location:**
-- Linux/macOS: `~/.config/foundry/configuration.yml`
+- Linux/macOS: `${XDG_CONFIG_HOME:-$HOME/.config}/foundry/configuration.yml`
 - Windows: `C:\Users\<username>\.config\foundry\configuration.yml`
+
+### XDG Configuration in Sandboxed Agents
+
+Some coding-agent launchers override `XDG_CONFIG_HOME`, which makes an existing
+Falcon Foundry profile appear to be missing. Normalize it before profile and
+tenant checks:
+
+```bash
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+foundry profile active
+foundry apps list
+```
+
+The Foundry CLI honors `XDG_CONFIG_HOME`. Do not set it to a temporary or
+workspace-local directory because that hides the user's existing profile. Do
+not copy `configuration.yml` into the workspace. If the assistant can see the
+profile but cannot update `$XDG_CONFIG_HOME/foundry`, request write access to
+that existing directory through the assistant's permission mechanism.
 
 ## Non-Interactive Command Flags
 
@@ -114,6 +132,8 @@ When operating as a CLI agent:
 4. **Always pass all required flags:** Never rely on interactive prompts — always include `--no-prompt` where supported
 5. **Use `--no-git` on `foundry apps create`:** Prevents git init prompts in environments where git may not be configured
 6. **Headless mode** is detected automatically by Foundry CLI v2.0.1+. For older versions or standalone scripts/CI, export `FOUNDRY_UI_HEADLESS_MODE=true` manually.
+7. **Normalize XDG configuration:** Export `XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"` before concluding that an existing profile is missing.
+8. **Choose the app directory automatically:** Use the current directory unless it is an unrelated repository; in that case use a sibling directory and request write access if the sandbox requires it.
 
 ### Sandboxed assistants
 

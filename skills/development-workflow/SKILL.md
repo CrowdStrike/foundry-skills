@@ -146,11 +146,37 @@ foundry profile active   # Verify authentication
 foundry apps list        # Check existing apps (avoid name collisions)
 ```
 
-If either fails, see [references/headless-operation.md](references/headless-operation.md) for setup options (env vars, non-interactive profile creation).
+Before treating a missing profile as an authentication failure, normalize the
+configuration lookup for agents that override XDG paths:
+
+```bash
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+foundry profile active
+```
+
+The Foundry CLI reads profiles from
+`$XDG_CONFIG_HOME/foundry/configuration.yml`. Do not point
+`XDG_CONFIG_HOME` at the app workspace or copy credentials into it. If the
+profile exists but the assistant cannot access that directory, request write
+access to the existing Foundry configuration directory and retry. If either
+command still fails, see
+[references/headless-operation.md](references/headless-operation.md) for setup
+options (env vars, non-interactive profile creation).
 
 ### Step 4: Scaffold the App
 
 **Prerequisite:** User must have confirmed the app name in Step 2. Do not run this without confirmation.
+
+Choose the app location without asking the user:
+
+1. If the current directory contains `manifest.yml`, use it as an existing app.
+2. If the current directory is not inside an unrelated repository, create the
+   app there.
+3. If the current directory is an unrelated repository, create the app as a
+   sibling under that repository's parent directory.
+4. If the selected parent is outside the assistant's writable sandbox, request
+   write access for that directory and retry the CLI command. Do not fall back
+   to putting the app inside the unrelated repository.
 
 ```bash
 foundry apps create --name "app-name" --description "description" --no-prompt --no-git
