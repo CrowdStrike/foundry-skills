@@ -61,17 +61,13 @@ For detailed download commands and structural fix patterns, see [references/spec
 ### 2. Adapt the spec for Foundry (MANDATORY)
 
 ```bash
-# One-time isolated dependency setup in the foundry-skills checkout
-SKILLS_REPO=/path/to/foundry-skills
-python3 -m venv "$SKILLS_REPO/.venv"
-"$SKILLS_REPO/.venv/bin/python" -m pip install -r "$SKILLS_REPO/requirements.txt"
-
-# Adapt the spec — fixes auth, server URLs, deduplicates params
-"$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/api-integrations/scripts/adapt_spec_for_foundry.py" /tmp/VendorApi.yaml
+python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
 
 # Preview changes without writing
-"$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/api-integrations/scripts/adapt_spec_for_foundry.py" /tmp/VendorApi.yaml --dry-run
+python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
 ```
+
+> **Dependencies:** The script requires `pyyaml`. Claude Code plugin installs handle this automatically. Other assistants should install dependencies once: `pip install -r /path/to/foundry-skills/requirements.txt`
 
 The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 

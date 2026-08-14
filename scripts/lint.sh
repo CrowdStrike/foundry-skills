@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
 #
-# lint.sh — Run pylint on all Python scripts
+# lint.sh — Run pylint on all skill-bundled Python scripts
 #
 # Usage: ./scripts/lint.sh
 #
 set -euo pipefail
 
-SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RCFILE="$REPO_ROOT/.pylintrc"
 FAIL=0
 
-for py in "$SCRIPTS_DIR"/*.py; do
+for py in "$REPO_ROOT"/skills/*/scripts/*.py; do
   [ -f "$py" ] || continue
-  name=$(basename "$py")
-  printf "%-35s " "$name"
+  name="${py#"$REPO_ROOT"/}"
+  printf "%-60s " "$name"
   score=$(pipx run pylint --rcfile="$RCFILE" "$py" 2>&1 | sed -n 's/.*rated at \([0-9.]*\).*/\1/p')
   [ -z "$score" ] && score="ERR"
   if [ "$score" = "10.00" ] || [ "$score" = "10.0" ]; then

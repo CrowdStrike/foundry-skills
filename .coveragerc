@@ -1,0 +1,9 @@
+[run]
+source =
+    skills/api-integrations/scripts
+    skills/development-workflow/scripts
+    skills/workflows-development/scripts
+
+[report]
+fail_under = 90
+show_missing = true

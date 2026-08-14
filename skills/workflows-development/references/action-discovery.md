@@ -7,9 +7,8 @@
 Use the workflow skill's bundled `scripts/action_search.py` to search for platform actions by name. This script queries the API directly and works in headless/CI environments where the CLI's interactive prompt fails:
 
 ```bash
-SKILLS_REPO=/path/to/foundry-skills
-"$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/workflows-development/scripts/action_search.py" "send email"
-"$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/workflows-development/scripts/action_search.py" "contain" --details
+python3 /path/to/foundry-skills/skills/workflows-development/scripts/action_search.py "send email"
+python3 /path/to/foundry-skills/skills/workflows-development/scripts/action_search.py "contain" --details
 ```
 
 The script reads credentials from the active Foundry CLI profile, authenticates via OAuth, and prints action IDs with their `version_constraint` values.

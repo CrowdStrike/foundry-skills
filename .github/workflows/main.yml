@@ -173,4 +173,4 @@ jobs:
           python -m pip install -r requirements-test.txt
       - name: Run unit tests
         run: |
-          python -m pytest tests/ -v --cov=skills/api-integrations/scripts --cov=skills/development-workflow/scripts --cov=skills/workflows-development/scripts --cov-report=term-missing --cov-fail-under=90
+          python -m pytest tests/ -v
