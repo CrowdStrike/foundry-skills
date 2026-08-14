@@ -57,6 +57,13 @@ codex plugin marketplace add CrowdStrike/foundry-skills
 codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
+After the plugin is accepted into the universal Plugins Directory, installation
+will not require registering this repository:
+
+```bash
+codex plugin add crowdstrike-falcon-foundry
+```
+
 After the marketplace is registered, installing on another machine is one command:
 
 ```bash

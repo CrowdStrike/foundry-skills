@@ -8,7 +8,8 @@
       "name": "crowdstrike-falcon-foundry",
       "source": {
         "source": "url",
-        "url": "https://github.com/CrowdStrike/foundry-skills.git"
+        "url": "https://github.com/CrowdStrike/foundry-skills.git",
+        "ref": "main"
       },
       "policy": {
         "installation": "AVAILABLE",
