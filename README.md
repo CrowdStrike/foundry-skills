@@ -59,10 +59,6 @@ Restart Codex to discover the skills. Run `/skills` to verify that all 10 skills
 are available. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills)
 for details. If authentication is required, run `codex login`.
 
-`~/.agents/skills/` is the preferred location; `~/.codex/skills/` also works
-for backward compatibility. Local skill discovery does not require a
-Codex-specific manifest.
-
 ### Copilot CLI
 
 Install directly from this repository:
