@@ -48,17 +48,22 @@ The `--plugin-dir` flag loads the plugin for that session. To make it permanent,
 
 Changes to skill files take effect on the next Claude Code session — no reinstall needed.
 
-### Codex (Experimental)
+### Codex
 
-Codex discovers skills from `~/.agents/skills/`. Clone and symlink:
+Register this repository as a Codex plugin marketplace, then install:
 
 ```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-mkdir -p ~/.agents/skills
-ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+codex plugin marketplace add CrowdStrike/foundry-skills
+codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
-Restart Codex to discover the skills. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
+After the marketplace is registered, installing on another machine is one command:
+
+```bash
+codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
+```
+
+Codex discovers the bundled skills automatically. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
 
 ### Copilot CLI (Experimental)
 
@@ -129,7 +134,7 @@ The Claude Code plugin includes hooks that ensure the right skills get used:
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
 
-Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly.
+Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the XDG configuration and network-sandbox diagnostics.
 
 ## Skills
 
