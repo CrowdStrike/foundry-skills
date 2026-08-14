@@ -18,7 +18,7 @@ The skills are markdown-based and usable by any AI coding assistant. Claude Code
 - `skills/` - 9 specialized development skills, each with a `SKILL.md` file
 - `hooks/` - Hook scripts for Claude Code plugin integration
 - `use-cases/` - Real-world implementation patterns extracted from [CrowdStrike Tech Hub](https://www.crowdstrike.com/tech-hub/ng-siem/?cspage=0&lang=English&type=Article) blog posts
-- `scripts/` - Helper scripts (OpenAPI spec adaptation, linting)
+- `scripts/` and `skills/*/scripts/` - Shared and skill-specific helpers
 - `.claude-plugin/` - Claude Code plugin manifest and marketplace configuration
 
 ## Skills Ecosystem

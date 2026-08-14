@@ -50,7 +50,7 @@ foundry workflows actions view --name "send email" --no-prompt --mock       # Mo
 foundry workflows triggers view --no-prompt                                 # List triggers
 ```
 
-> **⚠️ Always use `--no-prompt` on `actions view` and `triggers view`.** The `--name` filter is fuzzy — partial matches trigger an interactive prompt that fails in headless environments (`Error: no TTY available`). If the CLI errors or hangs, use `python3 scripts/action_search.py "name"` instead — see [references/action-discovery.md](references/action-discovery.md).
+> **⚠️ Always use `--no-prompt` on `actions view` and `triggers view`.** The `--name` filter is fuzzy — partial matches trigger an interactive prompt that fails in headless environments (`Error: no TTY available`). If the CLI errors or hangs, use the bundled `action_search.py` — see [references/action-discovery.md](references/action-discovery.md).
 
 ## Workflow Structure
 
@@ -237,7 +237,7 @@ The data path follows the pattern: `action_key.API_Integration.Custom_{Integrati
 
 Use Print data as the primary output action. Only add Send email when the user explicitly requests it. In headless/automated runs (`claude -p`), use Print data only — skip Send email entirely since the recipient cannot be prompted.
 
-In interactive mode, when the user requests email, **ask for their email address via AskUserQuestion** before adding the Send email action. Never guess or infer the email from context. The `to` field must contain a real email address — placeholders like `user@example.com` cause workflow execution failure at runtime.
+In interactive mode, when the user requests email, **ask for their email address with the assistant's available input mechanism**. If none exists, ask in chat. Never guess or infer the email from context. The `to` field must contain a real email address — placeholders like `user@example.com` fail at runtime.
 
 ```yaml
     send_email:

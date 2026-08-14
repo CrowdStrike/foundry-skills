@@ -13,9 +13,9 @@ Does NOT add x-cs-operation-config — which operations to expose to workflows i
 prompt-driven decision the agent makes based on user requirements.
 
 Usage:
-  python3 scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
-  python3 scripts/adapt_spec_for_foundry.py /tmp/VendorApi.json -o /tmp/adapted.json
-  python3 scripts/adapt_spec_for_foundry.py spec.yaml --dry-run
+  python3 skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
+  python3 skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.json -o /tmp/adapted.json
+  python3 skills/api-integrations/scripts/adapt_spec_for_foundry.py spec.yaml --dry-run
 """
 
 import argparse

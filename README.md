@@ -117,9 +117,9 @@ This prompt exercises the full skill set — API integration, workflow, and UI:
 
 > Can you create a Falcon Foundry app for me that has an Okta API integration with openapi? Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
 
-### How skill routing works
+### How Claude Code skill routing works
 
-The skills include hooks that ensure the right skills get used:
+The Claude Code plugin includes hooks that ensure the right skills get used:
 
 1. **`UserPromptSubmit` hook** — Matches an action verb paired with a Foundry noun — e.g., "create a foundry app". Explicit CLI commands and skill requests also trigger it.
 
@@ -128,6 +128,8 @@ The skills include hooks that ensure the right skills get used:
 3. **`PreToolUse` hook (CLI guard)** — Validates all Bash commands to ensure Foundry CLI commands include `--no-prompt` flag (prevents `Error: EOF` failures) and blocks manual directory creation for app structure (prevents invalid `manifest.yml`). This enforcement is automatic and transparent — you'll only see it when it catches an error.
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
+
+Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly.
 
 ## Skills
 

@@ -101,6 +101,10 @@ foundry profile delete --name <name> --no-prompt # Reset corrupted profile
 foundry login                                    # Re-authenticate
 ```
 
+### Sandboxed Agent Connectivity
+
+If `foundry version`, `foundry profile list`, and `foundry profile active` succeed but tenant commands return only `connection issue`, ask the user to run the same command in their terminal. When it works there, explain that the agent process is likely sandboxed and request elevated or unsandboxed network access. Retry once with the assistant's supported permission mechanism before changing credentials. If elevation is unavailable, tell the user which permission to enable or provide the exact command to run and ask for its output. Local profile commands do not prove that the agent process can reach the tenant.
+
 ### Manifest Validation
 
 Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. For OpenAPI specs, use `npx @redocly/cli lint` to validate structure locally.
@@ -170,6 +174,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Deploy fails silently | Tenant missing required module (SKU) | Verify tenant has Falcon module for scopes |
 | Local server won't start | Port conflicts | Use `--port` flag or kill existing processes |
 | Auth works locally, fails in CI | No config file in CI | Set `FOUNDRY_API_CLIENT_ID` env vars |
+| Tenant command works for user, not agent | Agent network sandbox | Request elevation, then retry once |
 | Page 404 after deploy/release | App not installed from App Catalog | Install from catalog, wait for propagation |
 | Page 404 on new cloud only | Cloud-specific IDs in manifest | Strip IDs with yq before deploying to new cloud |
 | Blank page, no CORS errors | Vite `root` changed from `src` | Restore `root: 'src'` in vite.config.js |
@@ -236,4 +241,3 @@ Before seeking external help:
 - [ ] Reviewed CLI error messages
 - [ ] Attempted recovery procedures
 - [ ] Documented reproduction steps
-

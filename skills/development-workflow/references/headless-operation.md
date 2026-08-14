@@ -104,7 +104,7 @@ export FOUNDRY_UI_DOMAIN="https://falcon.laggar.gcw.crowdstrike.com"
 export FOUNDRY_API_GW_DOMAIN="https://api.laggar.gcw.crowdstrike.com"
 ```
 
-## Agent-Specific Guidance (Claude Code)
+## Agent-Specific Guidance
 
 When operating as a CLI agent:
 
@@ -114,6 +114,12 @@ When operating as a CLI agent:
 4. **Always pass all required flags:** Never rely on interactive prompts — always include `--no-prompt` where supported
 5. **Use `--no-git` on `foundry apps create`:** Prevents git init prompts in environments where git may not be configured
 6. **Headless mode** is detected automatically by Foundry CLI v2.0.1+. For older versions or standalone scripts/CI, export `FOUNDRY_UI_HEADLESS_MODE=true` manually.
+
+### Sandboxed assistants
+
+Some assistants run shell commands with network sandboxing. A profile command can succeed because it reads local configuration while a tenant command such as `foundry apps list` or `foundry apps validate` fails with only `connection issue`.
+
+If the same tenant command works in the user's terminal, explain that the agent process is likely sandboxed and request elevated or unsandboxed network access. Then retry the command once with the assistant's supported permission mechanism. If elevation is unavailable, tell the user which permission to enable or give them the exact command to run and ask for its output. Do not delete or recreate the user's profile before this comparison. If elevated execution still fails, continue with the authentication diagnostics above.
 
 ## Counter-Rationalizations for Interactive Mode
 

@@ -4,12 +4,12 @@
 
 ## action_search.py (preferred)
 
-Use `scripts/action_search.py` to search for platform actions by name. This script queries the API directly and works in headless/CI environments where the CLI's interactive prompt fails:
+Use the workflow skill's bundled `scripts/action_search.py` to search for platform actions by name. This script queries the API directly and works in headless/CI environments where the CLI's interactive prompt fails:
 
 ```bash
-python3 scripts/action_search.py "send email"              # Search by name (fuzzy)
-python3 scripts/action_search.py "contain" --details       # Full details with properties
-python3 scripts/action_search.py "get alerts v2"           # Specific action
+SKILLS_REPO=/path/to/foundry-skills
+"$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/workflows-development/scripts/action_search.py" "send email"
+"$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/workflows-development/scripts/action_search.py" "contain" --details
 ```
 
 The script reads credentials from the active Foundry CLI profile, authenticates via OAuth, and prints action IDs with their `version_constraint` values.

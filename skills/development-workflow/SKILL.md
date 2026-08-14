@@ -103,7 +103,7 @@ A negated capability is not a request for it. "no UI", "without a function",
 "I don't need a collection" all mean the request is *smaller*, not larger — so
 they push **toward** redirecting, never away. If every action already exists and
 there's no UI/function/collection to build, redirect. The routing decision is
-yours; `scripts/detect_fusion_redirect.py` is available as a heuristic
+yours; `scripts/detect_fusion_redirect.py` beside this skill is available as a heuristic
 cross-check and never blocks.
 
 
@@ -132,9 +132,9 @@ Use cases cover common scenarios like API pagination, detection enrichment, look
 
 ### Step 2: Confirm App Name and Capabilities
 
-**Always confirm the app name with the user via AskUserQuestion before creating anything.** Derive a reasonable default from the user's request (e.g., "okta-integration" for an Okta API integration), then present it as the recommended option with 1-2 alternatives. Include a brief description of what will be created.
+**Always confirm the app name with the user before creating anything.** Use the assistant's available user-input mechanism; if none exists, ask directly in chat. Derive a reasonable default from the user's request (e.g., "okta-integration" for an Okta API integration), then present it as the recommended option with 1-2 alternatives. Include a brief description of what will be created.
 
-**Page vs Extension disambiguation:** When the user mentions "UI" without specifying "page" or "extension", ask which they want via AskUserQuestion. Offer two options: "Page" (standalone full-page view — dashboards, lists, management UIs) and "Extension" (sidebar widget embedded in detection/host/incident pages). Default to Page when running non-interactively (e.g., `claude -p` or test automation) since pages are the more common case.
+**Page vs Extension disambiguation:** When the user mentions "UI" without specifying "page" or "extension", ask which they want using the available user-input mechanism. Offer two options: "Page" (standalone full-page view — dashboards, lists, management UIs) and "Extension" (sidebar widget embedded in detection/host/incident pages). Default to Page when running non-interactively (e.g., agent batch mode or test automation) since pages are the more common case.
 
 For other decisions, prefer reasonable defaults: use React for UI, download public OpenAPI specs from vendor GitHub repos. Only ask additional clarifying questions when the prompt is genuinely ambiguous and a wrong guess would produce an unusable app.
 
