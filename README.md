@@ -28,6 +28,29 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. These skills follow the [Agent Plugins](https://agent-plugins.org) format; any assistant that reads from `~/.agents/skills/` can discover them. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
 
+<details>
+<summary><strong>Install from this repository</strong> (for development or testing a branch)</summary>
+
+```bash
+git clone https://github.com/CrowdStrike/foundry-skills.git
+```
+
+| Assistant | Command |
+|-----------|---------|
+| Claude Code | `claude --plugin-dir /path/to/foundry-skills` |
+| Codex | `codex plugin marketplace add CrowdStrike/foundry-skills && codex plugin add crowdstrike-falcon-foundry@foundry-marketplace` |
+| Copilot CLI | `copilot plugin install CrowdStrike/foundry-skills` |
+| Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` |
+
+Cursor does not support installing from a local repo. Use the symlink fallback:
+
+```bash
+mkdir -p ~/.agents/skills
+ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+```
+
+</details>
+
 ## Usage
 
 ### Example prompt
