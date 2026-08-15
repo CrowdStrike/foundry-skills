@@ -16,41 +16,24 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 - **Authentication**: Run `foundry login` to authenticate
 - **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI, or any tool that supports loading reference documentation
 
-### Claude Code (Tested)
+### Claude Code
 
-Install from the [Anthropic Plugin Marketplace](https://github.com/anthropics/claude-plugins-official):
+Install from the [Anthropic Plugin Marketplace](https://claude.com/plugins/crowdstrike-falcon-foundry):
 
 ```
 /plugin install crowdstrike-falcon-foundry
 ```
 
-Or register this repo as a plugin marketplace, then install:
-
-```
-/plugin marketplace add CrowdStrike/foundry-skills
-/plugin install crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-Or install from a local clone for development:
+Or load a local clone for development:
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
 claude --plugin-dir /path/to/foundry-skills
 ```
 
-The `--plugin-dir` flag loads the plugin for that session. To make it permanent, add it to your `.claude/settings.json`:
-
-```json
-{
-  "plugins": ["/path/to/foundry-skills"]
-}
-```
-
-Changes to skill files take effect on the next Claude Code session — no reinstall needed.
+Skill edits take effect on the next session without reinstalling. For a walkthrough, see [Build Falcon Foundry Apps with Claude Code](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/).
 
 ### Codex
-
-Install from the OpenAI Plugins Directory:
 
 ```bash
 codex plugin add crowdstrike-falcon-foundry
@@ -63,17 +46,23 @@ codex plugin marketplace add CrowdStrike/foundry-skills
 codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
-After the marketplace is registered, installing on another machine is one command:
+### Copilot CLI
 
 ```bash
-codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
+copilot plugin install CrowdStrike/foundry-skills
 ```
 
-Codex discovers the bundled skills automatically. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
+Verify with `copilot plugin list`. Authenticate with `gh auth login` before invoking skills.
 
-### Copilot CLI (Experimental)
+### Cursor
 
-Copilot CLI shares the `~/.agents/skills/` discovery directory with Codex:
+Pending [Cursor Marketplace](https://cursor.com/marketplace) approval. Once listed:
+
+```
+/add-plugin crowdstrike-falcon-foundry
+```
+
+Until then, clone and symlink:
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
@@ -81,44 +70,17 @@ mkdir -p ~/.agents/skills
 ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
 ```
 
-Restart Copilot CLI to discover the skills.
-
-### Cursor (Experimental)
-
-Add a rule file to your project's `.cursor/rules/` directory:
+### Antigravity CLI
 
 ```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-mkdir -p .cursor/rules
-cat > .cursor/rules/foundry-skills.mdc << 'EOF'
----
-description: Use when building Falcon Foundry apps — API integrations, workflows, UI pages, functions, collections
-alwaysApply: false
----
-
-Reference the Falcon Foundry skills in /path/to/foundry-skills/skills/ for building Foundry apps.
-The primary orchestrator is development-workflow/SKILL.md.
-EOF
+agy plugin install https://github.com/CrowdStrike/foundry-skills
 ```
 
-Cursor activates the rule automatically when your prompt matches the description.
-
-### Antigravity CLI (Experimental)
-
-Link the skills so Antigravity discovers them as native Agent Skills:
-
-```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-agy skills link /path/to/foundry-skills/skills --scope user
-```
-
-This creates symlinks in `~/.gemini/antigravity-cli/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.agents/skills/` instead. Verify with `agy skills list` or `/skills list` inside a session.
-
-Antigravity activates the right skill on demand based on your prompt.
+Verify with `agy plugin list`. Alternatively, use `agy skills link /path/to/foundry-skills/skills --scope user` to symlink for all workspaces.
 
 ### Other Tools
 
-These skills are plain markdown files. Any AI coding assistant that can read local files can use them. See `AGENTS.md` for the full development guide, or point your tool at the `skills/` directory and start with `development-workflow/SKILL.md` as the entry point.
+These skills follow the [Agent Plugins](https://agent-plugins.org) format. Any AI coding assistant that reads Agent Skills from `~/.agents/skills/` can discover them. See `AGENTS.md` for the full development guide, or start with `skills/development-workflow/SKILL.md` as the entry point.
 
 ## Usage
 

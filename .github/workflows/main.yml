@@ -43,7 +43,9 @@ jobs:
       - name: Validate hooks.json
         run: python -m json.tool hooks/hooks.json > /dev/null
       - name: Validate plugin.json
-        run: python -m json.tool .claude-plugin/plugin.json > /dev/null
+        run: |
+          python -m json.tool .claude-plugin/plugin.json > /dev/null
+          python -m json.tool plugin.json > /dev/null
       - name: Validate SKILL.md frontmatter
         run: |
           fail=0
@@ -108,6 +110,13 @@ jobs:
           # marketplace.json must match plugin.json
           if [ "$marketplace_version" != "$plugin_version" ]; then
             echo "FAIL: marketplace.json plugins[0].version '$marketplace_version' != plugin.json '$plugin_version'"
+            fail=1
+          fi
+
+          # Root Agent Plugins manifest must match plugin.json
+          root_plugin_version=$(jq -r '.version' plugin.json)
+          if [ "$root_plugin_version" != "$plugin_version" ]; then
+            echo "FAIL: plugin.json version '$root_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
             fail=1
           fi
 
