@@ -24,7 +24,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 | Codex | `codex plugin add crowdstrike-falcon-foundry` | [OpenAI](https://chatgpt.com/plugins) (pending) |
 | Copilot CLI | `copilot plugin install CrowdStrike/foundry-skills` | [GitHub](https://github.com/marketplace?type=copilot-plugins) |
 | Cursor | `/add-plugin crowdstrike-falcon-foundry` | [Cursor](https://cursor.com/marketplace) (pending) |
-| Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | |
+| Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | [Gemini CLI](https://geminicli.com/extensions/) |
 
 For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. These skills follow the [Agent Plugins](https://agent-plugins.org) format; any assistant that reads from `~/.agents/skills/` can discover them. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
 
