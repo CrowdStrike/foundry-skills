@@ -18,82 +18,15 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 ### Install
 
-<details open>
-<summary><strong>Claude Code</strong></summary>
+| Assistant | Install command | Notes |
+|-----------|----------------|-------|
+| **Claude Code** | `/plugin install crowdstrike-falcon-foundry` | [Blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) · Local dev: `claude --plugin-dir /path/to/foundry-skills` |
+| **Codex** | `codex plugin add crowdstrike-falcon-foundry` | |
+| **Copilot CLI** | `copilot plugin install CrowdStrike/foundry-skills` | `gh auth login` first |
+| **Cursor** | `ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills` | [Marketplace](https://cursor.com/marketplace) listing pending |
+| **Antigravity CLI** | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | |
 
-```
-/plugin install crowdstrike-falcon-foundry
-```
-
-Or load a local clone for development: `claude --plugin-dir /path/to/foundry-skills`
-
-Skill edits take effect on the next session without reinstalling. For a walkthrough, see [Build Falcon Foundry Apps with Claude Code](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/).
-
-</details>
-
-<details>
-<summary><strong>Codex</strong></summary>
-
-```bash
-codex plugin add crowdstrike-falcon-foundry
-```
-
-Or register this repository as a plugin marketplace, then install:
-
-```bash
-codex plugin marketplace add CrowdStrike/foundry-skills
-codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-</details>
-
-<details>
-<summary><strong>Copilot CLI</strong></summary>
-
-```bash
-copilot plugin install CrowdStrike/foundry-skills
-```
-
-Verify with `copilot plugin list`. Authenticate with `gh auth login` before invoking skills.
-
-</details>
-
-<details>
-<summary><strong>Cursor</strong></summary>
-
-Pending [Cursor Marketplace](https://cursor.com/marketplace) approval. Once listed:
-
-```
-/add-plugin crowdstrike-falcon-foundry
-```
-
-Until then, clone and symlink:
-
-```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-mkdir -p ~/.agents/skills
-ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
-```
-
-</details>
-
-<details>
-<summary><strong>Antigravity CLI</strong></summary>
-
-```bash
-agy plugin install https://github.com/CrowdStrike/foundry-skills
-```
-
-Verify with `agy plugin list`. Alternatively, use `agy skills link /path/to/foundry-skills/skills --scope user` to symlink for all workspaces.
-
-</details>
-
-<details>
-<summary><strong>Other tools</strong></summary>
-
-These skills follow the [Agent Plugins](https://agent-plugins.org) format. Any AI coding assistant that reads Agent Skills from `~/.agents/skills/` can discover them. See `AGENTS.md` for the full development guide, or start with `skills/development-workflow/SKILL.md` as the entry point.
-
-</details>
+These skills follow the [Agent Plugins](https://agent-plugins.org) format. Any assistant that reads from `~/.agents/skills/` can discover them. See `AGENTS.md` for the full development guide.
 
 ## Usage
 
