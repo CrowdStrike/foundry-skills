@@ -18,15 +18,15 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 ### Install
 
-| Assistant | Install command | Notes |
-|-----------|----------------|-------|
-| **Claude Code** | `/plugin install crowdstrike-falcon-foundry` | [Blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) · Local dev: `claude --plugin-dir /path/to/foundry-skills` |
-| **Codex** | `codex plugin add crowdstrike-falcon-foundry` | |
-| **Copilot CLI** | `copilot plugin install CrowdStrike/foundry-skills` | `gh auth login` first |
-| **Cursor** | `ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills` | [Marketplace](https://cursor.com/marketplace) listing pending |
-| **Antigravity CLI** | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | |
+| Assistant | Command |
+|-----------|---------|
+| Claude Code | `/plugin install crowdstrike-falcon-foundry` |
+| Codex | `codex plugin add crowdstrike-falcon-foundry` |
+| Copilot CLI | `copilot plugin install CrowdStrike/foundry-skills` |
+| Cursor | `/add-plugin crowdstrike-falcon-foundry` |
+| Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` |
 
-These skills follow the [Agent Plugins](https://agent-plugins.org) format. Any assistant that reads from `~/.agents/skills/` can discover them. See `AGENTS.md` for the full development guide.
+For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. These skills follow the [Agent Plugins](https://agent-plugins.org) format; any assistant that reads from `~/.agents/skills/` can discover them. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
 
 ## Usage
 
