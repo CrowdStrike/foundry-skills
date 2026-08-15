@@ -16,24 +16,23 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 - **Authentication**: Run `foundry login` to authenticate
 - **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI, or any tool that supports loading reference documentation
 
-### Claude Code
+### Install
 
-Install from the [Anthropic Plugin Marketplace](https://claude.com/plugins/crowdstrike-falcon-foundry):
+<details open>
+<summary><strong>Claude Code</strong></summary>
 
 ```
 /plugin install crowdstrike-falcon-foundry
 ```
 
-Or load a local clone for development:
-
-```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-claude --plugin-dir /path/to/foundry-skills
-```
+Or load a local clone for development: `claude --plugin-dir /path/to/foundry-skills`
 
 Skill edits take effect on the next session without reinstalling. For a walkthrough, see [Build Falcon Foundry Apps with Claude Code](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/).
 
-### Codex
+</details>
+
+<details>
+<summary><strong>Codex</strong></summary>
 
 ```bash
 codex plugin add crowdstrike-falcon-foundry
@@ -46,7 +45,10 @@ codex plugin marketplace add CrowdStrike/foundry-skills
 codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
-### Copilot CLI
+</details>
+
+<details>
+<summary><strong>Copilot CLI</strong></summary>
 
 ```bash
 copilot plugin install CrowdStrike/foundry-skills
@@ -54,7 +56,10 @@ copilot plugin install CrowdStrike/foundry-skills
 
 Verify with `copilot plugin list`. Authenticate with `gh auth login` before invoking skills.
 
-### Cursor
+</details>
+
+<details>
+<summary><strong>Cursor</strong></summary>
 
 Pending [Cursor Marketplace](https://cursor.com/marketplace) approval. Once listed:
 
@@ -70,7 +75,10 @@ mkdir -p ~/.agents/skills
 ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
 ```
 
-### Antigravity CLI
+</details>
+
+<details>
+<summary><strong>Antigravity CLI</strong></summary>
 
 ```bash
 agy plugin install https://github.com/CrowdStrike/foundry-skills
@@ -78,9 +86,14 @@ agy plugin install https://github.com/CrowdStrike/foundry-skills
 
 Verify with `agy plugin list`. Alternatively, use `agy skills link /path/to/foundry-skills/skills --scope user` to symlink for all workspaces.
 
-### Other Tools
+</details>
+
+<details>
+<summary><strong>Other tools</strong></summary>
 
 These skills follow the [Agent Plugins](https://agent-plugins.org) format. Any AI coding assistant that reads Agent Skills from `~/.agents/skills/` can discover them. See `AGENTS.md` for the full development guide, or start with `skills/development-workflow/SKILL.md` as the entry point.
+
+</details>
 
 ## Usage
 
