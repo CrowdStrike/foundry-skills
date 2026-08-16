@@ -82,3 +82,36 @@ if __name__ == '__main__':
 | "Mocking is extra work" | Real API calls in tests are slow, flaky, and quota-consuming |
 | "I can skip the FDK handler pattern" | Handler pattern is required for automatic auth injection |
 | "I'll use the Detects class for detection queries" | The Detects API is deprecated (405 errors). Use `Alerts()` with `query_alerts_v2` — filter by `product:'detections'` to scope to detections only |
+
+## Multi-API Enrichment
+
+Combine `Hosts` and `Alerts` in a single handler to build host context. Each API follows the same query-then-get-details shape:
+
+```python
+@func.handler(method='POST', path='/api/enrich')
+def enrich_host_context(request: Request, config, logger) -> Response:
+    hosts_api = Hosts()
+    alerts_api = Alerts()
+
+    hostname = request.body.get("hostname")
+    if not hostname:
+        return Response(body={"error": "Hostname required"}, code=400)
+
+    # Get host
+    host_query = hosts_api.query_devices_by_filter(filter=f"hostname:'{hostname}'")
+    host_ids = host_query.get("body", {}).get("resources", [])
+    if not host_ids:
+        return Response(body={"error": "Host not found"}, code=404)
+
+    host = hosts_api.get_device_details(ids=host_ids).get("body", {}).get("resources", [{}])[0]
+
+    # Get detections (via Alerts API with product filter)
+    detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'detections'", limit=10).get("body", {}).get("resources", [])
+    detections = alerts_api.get_alerts_v2(ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
+
+    # Get all alerts (includes detections + cases)
+    alert_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
+    alerts = alerts_api.get_alerts_v2(ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
+
+    return Response(body={"host": host, "detections": detections, "alerts": alerts}, code=200)
+```

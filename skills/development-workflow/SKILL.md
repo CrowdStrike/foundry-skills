@@ -65,6 +65,15 @@ Standalone Fusion workflow (no app — trigger + existing actions only)
 └── Advise the Falcon Fusion plugin — see Cross-Plugin Advisory
 ```
 
+### Routing When Sub-Skills Are Not Registered
+
+Sub-skills live beside this one as `../<name>/SKILL.md`. On a single-entry-point install only this skill is discoverable, so capability-level requests land here — that is intended, not a mis-route. Read the sub-skill file from disk before writing any capability content, then:
+
+- **`manifest.yml` already present** — skip Steps 1-2 and Step 4. Run the Step 3 prerequisite check, add the capability with its Step 5 CLI command, and follow Manifest Coordination.
+- **No app yet** — run the full App Creation Flow.
+
+This never overrides the Cross-Plugin Advisory below: a standalone Fusion workflow request is still a redirect, not a capability to add.
+
 ## Cross-Plugin Advisory (Fusion vs. Foundry)
 
 A Falcon Fusion workflow can be authored **standalone** (no app wrapper) when it
@@ -288,27 +297,6 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 - `foundry apps deploy` / `foundry apps release` — deployment
 - `foundry api-integrations create` etc. — adding new capabilities
 
-## Testing an Existing App Locally
-
-When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
-
-1. **Configure credentials** — copy `.env.sample` to `.env` in the `e2e/` directory and fill in valid Falcon credentials (username, password, TOTP secret, base URL) and app name. `APP_NAME` defaults to the repo name. `FALCON_` credentials must be for a non-SSO user because TOTP is used in e2e tests. This file is gitignored and required for local test runs.
-
-2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Remember to `git checkout manifest.yml` after deploy to revert ID changes.
-
-3. **Deploy and release:**
-   ```bash
-   foundry apps deploy --change-type Patch --change-log "e2e testing" --no-prompt
-   # Poll until successful
-   foundry apps list-deployments
-   # Release
-   foundry apps release --deployment-id <id> --change-type Patch --notes "e2e testing" --no-prompt
-   ```
-
-4. **Run tests:** `cd e2e && npm test`
-
-5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)
-
 ## Manifest Coordination
 
 **Dependency order:** Collections → Functions → Workflows → UI (each may depend on the previous)
@@ -327,7 +315,7 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 | Superpowers plugin coordination | [references/superpowers-integration.md](references/superpowers-integration.md) |
 | Token management, performance targets | [references/performance-optimization.md](references/performance-optimization.md) |
 | Counter-rationalizations, red flags | [references/counter-rationalizations.md](references/counter-rationalizations.md) |
-| Lifecycle phases, manifest patterns, CLI state, app operations | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Lifecycle phases, manifest patterns, CLI state, app operations, local e2e runs | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Improving These Skills
 

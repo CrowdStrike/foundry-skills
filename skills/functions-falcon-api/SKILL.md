@@ -21,6 +21,8 @@ metadata:
 >
 > The FalconPy `Detects` class is **removed**. Do not import it. Use `Alerts` for detection queries.
 
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+
 This skill covers calling CrowdStrike Falcon APIs from within Foundry functions (serverless Go or Python code). Authentication is completely automatic when code runs inside Foundry function handlers — the platform handles all OAuth flows, token management, and credential injection.
 
 For exposing external APIs to Foundry via OpenAPI specs, see **api-integrations** instead.
@@ -35,7 +37,7 @@ For exposing external APIs to Foundry via OpenAPI specs, see **api-integrations*
 
 | Topic | Reference |
 |-------|-----------|
-| Retry decorator with exponential backoff, counter-rationalizations table | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Retry decorator with exponential backoff, multi-API enrichment, counter-rationalizations table | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Python: Zero-Argument Authentication
 
@@ -192,34 +194,7 @@ def get_host_details(request: Request, config, logger) -> Response:
 
 ### Multi-API Enrichment
 
-```python
-@func.handler(method='POST', path='/api/enrich')
-def enrich_host_context(request: Request, config, logger) -> Response:
-    hosts_api = Hosts()
-    alerts_api = Alerts()
-
-    hostname = request.body.get("hostname")
-    if not hostname:
-        return Response(body={"error": "Hostname required"}, code=400)
-
-    # Get host
-    host_query = hosts_api.query_devices_by_filter(filter=f"hostname:'{hostname}'")
-    host_ids = host_query.get("body", {}).get("resources", [])
-    if not host_ids:
-        return Response(body={"error": "Host not found"}, code=404)
-
-    host = hosts_api.get_device_details(ids=host_ids).get("body", {}).get("resources", [{}])[0]
-
-    # Get detections (via Alerts API with product filter)
-    detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'detections'", limit=10).get("body", {}).get("resources", [])
-    detections = alerts_api.get_alerts_v2(ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
-
-    # Get all alerts (includes detections + cases)
-    alert_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
-    alerts = alerts_api.get_alerts_v2(ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
-
-    return Response(body={"host": host, "detections": detections, "alerts": alerts}, code=200)
-```
+Combining `Hosts` and `Alerts` in one handler follows the same query-then-get-details shape as above. See [references/advanced-patterns.md](references/advanced-patterns.md) for the full example.
 
 ## LogScale / NG-SIEM Queries from Functions
 

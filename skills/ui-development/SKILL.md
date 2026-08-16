@@ -25,6 +25,8 @@ metadata:
 > 3. Coordinate with `foundry ui run` for live development
 > 4. Apply iframe security patterns for all extensions
 
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+
 Falcon Foundry UI pages and extensions use React or Vue with the Shoelace design system (Falcon-themed) and Foundry-JS for platform integration.
 
 ## Pages vs Extensions
