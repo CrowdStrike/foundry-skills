@@ -9,7 +9,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/CrowdStrike/foundry-skills.git",
-        "ref": "main"
+        "ref": "docs/fix-cursor-install-instructions"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
