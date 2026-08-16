@@ -548,7 +548,14 @@ blocker_category() {
 # "sat there doing nothing", and it read a clean timeout as success.
 classify() {
   local log="$1" rc="$2" body status skills raw_cmds raw_blocker cmds detail cat
-  body=$(grep -v '^[[:space:]]*>' "$log" 2>/dev/null)
+  # Claude streams stream-json, so its report arrives inside an escaped JSON string.
+  # Expanding \n puts the labels and the blockquoted skill text back at line start,
+  # where the patterns below expect them. The second sed drops the JSON tail that
+  # follows the closing quote, which would otherwise be read as part of BLOCKER; it
+  # anchors on a quote plus `}` or `]` rather than the first quote, because BLOCKER is
+  # asked to quote the CLI error verbatim. No-ops on plain-text logs.
+  body=$(sed -e 's/\\n/\
+/g' -e 's/"[]}].*$//' "$log" 2>/dev/null | grep -v '^[[:space:]]*>')
 
   grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error: unknown (flag|command)" <<< "$body" && { echo "FAIL|flag|rejected a CLI flag||"; return; }
   grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error:.*connection issue|^[[:space:]]*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)||"; return; }
