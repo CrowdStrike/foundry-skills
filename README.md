@@ -18,15 +18,17 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 ### Install
 
-| Assistant | Command | Marketplace |
-|-----------|---------|-------------|
-| Claude Code | `/plugin install crowdstrike-falcon-foundry` | [Anthropic](https://claude.com/plugins/crowdstrike-falcon-foundry) |
-| Codex | `codex plugin add crowdstrike-falcon-foundry` | [OpenAI](https://chatgpt.com/plugins) (pending) |
-| Copilot CLI | `copilot plugin install CrowdStrike/foundry-skills` | [GitHub](https://github.com/marketplace?type=copilot-plugins) |
-| Cursor | `/add-plugin crowdstrike-falcon-foundry` | [Cursor](https://cursor.com/marketplace) (pending) |
-| Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | [Google](https://antigravity.google/docs/plugins) |
+| Assistant | Command | Marketplace | Status |
+|-----------|---------|-------------|--------|
+| Claude Code | `/plugin install crowdstrike-falcon-foundry` | [Anthropic](https://claude.com/plugins/crowdstrike-falcon-foundry) | Tested |
+| Codex | `codex plugin add crowdstrike-falcon-foundry` | [OpenAI](https://chatgpt.com/plugins) (pending) | Tested |
+| Copilot CLI | `copilot plugin install CrowdStrike/foundry-skills` | [GitHub](https://github.com/marketplace?type=copilot-plugins) | Tested |
+| Cursor | `/add-plugin crowdstrike-falcon-foundry` | [Cursor](https://cursor.com/marketplace) (pending) | Tested |
+| Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | [Google](https://antigravity.google/docs/plugins) | Experimental |
 
-For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. These skills follow the [Agent Plugins](https://agent-plugins.org) format; any assistant that reads from `~/.agents/skills/` can discover them. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
+**Tested** means the skills were installed using the command above and then used to build and deploy a working app to a live Falcon Foundry tenant, from the example prompt below and nothing else. **Experimental** means it should work, since these skills follow the [Agent Plugins](https://agent-plugins.org) format that all five assistants read, but we have not verified it end to end.
+
+For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. Any assistant that reads from `~/.agents/skills/` can discover these skills. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
 
 <details>
 <summary><strong>Install from a local clone</strong> (for development or testing a branch)</summary>
