@@ -10,8 +10,9 @@
 #
 # The assistant reports back rather than being cut off mid-thought, which is the
 # whole trick: the harness is talking to something that can describe its own state,
-# so it asks. Every run ends in a fixed five-line report naming the skills that
-# loaded, the `foundry` commands that ran and how each one went, and any blocker.
+# so it asks. Every run ends in a fixed plain-text report naming the skills that
+# loaded, the `foundry` commands that ran and how each one went, and any blocker;
+# --e2e adds the app name and deployment id to the same shape.
 # Classification reads that report. Inferring the outcome by grepping a truncated
 # transcript — and calling a clean timeout a pass — could not tell "still building"
 # apart from "sat there doing nothing", which is exactly the case that matters.
@@ -37,11 +38,28 @@
 #   ./test-assistants.sh --only codex         # test one (repeatable)
 #   ./test-assistants.sh --report-at 90       # ask for the report later (default 60s)
 #   ./test-assistants.sh --timeout 300        # raise the hard cap (default 120s)
+#   ./test-assistants.sh --e2e                # build and DEPLOY for real (see below)
 #   ./test-assistants.sh --expire-token       # delete the cached token first (see below)
 #   ./test-assistants.sh --save results.json  # machine-readable results
 #   ./test-assistants.sh --sequential         # one at a time (default: two groups in parallel)
 #   ./test-assistants.sh --no-isolate         # skip bias control (not recommended)
 #   ./test-assistants.sh --verbose            # list every plugin and symlink touched
+#
+# --e2e is the other half of the story. Smoke mode deliberately says "do not try to
+# finish the app", so it can prove an assistant reaches the tenant but never that it
+# can ship one — and a self-reported "3 foundry commands OK" is compatible with
+# nothing at all being deployed. In --e2e mode the deadline moves out to ~15 minutes
+# and the appended instructions demand a deployment id, so a PASS requires an artifact
+# that either exists on the tenant or does not.
+#
+# Two things --e2e sets up that smoke mode does not need. Each assistant gets its own
+# working directory, since they would otherwise scaffold on top of each other. And
+# each is told to end its app name with its own slug, because app names are unique per
+# tenant: without that the first deploy wins and the rest fail with "app name already
+# exists", which looks like a skills failure and is not.
+#
+# What --e2e still does NOT do is check the tenant. It records what each assistant
+# claims; verifying the claim is verify-apps.sh's job.
 #
 # --expire-token removes ~/.config/foundry/token.json so each run must refresh it.
 # Without this, a still-valid token means no write is attempted and a sandbox
@@ -53,8 +71,9 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPORT_AT=60
-TIMEOUT=""   # default set below: higher in parallel, where agents contend
+REPORT_AT=""  # default set below: near the end of the run, which differs by mode
+TIMEOUT=""    # default set below: higher in parallel, where agents contend
+E2E=0         # --e2e: build and deploy for real instead of smoke-testing
 SAVE_FILE=""
 ONLY=()
 ISOLATE=1
@@ -109,6 +128,44 @@ BLOCKER: <one line naming a real problem, quoting the CLI error verbatim if ther
 EOF
 }
 
+# The --e2e counterpart. Same seven-line plain-text shape as above, for the same
+# reason: this is parsed out of a transcript that may have echoed the prompt back,
+# and JSON from five different assistants arrives fenced, prefixed, or truncated.
+# Two extra fields carry the evidence smoke mode cannot produce.
+#
+# Note what is NOT said here: no `foundry` command is named, and the app is never
+# described as something to "deploy and release" step by step. Deploy is Step 7 of the
+# development-workflow skill, so an assistant that loaded the skills knows to do it.
+# Spelling out the steps would measure instruction-following instead, and the canonical
+# prompt's whole value is that it names no commands.
+e2e_instructions() {   # slug
+  cat <<EOF
+
+Two more things, because this runs against a live shared tenant.
+
+Name the app so it ends with \`-$1\`. App names must be unique per tenant and other
+builds are running alongside yours; without the suffix your deploy may be rejected as
+a duplicate of someone else's app. Otherwise pick whatever name you like.
+
+You have about ${REPORT_AT} seconds of wall clock; run \`date\` if you need to know where you
+are. Report before that runs out, and report immediately if something blocks you or if
+you find yourself about to ask me a question. A partial result reported is worth more
+than a finished app I never hear about.
+
+To report, end your reply with these seven lines, in this order, each starting a line
+of plain text. No code fence, no blockquote, no bullets, no bold, and no angle
+brackets in anything you write:
+
+FOUNDRY-REPORT
+STATUS: <one word — DONE if the app deployed, WORKING if you ran out of time mid-build, BLOCKED only if a real problem stopped you>
+APP: <the app name you chose, or NONE if you never created one>
+DEPLOYMENT: <the deployment id returned by the deploy, or NONE if you did not get one>
+SKILLS: <comma-separated paths of the skill files you loaded, or NONE>
+COMMANDS: <comma-separated, every foundry command you ran, each written as the command followed by => OK or => FAIL: reason. NONE if you ran none>
+BLOCKER: <one line naming a real problem, quoting the CLI error verbatim if there was one. NONE if nothing did>
+EOF
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --only)         ONLY+=("$2"); shift 2 ;;
@@ -117,6 +174,7 @@ while [[ $# -gt 0 ]]; do
     --save)         SAVE_FILE="$2"; shift 2 ;;
     --prompt)       PROMPT="$2"; shift 2 ;;
     --no-isolate)   ISOLATE=0; shift ;;
+    --e2e)          E2E=1; shift ;;
     -v|--verbose)   VERBOSE=1; shift ;;
     --sequential)   PARALLEL=0; shift ;;
     --expire-token) EXPIRE_TOKEN=1; shift ;;
@@ -129,8 +187,20 @@ done
 # alone. But 240s only moved the peg — they used nearly all of it and wall clock got
 # worse (278s vs 200s). 150s is the middle: room to report under contention, not so
 # much that they spend it all.
+#
+# --e2e is a different measurement and needs a different budget. test-skill.sh runs
+# take 5-10 minutes to build and deploy this same app, so the cap is 15 with the
+# report asked for at 13 — late enough that stopping to report is the last thing an
+# assistant does, not something it does instead of deploying.
 if [ -z "$TIMEOUT" ]; then
-  if [ "$PARALLEL" -eq 1 ]; then TIMEOUT=150; else TIMEOUT=120; fi
+  if   [ "$E2E" -eq 1 ];    then TIMEOUT=900
+  elif [ "$PARALLEL" -eq 1 ]; then TIMEOUT=150
+  else                           TIMEOUT=120
+  fi
+fi
+
+if [ -z "$REPORT_AT" ]; then
+  if [ "$E2E" -eq 1 ]; then REPORT_AT=780; else REPORT_AT=60; fi
 fi
 
 # The cap has to leave room for the report to be written after the deadline, or the
@@ -457,6 +527,11 @@ blocker_category() {
   grep -qiE 'trusted directory|not trusted'                    <<< "$t" && { echo trust;      return; }
   grep -qiE 'profile'                                          <<< "$t" && { echo profile;    return; }
   grep -qiE '\bEOF\b'                                          <<< "$t" && { echo eof;        return; }
+  # A --e2e-only failure, and a harness fault rather than a skills one: app names are
+  # unique per tenant, so two assistants that ignored the slug suffix collide and the
+  # loser looks broken. Categorised separately so it cannot be read as an assistant
+  # problem.
+  grep -qiE 'name already exists|already in use|duplicate app'  <<< "$t" && { echo dupname;    return; }
   echo other
 }
 
@@ -515,6 +590,20 @@ classify() {
     echo "FAIL|$cat|$detail|$skills|$cmds"; return
   fi
 
+  # In --e2e the bar is an artifact rather than activity. "N commands OK" was exactly
+  # the verdict that let a run pass with nothing on the tenant, so a deployment id is
+  # the only thing that counts here. Whether the id is real is verify-apps.sh's call.
+  if [ "$E2E" -eq 1 ]; then
+    local app dep
+    app=$(report_field APP        <<< "$body")
+    dep=$(report_field DEPLOYMENT <<< "$body")
+    is_none "$app" && app="?"
+    if is_none "$dep"; then
+      echo "FAIL|nodeploy|$(clean "no deployment id (app: $app)" 40)|$skills|$cmds"; return
+    fi
+    echo "PASS|deployed|$(clean "deployed $app · $dep" 40)|$skills|$cmds"; return
+  fi
+
   # No blocker, so the pass needs evidence — and the report carries it: a `foundry`
   # command the assistant says came back OK.
   if [ "$oks" -gt 0 ]; then
@@ -539,6 +628,15 @@ classify() {
 warm_token() {
   command -v foundry >/dev/null 2>&1 || return 0
   head2 "Warming the shared token cache"
+  # A token that is already 25 minutes old passes `apps list` and then expires
+  # mid-run, which is the race this function exists to prevent. Smoke mode is over
+  # in a few minutes so it cannot happen there; --e2e runs for 15, so discard the
+  # cache first and let the warm-up mint a full-lifetime one. --expire-token means
+  # the caller WANTS the assistants on the refresh path, so leave that mode alone.
+  if [ "$E2E" -eq 1 ] && [ "$EXPIRE_TOKEN" -eq 0 ]; then
+    rm -f "$HOME/.config/foundry/token.json"
+    info "discarded the cached token so this run starts on a full ~30 minute one"
+  fi
   if foundry apps list >/dev/null 2>&1; then
     ok "token valid — no assistant will need to refresh it mid-run"
   else
@@ -557,7 +655,12 @@ fi
 
 RUN_START=$(date +%s)
 head2 "Running"
-info "real app-creation prompt · self-report at ${REPORT_AT}s · hard cap ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
+if [ "$E2E" -eq 1 ]; then
+  info "END-TO-END: real deploy required · report at ${REPORT_AT}s · hard cap ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
+  info "a PASS means the assistant reported a deployment id; verify it with ./verify-apps.sh"
+else
+  info "real app-creation prompt · self-report at ${REPORT_AT}s · hard cap ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
+fi
 printf '\n'
 
 RESULTS=(); CATEGORIES=(); FAILURES=0; TESTED=0
@@ -577,10 +680,20 @@ launch() {   # name bin source argv
   local -a parts=() cmd=()
   read -r -a parts <<< "$argv"
   cmd=("$bin")
-  # The canonical prompt, then the reporting instructions. Appended, never spliced:
+  # The canonical prompt, then the mode's instructions. Appended, never spliced:
   # CI asserts the PROMPT line still starts with the README text.
+  local tail_instructions work_dir="$LOG_DIR"
+  if [ "$E2E" -eq 1 ]; then
+    # Its own directory, or four assistants scaffold on top of each other. The binary
+    # name doubles as the app-name suffix — short, and already unique per assistant.
+    work_dir="$LOG_DIR/e2e/$bin"
+    mkdir -p "$work_dir"
+    tail_instructions=$(e2e_instructions "$bin")
+  else
+    tail_instructions=$(report_instructions)
+  fi
   local full_prompt="${PROMPT}
-$(report_instructions)"
+${tail_instructions}"
   local pp
   for pp in "${parts[@]}"; do
     if [ "$pp" = "%%PROMPT%%" ]; then cmd+=("$full_prompt"); else cmd+=("$pp"); fi
@@ -590,7 +703,7 @@ $(report_instructions)"
   # tree. < /dev/null is load-bearing: `claude -p` reads stdin and, backgrounded
   # without a redirect, blocks on input that never arrives — full timeout, empty log.
   set -m
-  ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) < /dev/null > "$log" 2>&1 &
+  ( cd "$work_dir" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) < /dev/null > "$log" 2>&1 &
   LAUNCHED_PID=$!
   set +m
   LAUNCHED_START=$start
@@ -616,7 +729,15 @@ report_one() {   # name bin source rc elapsed
   [ -n "$rskills" ] && info "skills: $rskills"
   [ -n "$rcmds" ]   && info "ran: $rcmds"
   [ "$status" != "PASS" ] && CATEGORIES+=("$category")
-  RESULTS+=("$name|$status|$category|$detail|$elapsed|$source|$rskills")
+  # --e2e records the two claims a judging pass needs as their own fields, not buried
+  # in the display string: verify-apps.sh has to look them up on the tenant.
+  local rapp="" rdep=""
+  if [ "$E2E" -eq 1 ]; then
+    local ebody; ebody=$(grep -v '^[[:space:]]*>' "$log" 2>/dev/null)
+    rapp=$(clean "$(report_field APP        <<< "$ebody")" 60)
+    rdep=$(clean "$(report_field DEPLOYMENT <<< "$ebody")" 60)
+  fi
+  RESULTS+=("$name|$status|$category|$detail|$elapsed|$source|$rskills|$rapp|$rdep")
   TESTED=$((TESTED+1))
   return 0
 }
@@ -718,6 +839,8 @@ else
       trust)      label="refused to run in the test directory"        ; col=$YELLOW ;;
       profile)    label="no usable Foundry profile"                   ; col=$YELLOW ;;
       timeout)    label="timed out"                                   ; col=$YELLOW ;;
+      nodeploy)   label="never produced a deployment id"              ; col=$RED ;;
+      dupname)    label="app name collided on the tenant (harness fault)" ; col=$YELLOW ;;
       *)          label="other"                                       ; col=$DIM ;;
     esac
     printf '    %s%s×%s %s%s%s\n' "$BOLD" "$n" "$RESET" "$col" "$label" "$RESET"
@@ -727,6 +850,12 @@ else
     info 'A connection issue means the sandbox denied the CLI its token-cache'
     info 'write to ~/.config/foundry/ — see debugging-workflows.'
     [ "$EXPIRE_TOKEN" -eq 0 ] && info 'Re-run with --expire-token to force that path on every trial.'
+  elif printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | grep -qx dupname; then
+    info 'An app-name collision is this harness misbehaving, not the assistant: the'
+    info 'slug suffix in the prompt is what keeps names unique per tenant.'
+  elif printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | grep -qx nodeploy; then
+    info 'Reaching the tenant is not shipping to it. Read the log to see how far it'
+    info 'got, and raise --timeout if it simply ran out of wall clock.'
   else
     info 'No connection or TTY failures. Read the logs above.'
   fi
@@ -734,14 +863,15 @@ fi
 
 if [ -n "$SAVE_FILE" ]; then
   {
-    printf '{\n  "report_at": %s,\n  "timeout": %s,\n  "isolated": %s,\n  "expire_token": %s,\n  "results": [\n' \
+    printf '{\n  "mode": "%s",\n  "report_at": %s,\n  "timeout": %s,\n  "isolated": %s,\n  "expire_token": %s,\n  "results": [\n' \
+      "$([ "$E2E" -eq 1 ] && echo e2e || echo smoke)" \
       "$REPORT_AT" "$TIMEOUT" "$ISOLATE" "$EXPIRE_TOKEN"
     first=1
     for r in "${RESULTS[@]}"; do
-      IFS='|' read -r n st cat d e src sk <<< "$r"
+      IFS='|' read -r n st cat d e src sk app dep <<< "$r"
       [ $first -eq 0 ] && printf ',\n'; first=0
-      printf '    {"assistant": "%s", "status": "%s", "category": "%s", "detail": "%s", "seconds": %s, "source": "%s", "skills": "%s"}' \
-        "$n" "$st" "$cat" "$d" "$e" "$src" "$sk"
+      printf '    {"assistant": "%s", "status": "%s", "category": "%s", "detail": "%s", "seconds": %s, "source": "%s", "skills": "%s", "app": "%s", "deployment_id": "%s"}' \
+        "$n" "$st" "$cat" "$d" "$e" "$src" "$sk" "$app" "$dep"
     done
     printf '\n  ]\n}\n'
   } > "$SAVE_FILE"
