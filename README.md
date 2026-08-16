@@ -61,7 +61,7 @@ Because these are symlinks, edits are live immediately — no reinstall, and not
 
 This prompt exercises the full skill set — API integration, workflow, and UI:
 
-> Can you create a Falcon Foundry app for me that has an Okta API integration with openapi? Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
+> Create a Falcon Foundry app for me that has an Okta API integration with openapi. Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
 
 ### How Claude Code skill routing works
 

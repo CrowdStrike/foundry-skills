@@ -2,9 +2,11 @@
 #
 # test-assistants.sh — Smoke-test every assistant in the README against a live tenant.
 #
-# Each assistant is asked to perform the prerequisite check *as the skill defines it*,
-# without being told which commands those are, and to cite the SKILL.md it used.
-# A pass therefore needs both: the skill was read, and the tenant was reached. That command is the earliest reliable failure signal: it is
+# Each assistant gets the real app-creation prompt from the README, then has ~2
+# minutes to get moving. We are not waiting for a finished app: we are looking for
+# the failures that bite in the first two minutes — a denied token-cache write, a
+# rejected flag, a TTY demand, a missing profile. A clean timeout while the CLI is
+# working is a pass; silence with no CLI activity is not. That command is the earliest reliable failure signal: it is
 # the first step that reaches the tenant, so a sandbox blocking the CLI's
 # token-cache write, a missing profile, or a bad flag all surface here rather than
 # fifteen minutes into a build.
@@ -26,7 +28,7 @@
 # Usage:
 #   ./test-assistants.sh                      # test every installed assistant
 #   ./test-assistants.sh --only codex         # test one (repeatable)
-#   ./test-assistants.sh --timeout 180        # per-assistant limit (default 120s)
+#   ./test-assistants.sh --timeout 300        # give each one longer (default 120s)
 #   ./test-assistants.sh --expire-token       # delete the cached token first (see below)
 #   ./test-assistants.sh --save results.json  # machine-readable results
 #   ./test-assistants.sh --no-isolate         # skip bias control (not recommended)
@@ -52,12 +54,12 @@ LOG_DIR="/tmp/foundry-assistant-test"
 SKILL_HOME="$HOME/.agents/skills"
 STASH="$LOG_DIR/stashed-symlinks"
 
-# The prompt deliberately does NOT name the commands. Naming them would let an
-# assistant with no skills loaded pass, which tells us nothing. "CLI prerequisite
-# check" is development-workflow's own vocabulary, so knowing which commands it
-# means requires having read the skill. Asking it to name the skill file gives a
-# second, independent signal.
-PROMPT="Using the Falcon Foundry skills, perform the CLI prerequisite check from the development-workflow skill. Run exactly the commands that skill specifies and print each one's raw output verbatim. Do NOT create, deploy, or release anything. Finish by stating the path of the SKILL.md file you used."
+# The real app-creation prompt, matching the README example and test-skill.sh.
+# It names no `foundry` commands, so an assistant with no skills loaded cannot fake
+# its way through — which is exactly what makes it a skills test rather than a CLI
+# test. We do not wait for the build to finish; the timeout is a budget for
+# detecting EARLY failure, so a clean timeout is a pass.
+PROMPT="Create a Falcon Foundry app for me that has an Okta API integration with openapi. Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results. Pick a reasonable app name and proceed without asking me any questions."
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -94,6 +96,9 @@ mkdir -p "$LOG_DIR"
 DISABLED_CLAUDE=()
 DISABLED_AGY=()
 STASHED=0
+OURS=()                 # symlinks this script created, so we only ever remove our own
+CODEX_CACHE=""          # moved-aside Codex plugin cache, restored on exit
+CODEX_CACHE_STASH=""
 
 restore() {
   local had=0
@@ -110,6 +115,10 @@ restore() {
   for p in ${DISABLED_AGY[@]+"${DISABLED_AGY[@]}"}; do
     agy plugin enable "$p" >/dev/null 2>&1 && vok "re-enabled agy plugin $p" || warn "could not re-enable agy plugin $p"
   done
+  if [ -n "$CODEX_CACHE" ] && [ -d "$CODEX_CACHE_STASH" ]; then
+    rm -rf "$CODEX_CACHE"
+    mv "$CODEX_CACHE_STASH" "$CODEX_CACHE" && vok "restored Codex plugin cache"
+  fi
   if [ "$STASHED" -gt 0 ] && [ -d "$STASH" ]; then
     local n
     for n in "$STASH"/*; do
@@ -167,6 +176,27 @@ isolate() {
     done < <(agy plugin list 2>/dev/null | grep -oE '"name": *"[^"]*foundry[^"]*"' | sed 's/.*: *"//;s/"//' | sort -u)
   fi
 
+  # Codex has no `plugin disable`, and it loads the plugin cache *and*
+  # ~/.agents/skills at once, so leaving the cache in place would defeat the whole
+  # exercise. Move the directory aside rather than uninstalling; it is restored on
+  # exit, so no reinstall is needed.
+  local cc
+  for cc in "$HOME"/.codex/plugins/cache/*/; do
+    [ -d "$cc" ] || continue
+    if find "$cc" -maxdepth 1 -name '*foundry*' -print -quit 2>/dev/null | grep -q .; then
+      CODEX_CACHE="${cc%/}"
+      CODEX_CACHE_STASH="$LOG_DIR/stashed-codex-cache"
+      rm -rf "$CODEX_CACHE_STASH"
+      if mv "$CODEX_CACHE" "$CODEX_CACHE_STASH" 2>/dev/null; then
+        vok "moved Codex plugin cache aside"
+      else
+        warn "could not move the Codex plugin cache; its results will be ambiguous"
+        CODEX_CACHE=""
+      fi
+      break
+    fi
+  done
+
   # Copilot and Cursor cannot disable, only uninstall — too destructive to do
   # automatically. Warn instead, since --plugin-dir should win anyway.
   if command -v copilot >/dev/null 2>&1 && copilot plugin list 2>/dev/null | grep -qi foundry; then
@@ -203,17 +233,31 @@ isolate() {
 # Codex and Antigravity have no --plugin-dir, so give them the one source they do
 # read: symlinks into the working tree, created fresh for this run.
 link_repo_skills() {
-  mkdir -p "$SKILL_HOME"
-  local d
+  mkdir -p "$SKILL_HOME" "$STASH"
+  local d n path
   for d in "$REPO"/skills/*/; do
-    ln -sfn "${d%/}" "$SKILL_HOME/$(basename "${d%/}")"
+    n=$(basename "${d%/}")
+    path="$SKILL_HOME/$n"
+    # Anything already at this name belongs to someone else — another clone, or a
+    # real directory. Preserve it instead of letting `ln -sfn` destroy it.
+    if [ -e "$path" ] || [ -L "$path" ]; then
+      if mv "$path" "$STASH/$n" 2>/dev/null; then
+        STASHED=$((STASHED+1)); vok "stashed colliding $n"
+      else
+        warn "could not move aside $n; leaving it alone"
+        continue
+      fi
+    fi
+    ln -sfn "${d%/}" "$path" && OURS+=("$n")
   done
 }
 unlink_repo_skills() {
-  local d
-  for d in "$REPO"/skills/*/; do
-    rm -f "$SKILL_HOME/$(basename "${d%/}")"
+  # Remove only the symlinks we created. Never touch anything we did not make.
+  local n
+  for n in ${OURS[@]+"${OURS[@]}"}; do
+    [ -L "$SKILL_HOME/$n" ] && rm -f "$SKILL_HOME/$n"
   done
+  OURS=()
 }
 
 if [ "$ISOLATE" -eq 1 ]; then
@@ -254,32 +298,34 @@ classify() {
   local log="$1" rc="$2" body
   body=$(grep -v '^\s*>' "$log" 2>/dev/null)
 
-  # Two independent signals. The app table proves the tenant was reached; a cited
-  # SKILL.md path proves the skill was actually read rather than the commands
-  # guessed. Tenant-only is reported separately so it is not mistaken for a pass.
-  local reached=0 cited=0
-  grep -qE "^\s*\|\s*APP ID|^Apps:" <<< "$body" && reached=1
-  grep -qiE "development-workflow/SKILL\.md|skills/development-workflow" <<< "$body" && cited=1
-  if [ "$reached" -eq 1 ] && [ "$cited" -eq 1 ]; then
-    echo "PASS|ok|used the skill, listed apps"; return
-  fi
-  if [ "$reached" -eq 1 ]; then
-    echo "FAIL|no-skill|reached tenant but never cited the skill"; return
-  fi
-
+  # Early hard failures — the whole point of the test. Anchored on the CLI's real
+  # `Error:` prefix because assistants echo skill text that discusses these same
+  # strings, and matching bare phrases reports our own docs as a failure.
   grep -qiE "Error: unknown (flag|command)"        <<< "$body" && { echo "FAIL|flag|rejected a CLI flag"; return; }
   grep -qiE "Error:.*connection issue|^\s*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)"; return; }
   grep -qiE "Error: no TTY available|could not open a new TTY|/dev/tty: device not configured" <<< "$body" && { echo "FAIL|tty|CLI demanded a TTY"; return; }
   grep -qiE "Not inside a trusted directory"       <<< "$body" && { echo "FAIL|trust|refused to run in this directory"; return; }
   grep -qiE "Error:.*no profiles found|no active profile" <<< "$body" && { echo "FAIL|profile|no usable Foundry profile"; return; }
+  grep -qiE "Error: EOF"                           <<< "$body" && { echo "FAIL|eof|interactive prompt hung the CLI"; return; }
 
-  { [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; } && { echo "TIMEOUT|timeout|exceeded ${TIMEOUT}s"; return; }
-  [ "$rc" -ne 0 ] && { echo "FAIL|other|exited $rc without reaching the tenant"; return; }
-  echo "UNKNOWN|other|finished but printed no app list"
+  # Progress signals: proof it engaged the real workflow rather than stalling.
+  local scaffolded=0 reached=0
+  grep -qiE "foundry apps create|manifest\.yml"    <<< "$body" && scaffolded=1
+  grep -qE  "^\s*\|\s*APP ID|^Apps:"             <<< "$body" && reached=1
+
+  if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    { [ "$scaffolded" -eq 1 ] || [ "$reached" -eq 1 ]; } \
+      && { echo "PASS|ok|no early failures (still building at ${TIMEOUT}s)"; return; }
+    echo "FAIL|stalled|${TIMEOUT}s with no CLI progress"; return
+  fi
+
+  [ "$rc" -ne 0 ] && { echo "FAIL|other|exited $rc"; return; }
+  { [ "$scaffolded" -eq 1 ] || [ "$reached" -eq 1 ]; } && { echo "PASS|ok|ran the workflow"; return; }
+  echo "UNKNOWN|other|finished without touching the Foundry CLI"
 }
 
 head2 "Running"
-info "tenant check: foundry apps list · timeout ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
+info "real app-creation prompt · early-failure budget ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
 printf '\n'
 
 RESULTS=(); CATEGORIES=(); FAILURES=0; TESTED=0
@@ -351,7 +397,8 @@ else
   # Counts per known failure mode, worth tracking run to run.
   printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | sort | uniq -c | sort -rn | while read -r n cat; do
     case "$cat" in
-      no-skill)   label="tenant reached, but the skill was not used"   ; col=$MAGENTA ;;
+      stalled)    label="no CLI progress before the timeout"          ; col=$MAGENTA ;;
+      eof)        label="interactive prompt hung the CLI"             ; col=$RED ;;
       connection) label="connection issue — denied token-cache write" ; col=$RED ;;
       tty)        label="TTY demanded by the CLI"                     ; col=$MAGENTA ;;
       flag)       label="unsupported CLI flag"                        ; col=$YELLOW ;;
