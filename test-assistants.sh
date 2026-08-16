@@ -29,6 +29,7 @@
 #   ./test-assistants.sh --expire-token       # delete the cached token first (see below)
 #   ./test-assistants.sh --save results.json  # machine-readable results
 #   ./test-assistants.sh --no-isolate         # skip bias control (not recommended)
+#   ./test-assistants.sh --verbose            # list every plugin and symlink touched
 #
 # --expire-token removes ~/.config/foundry/token.json so each run must refresh it.
 # Without this, a still-valid token means no write is attempted and a sandbox
@@ -45,6 +46,7 @@ SAVE_FILE=""
 ONLY=()
 ISOLATE=1
 EXPIRE_TOKEN=0
+VERBOSE=0
 LOG_DIR="/tmp/foundry-assistant-test"
 SKILL_HOME="$HOME/.agents/skills"
 STASH="$LOG_DIR/stashed-symlinks"
@@ -58,6 +60,7 @@ while [[ $# -gt 0 ]]; do
     --save)         SAVE_FILE="$2"; shift 2 ;;
     --prompt)       PROMPT="$2"; shift 2 ;;
     --no-isolate)   ISOLATE=0; shift ;;
+    -v|--verbose)   VERBOSE=1; shift ;;
     --expire-token) EXPIRE_TOKEN=1; shift ;;
     -h|--help)      sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
@@ -69,6 +72,9 @@ BLUE=$'\033[0;34m'; MAGENTA=$'\033[0;35m'; CYAN=$'\033[0;36m'
 DIM=$'\033[2m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
 
 ok()   { printf '  %s✓%s  %s\n' "$GREEN" "$RESET" "$1"; }
+# Per-item bookkeeping: shown only with --verbose, so 20 lines of checkmarks don't
+# bury 5 lines of actual results.
+vok()  { [ "$VERBOSE" -eq 1 ] && printf '  %s✓%s  %s%s%s\n' "$GREEN" "$RESET" "$DIM" "$1" "$RESET"; return 0; }
 warn() { printf '  %s▲%s  %s\n' "$YELLOW" "$RESET" "$1"; }
 info() { printf '      %s%s%s\n' "$DIM" "$1" "$RESET"; }
 head2(){ printf '\n%s%s%s%s\n' "$BOLD" "$CYAN" "$1" "$RESET"; }
@@ -87,26 +93,29 @@ restore() {
   local had=0
   [ ${#DISABLED_CLAUDE[@]} -gt 0 ] && had=1
   [ ${#DISABLED_AGY[@]} -gt 0 ] && had=1
-  [ "$STASHED" -eq 1 ] && had=1
+  [ "$STASHED" -gt 0 ] && had=1
   [ "$had" -eq 0 ] && return 0
 
   head2 "Restoring your setup"
   local p
   for p in ${DISABLED_CLAUDE[@]+"${DISABLED_CLAUDE[@]}"}; do
-    claude plugin enable "$p" >/dev/null 2>&1 && ok "re-enabled claude plugin $p" || warn "could not re-enable claude plugin $p"
+    claude plugin enable "$p" >/dev/null 2>&1 && vok "re-enabled claude plugin $p" || warn "could not re-enable claude plugin $p"
   done
   for p in ${DISABLED_AGY[@]+"${DISABLED_AGY[@]}"}; do
-    agy plugin enable "$p" >/dev/null 2>&1 && ok "re-enabled agy plugin $p" || warn "could not re-enable agy plugin $p"
+    agy plugin enable "$p" >/dev/null 2>&1 && vok "re-enabled agy plugin $p" || warn "could not re-enable agy plugin $p"
   done
-  if [ "$STASHED" -eq 1 ] && [ -d "$STASH" ]; then
+  if [ "$STASHED" -gt 0 ] && [ -d "$STASH" ]; then
     local n
     for n in "$STASH"/*; do
       [ -e "$n" ] || continue
       rm -f "$SKILL_HOME/$(basename "$n")"
-      mv "$n" "$SKILL_HOME/" && ok "restored symlink $(basename "$n")"
+      mv "$n" "$SKILL_HOME/" && vok "restored symlink $(basename "$n")"
     done
     rmdir "$STASH" 2>/dev/null || true
   fi
+  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_AGY[@]} ))
+  printf '  %s✓%s  re-enabled %s%s%s plugin(s), restored %s%s%s symlink(s)\n' \
+    "$GREEN" "$RESET" "$BOLD" "$plugins" "$RESET" "$BOLD" "$STASHED" "$RESET"
 }
 
 # Ctrl-C must kill the assistant that is actually running, not just this script.
@@ -139,7 +148,7 @@ isolate() {
     while read -r p; do
       [ -z "$p" ] && continue
       if claude plugin disable "$p" >/dev/null 2>&1; then
-        DISABLED_CLAUDE+=("$p"); ok "disabled claude plugin $p"
+        DISABLED_CLAUDE+=("$p"); vok "disabled claude plugin $p"
       fi
     done < <(echo "$out" | grep -oE '[a-z0-9-]*foundry[a-z0-9-]*' | sort -u)
   fi
@@ -147,7 +156,7 @@ isolate() {
     while read -r p; do
       [ -z "$p" ] && continue
       if agy plugin disable "$p" >/dev/null 2>&1; then
-        DISABLED_AGY+=("$p"); ok "disabled agy plugin $p"
+        DISABLED_AGY+=("$p"); vok "disabled agy plugin $p"
       fi
     done < <(agy plugin list 2>/dev/null | grep -oE '"name": *"[^"]*foundry[^"]*"' | sed 's/.*: *"//;s/"//' | sort -u)
   fi
@@ -168,14 +177,19 @@ isolate() {
       [ -L "$link" ] || continue
       target=$(readlink "$link")
       case "$target" in
-        "$REPO"/*) mv "$link" "$STASH/" && STASHED=1 && ok "stashed symlink $(basename "$link")" ;;
+        "$REPO"/*) mv "$link" "$STASH/" && STASHED=$((STASHED+1)) && vok "stashed symlink $(basename "$link")" ;;
       esac
     done
     [ "$STASHED" -eq 0 ] && rmdir "$STASH" 2>/dev/null || true
   fi
 
-  if [ ${#DISABLED_CLAUDE[@]} -eq 0 ] && [ ${#DISABLED_AGY[@]} -eq 0 ] && [ "$STASHED" -eq 0 ]; then
+  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_AGY[@]} ))
+  if [ "$plugins" -eq 0 ] && [ "$STASHED" -eq 0 ]; then
     ok "nothing to isolate — no competing sources found"
+  else
+    printf '  %s✓%s  disabled %s%s%s plugin(s), stashed %s%s%s symlink(s)\n' \
+      "$GREEN" "$RESET" "$BOLD" "$plugins" "$RESET" "$BOLD" "$STASHED" "$RESET"
+    [ "$VERBOSE" -eq 0 ] && info "run with --verbose to list each one"
   fi
   return 0
 }
@@ -292,12 +306,12 @@ for entry in "${ASSISTANTS[@]}"; do
   IFS='|' read -r status category detail <<< "$(classify "$log" "$rc")"
   case "$status" in
     PASS)    printf '\r  %s%-16s%s %s%sPASS%s    %-42s %s%ss%s\n' \
-               "$BOLD" "$name" "$RESET" "$BOLD" "$GREEN" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET" ;;
+               "$BOLD" "$name" "$RESET" "$GREEN$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET" ;;
     TIMEOUT) printf '\r  %s%-16s%s %s%sTIMEOUT%s %-42s %s%ss%s\n' \
-               "$BOLD" "$name" "$RESET" "$BOLD" "$YELLOW" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET"
+               "$BOLD" "$name" "$RESET" "$YELLOW$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
     *)       printf '\r  %s%-16s%s %s%sFAIL%s    %s%-42s%s %s%ss%s\n' \
-               "$BOLD" "$name" "$RESET" "$BOLD" "$RED" "$RESET" "$RED" "$detail" "$RESET" "$DIM" "$elapsed" "$RESET"
+               "$BOLD" "$name" "$RESET" "$RED$BOLD" "$RESET" "$RED" "$detail" "$RESET" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
   esac
   info "source: $source · log: ${log/#$HOME/\~}"
@@ -311,10 +325,12 @@ head2 "Summary"
 if [ "$TESTED" -eq 0 ]; then
   printf '  no assistants tested\n'
 elif [ "$FAILURES" -eq 0 ]; then
-  printf '  %s%s of %s reached the tenant%s\n' "$GREEN" "$TESTED" "$TESTED" "$RESET"
+  printf '  %s%s%s%s of %s reached the tenant%s\n' \
+    "$GREEN" "$BOLD" "$TESTED" "$RESET$GREEN" "$TESTED" "$RESET"
 else
-  printf '  %s%s of %s reached the tenant%s · %s%s failed%s\n' \
-    "$GREEN" "$((TESTED-FAILURES))" "$TESTED" "$RESET" "$RED" "$FAILURES" "$RESET"
+  printf '  %s%s%s%s of %s reached the tenant%s  %s·%s  %s%s%s%s failed%s\n' \
+    "$GREEN" "$BOLD" "$((TESTED-FAILURES))" "$RESET$GREEN" "$TESTED" "$RESET" \
+    "$DIM" "$RESET" "$RED" "$BOLD" "$FAILURES" "$RESET$RED" "$RESET"
   printf '\n  %sfailures by cause%s\n' "$BOLD" "$RESET"
   # Counts per known failure mode, worth tracking run to run.
   printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | sort | uniq -c | sort -rn | while read -r n cat; do
