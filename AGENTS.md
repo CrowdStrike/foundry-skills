@@ -173,23 +173,25 @@ When building Falcon Foundry apps, take your time and do each step thoroughly. Q
 
 ### Testing a branch in Codex
 
-Codex has no `--plugin-dir`. It discovers skills from `~/.agents/skills/`, one directory per skill, so symlink the working tree and edits are live immediately:
+Codex discovers skills from `~/.agents/skills/`, one directory per skill. Symlink the working tree so edits are live:
 
 ```bash
 mkdir -p ~/.agents/skills
 for skill in "$PWD"/skills/*/; do ln -s "${skill%/}" ~/.agents/skills/; done
 ```
 
-Restart Codex or run `/reload-plugins` to re-index. Do not install the plugin from a marketplace at the same time — Codex loads **both** sources, so the same skill appears twice with different content, and you cannot tell which copy influenced a run. Verify what is actually loaded, including the source path for each skill:
+Restart Codex or run `/reload-plugins` to re-index.
+
+Do not also install the plugin from a marketplace — Codex loads both sources, giving you two copies of each skill. Check what is loaded and where it came from:
 
 ```bash
 codex debug prompt-input | grep -o 'file: [^)]*SKILL.md'
 ```
 
-Every Foundry entry should resolve to `~/.agents/skills/`. If any point into `~/.codex/plugins/cache/`, remove the installed plugin first:
+Every Foundry entry should resolve to `~/.agents/skills/`. If any point into `~/.codex/plugins/cache/`, remove the installed plugin:
 
 ```bash
 codex plugin remove crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
-`./test-assistants.sh` handles this isolation automatically and restores your setup afterward.
+`./test-assistants.sh` does this isolation for you and restores your setup afterward.
