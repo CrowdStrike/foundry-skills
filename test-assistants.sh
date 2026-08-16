@@ -2,8 +2,9 @@
 #
 # test-assistants.sh — Smoke-test every assistant in the README against a live tenant.
 #
-# Each assistant is asked to run the CLI prerequisite check and report
-# `foundry apps list`. That command is the earliest reliable failure signal: it is
+# Each assistant is asked to perform the prerequisite check *as the skill defines it*,
+# without being told which commands those are, and to cite the SKILL.md it used.
+# A pass therefore needs both: the skill was read, and the tenant was reached. That command is the earliest reliable failure signal: it is
 # the first step that reaches the tenant, so a sandbox blocking the CLI's
 # token-cache write, a missing profile, or a bad flag all surface here rather than
 # fifteen minutes into a build.
@@ -51,7 +52,12 @@ LOG_DIR="/tmp/foundry-assistant-test"
 SKILL_HOME="$HOME/.agents/skills"
 STASH="$LOG_DIR/stashed-symlinks"
 
-PROMPT="Use the Falcon Foundry skills to run the CLI prerequisite check: report the output of 'foundry version', 'foundry profile active', and 'foundry apps list'. Do NOT create, deploy, or release anything. Print the raw command output verbatim, then stop."
+# The prompt deliberately does NOT name the commands. Naming them would let an
+# assistant with no skills loaded pass, which tells us nothing. "CLI prerequisite
+# check" is development-workflow's own vocabulary, so knowing which commands it
+# means requires having read the skill. Asking it to name the skill file gives a
+# second, independent signal.
+PROMPT="Using the Falcon Foundry skills, perform the CLI prerequisite check from the development-workflow skill. Run exactly the commands that skill specifies and print each one's raw output verbatim. Do NOT create, deploy, or release anything. Finish by stating the path of the SKILL.md file you used."
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -248,8 +254,18 @@ classify() {
   local log="$1" rc="$2" body
   body=$(grep -v '^\s*>' "$log" 2>/dev/null)
 
-  # Unambiguous positive evidence from real command output.
-  grep -qE "^\s*\|\s*APP ID|^Apps:" <<< "$body" && { echo "PASS|ok|listed apps"; return; }
+  # Two independent signals. The app table proves the tenant was reached; a cited
+  # SKILL.md path proves the skill was actually read rather than the commands
+  # guessed. Tenant-only is reported separately so it is not mistaken for a pass.
+  local reached=0 cited=0
+  grep -qE "^\s*\|\s*APP ID|^Apps:" <<< "$body" && reached=1
+  grep -qiE "development-workflow/SKILL\.md|skills/development-workflow" <<< "$body" && cited=1
+  if [ "$reached" -eq 1 ] && [ "$cited" -eq 1 ]; then
+    echo "PASS|ok|used the skill, listed apps"; return
+  fi
+  if [ "$reached" -eq 1 ]; then
+    echo "FAIL|no-skill|reached tenant but never cited the skill"; return
+  fi
 
   grep -qiE "Error: unknown (flag|command)"        <<< "$body" && { echo "FAIL|flag|rejected a CLI flag"; return; }
   grep -qiE "Error:.*connection issue|^\s*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)"; return; }
@@ -335,6 +351,7 @@ else
   # Counts per known failure mode, worth tracking run to run.
   printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | sort | uniq -c | sort -rn | while read -r n cat; do
     case "$cat" in
+      no-skill)   label="tenant reached, but the skill was not used"   ; col=$MAGENTA ;;
       connection) label="connection issue — denied token-cache write" ; col=$RED ;;
       tty)        label="TTY demanded by the CLI"                     ; col=$MAGENTA ;;
       flag)       label="unsupported CLI flag"                        ; col=$YELLOW ;;
