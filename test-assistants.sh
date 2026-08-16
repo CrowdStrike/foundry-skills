@@ -544,6 +544,7 @@ if [ "$EXPIRE_TOKEN" -eq 1 ] && [ "$PARALLEL" -eq 1 ]; then
 fi
 [ "$PARALLEL" -eq 1 ] && warm_token
 
+RUN_START=$(date +%s)
 head2 "Running"
 info "real app-creation prompt · self-report at ${REPORT_AT}s · hard cap ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
 printf '\n'
@@ -589,12 +590,12 @@ report_one() {   # name bin source rc elapsed
   local log="$LOG_DIR/${bin}.log" status category detail rskills rcmds
   IFS='|' read -r status category detail rskills rcmds <<< "$(classify "$log" "$rc")"
   case "$status" in
-    PASS)    printf '  %s%-16s%s %sPASS%s   %-43s %s%ss%s\n' \
+    PASS)    printf '  %s%-16s%s %s✔ PASS%s  %-43s %s%4ss%s\n' \
                "$BOLD" "$name" "$RESET" "$GREEN$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET" ;;
-    TIMEOUT) printf '  %s%-16s%s %sTIMEOUT%s %-42s %s%ss%s\n' \
+    TIMEOUT) printf '  %s%-16s%s %s◷ SLOW%s   %-43s %s%4ss%s\n' \
                "$BOLD" "$name" "$RESET" "$YELLOW$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
-    *)       printf '  %s%-16s%s %sFAIL%s    %s%-42s%s %s%ss%s\n' \
+    *)       printf '  %s%-16s%s %s✘ FAIL%s  %s%-43s%s %s%4ss%s\n' \
                "$BOLD" "$name" "$RESET" "$RED$BOLD" "$RESET" "$RED" "$detail" "$RESET" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
   esac
@@ -641,7 +642,7 @@ run_group() {
       g_pids+=("$LAUNCHED_PID"); g_starts+=("$LAUNCHED_START")
       CHILD_PIDS+=("$LAUNCHED_PID")
       if [ "$PARALLEL" -eq 1 ]; then
-        printf '  %s%-16s%s %sstarted%s\n' "$BLUE" "$name" "$RESET" "$DIM" "$RESET"
+        printf '  %s%-16s%s %s▸ running%s\n' "$BLUE" "$name" "$RESET" "$DIM" "$RESET"
       else
         printf '  %s%-16s%s running… ' "$BLUE" "$name" "$RESET"
         wait "${g_pids[$i]}"; g_rcs[$i]=$?
@@ -675,16 +676,25 @@ declare -a g_rcs=()
 run_group "--plugin-dir"
 run_group "~/.agents/skills"
 
+WALL=$(( $(date +%s) - RUN_START ))
+SEQ=0
+for r in ${RESULTS[@]+"${RESULTS[@]}"}; do
+  IFS='|' read -r _n _s _c _d _e _src _sk <<< "$r"
+  SEQ=$(( SEQ + ${_e:-0} ))
+done
+
 head2 "Summary"
 if [ "$TESTED" -eq 0 ]; then
   printf '  no assistants tested\n'
 elif [ "$FAILURES" -eq 0 ]; then
-  printf '  %s%s%s%s of %s reached the tenant%s\n' \
-    "$GREEN" "$BOLD" "$TESTED" "$RESET$GREEN" "$TESTED" "$RESET"
+  printf '  %s%s✔ %s of %s%s reached the tenant%s\n' \
+    "$GREEN" "$BOLD" "$TESTED" "$TESTED" "$RESET$GREEN" "$RESET"
+  printf '    %s%ss wall clock · %ss if run one at a time%s\n' "$DIM" "$WALL" "$SEQ" "$RESET"
 else
-  printf '  %s%s%s%s of %s reached the tenant%s  %s·%s  %s%s%s%s failed%s\n' \
-    "$GREEN" "$BOLD" "$((TESTED-FAILURES))" "$RESET$GREEN" "$TESTED" "$RESET" \
-    "$DIM" "$RESET" "$RED" "$BOLD" "$FAILURES" "$RESET$RED" "$RESET"
+  printf '  %s%s%s of %s%s reached the tenant%s   %s│%s   %s%s✘ %s failed%s\n' \
+    "$GREEN" "$BOLD" "$((TESTED-FAILURES))" "$TESTED" "$RESET$GREEN" "$RESET" \
+    "$DIM" "$RESET" "$RED" "$BOLD" "$FAILURES" "$RESET"
+  printf '    %s%ss wall clock · %ss if run one at a time%s\n' "$DIM" "$WALL" "$SEQ" "$RESET"
   printf '\n  %sfailures by cause%s\n' "$BOLD" "$RESET"
   # Counts per known failure mode, worth tracking run to run.
   printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | sort | uniq -c | sort -rn | while read -r n cat; do
