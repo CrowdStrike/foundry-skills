@@ -555,7 +555,12 @@ RESULTS=(); CATEGORIES=(); FAILURES=0; TESTED=0
 # Antigravity need those same symlinks present. Set the state once per group, run the
 # group in parallel, then move on. Wall clock becomes the slowest member of each group
 # instead of the sum of all five.
-launch() {   # name bin source argv  -> echoes "pid|start"
+# Sets LAUNCHED_PID / LAUNCHED_START. Deliberately NOT echoing them: calling this via
+# $(...) would run it in a subshell that owns the background job, and the parent shell
+# then cannot wait on the pid ("is not a child of this shell").
+LAUNCHED_PID=""
+LAUNCHED_START=""
+launch() {   # name bin source argv
   local name="$1" bin="$2" argv="$4" log="$LOG_DIR/${2}.log"
   local -a parts=() cmd=()
   read -r -a parts <<< "$argv"
@@ -574,9 +579,9 @@ $(report_instructions)"
   # without a redirect, blocks on input that never arrives — full timeout, empty log.
   set -m
   ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) < /dev/null > "$log" 2>&1 &
-  local pid=$!
+  LAUNCHED_PID=$!
   set +m
-  echo "$pid|$start"
+  LAUNCHED_START=$start
 }
 
 report_one() {   # name bin source rc elapsed
@@ -584,12 +589,12 @@ report_one() {   # name bin source rc elapsed
   local log="$LOG_DIR/${bin}.log" status category detail rskills rcmds
   IFS='|' read -r status category detail rskills rcmds <<< "$(classify "$log" "$rc")"
   case "$status" in
-    PASS)    printf '  %s%-16s%s %s%sPASS%s   %-43s %s%ss%s\n' \
+    PASS)    printf '  %s%-16s%s %sPASS%s   %-43s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$GREEN$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET" ;;
-    TIMEOUT) printf '  %s%-16s%s %s%sTIMEOUT%s %-42s %s%ss%s\n' \
+    TIMEOUT) printf '  %s%-16s%s %sTIMEOUT%s %-42s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$YELLOW$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
-    *)       printf '  %s%-16s%s %s%sFAIL%s    %s%-42s%s %s%ss%s\n' \
+    *)       printf '  %s%-16s%s %sFAIL%s    %s%-42s%s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$RED$BOLD" "$RESET" "$RED" "$detail" "$RESET" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
   esac
@@ -627,14 +632,14 @@ run_group() {
   [ "$want_src" = "~/.agents/skills" ] && link_repo_skills
   [ "$EXPIRE_TOKEN" -eq 1 ] && rm -f "$HOME/.config/foundry/token.json"
 
-  local i pid_start
+  local i
   for i in "${!g_names[@]}"; do
     for entry in "${ASSISTANTS[@]}"; do
       IFS='|' read -r name bin source argv <<< "$entry"
       [ "$name" = "${g_names[$i]}" ] || continue
-      pid_start=$(launch "$name" "$bin" "$source" "$argv")
-      g_pids+=("${pid_start%%|*}"); g_starts+=("${pid_start##*|}")
-      CHILD_PIDS+=("${pid_start%%|*}")
+      launch "$name" "$bin" "$source" "$argv"
+      g_pids+=("$LAUNCHED_PID"); g_starts+=("$LAUNCHED_START")
+      CHILD_PIDS+=("$LAUNCHED_PID")
       if [ "$PARALLEL" -eq 1 ]; then
         printf '  %s%-16s%s %sstarted%s\n' "$BLUE" "$name" "$RESET" "$DIM" "$RESET"
       else
