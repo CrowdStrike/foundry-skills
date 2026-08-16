@@ -623,19 +623,36 @@ classify() {
 
 # All assistants share ONE token cache at ~/.config/foundry/token.json. Run in
 # parallel with an expired token and they race to refresh it: concurrent logins plus
-# a write race on the same file. Warming it once first means nobody needs to refresh,
-# since the token lasts ~30 minutes and the whole run takes a few.
+# a write race on the same file. Warming it once first means nobody needs to refresh.
+
+# Seconds of life left in the cached token, or 0 if there is no readable one. Reads
+# the `expiry` timestamp only — the token value is never read, printed, or logged.
+token_ttl() {
+  local f="$HOME/.config/foundry/token.json" exp now
+  [ -r "$f" ] || { echo 0; return; }
+  exp=$(sed -n 's/.*"expiry"[[:space:]]*:[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$f" | head -1)
+  [ -n "$exp" ] || { echo 0; return; }
+  now=$(date +%s)
+  echo $(( exp > now ? exp - now : 0 ))
+}
+
 warm_token() {
   command -v foundry >/dev/null 2>&1 || return 0
   head2 "Warming the shared token cache"
-  # A token that is already 25 minutes old passes `apps list` and then expires
-  # mid-run, which is the race this function exists to prevent. Smoke mode is over
-  # in a few minutes so it cannot happen there; --e2e runs for 15, so discard the
-  # cache first and let the warm-up mint a full-lifetime one. --expire-token means
-  # the caller WANTS the assistants on the refresh path, so leave that mode alone.
-  if [ "$E2E" -eq 1 ] && [ "$EXPIRE_TOKEN" -eq 0 ]; then
+  # `apps list` proves the token works NOW, which is not the same as it lasting the
+  # whole run: a token with four minutes left passes the warm-up and then expires
+  # with every assistant mid-build, which is the exact race this function exists to
+  # prevent. So compare its remaining life against the cap rather than assuming.
+  #
+  # The token lasts ~30 minutes, so smoke mode cannot straddle expiry and this stays
+  # quiet there; a 15-minute --e2e run can. Only discard when the arithmetic says it
+  # will actually run out — throwing away a valid token costs an auth round trip that
+  # can itself fail. --expire-token means the caller WANTS the assistants on the
+  # refresh path, so leave that mode alone.
+  local ttl; ttl=$(token_ttl)
+  if [ "$EXPIRE_TOKEN" -eq 0 ] && [ "$ttl" -gt 0 ] && [ "$ttl" -lt "$TIMEOUT" ]; then
+    info "cached token has ${ttl}s left, less than this run's ${TIMEOUT}s cap — refreshing now"
     rm -f "$HOME/.config/foundry/token.json"
-    info "discarded the cached token so this run starts on a full ~30 minute one"
   fi
   if foundry apps list >/dev/null 2>&1; then
     ok "token valid — no assistant will need to refresh it mid-run"
