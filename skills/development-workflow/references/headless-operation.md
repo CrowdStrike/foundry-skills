@@ -128,6 +128,21 @@ The three prerequisite commands fail for different reasons, and treating them al
 
 `foundry apps list` arrived in Foundry CLI 2.0.2. On an older CLI it fails as an unknown or unrecognized command, which is not an authentication problem. Report the CLI version and move on; the command is only there to avoid app-name collisions, so losing it costs a collision check, not the workflow.
 
+### Codex requires a PTY
+
+When Codex executes the Foundry CLI, allocate a PTY (`tty: true`) for every
+`foundry` command. Keep adding `--no-prompt` to commands that support it. These
+solve different problems: `--no-prompt` disables interactive questions, while
+the PTY supplies the terminal behavior expected by the CLI.
+
+Without a PTY, tenant commands can fail with only `connection issue` even when
+the active profile and network are valid. The same commands succeed when run
+with a PTY. This has been verified for `foundry apps list`, `foundry apps
+validate`, `foundry apps deploy`, and `foundry apps list-deployments`. A
+non-PTY failure is therefore not evidence of bad credentials. Retry the
+identical command with a PTY before requesting credential changes, skipping a
+tenant check, or stopping the app workflow.
+
 ### Which commands reach the tenant
 
 Only these four contact the CID, so only these can fail for network, credential, or approval reasons:

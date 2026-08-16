@@ -103,7 +103,9 @@ foundry login                                    # Re-authenticate
 
 ### Sandboxed Agent Connectivity
 
-If `foundry version`, `foundry profile list`, and `foundry profile active` succeed but tenant commands return only `connection issue`, ask the user to run the same command in their terminal. When it works there, explain that the agent process is likely sandboxed and request elevated or unsandboxed network access. Retry once with the assistant's supported permission mechanism before changing credentials. If elevation is unavailable, tell the user which permission to enable or provide the exact command to run and ask for its output. Local profile commands do not prove that the agent process can reach the tenant.
+If Codex is running the command, allocate a PTY (`tty: true`) for every `foundry` invocation before diagnosing connectivity. This is required even for commands that already include `--no-prompt`; the flag prevents prompts, while the PTY provides the terminal behavior the CLI expects. Without a PTY, tenant commands can incorrectly return only `connection issue`. Verified affected commands include `foundry apps list`, `foundry apps validate`, `foundry apps deploy`, and `foundry apps list-deployments`.
+
+If `foundry version`, `foundry profile list`, and `foundry profile active` succeed but tenant commands still return only `connection issue` after a PTY-backed retry, ask the user to run the same command in their terminal. When it works there, explain that the agent process is likely sandboxed and request elevated or unsandboxed network access. Retry once with the assistant's supported permission mechanism before changing credentials. If elevation is unavailable, tell the user which permission to enable or provide the exact command to run and ask for its output. Local profile commands do not prove that the agent process can reach the tenant.
 
 ### Manifest Validation
 
@@ -175,6 +177,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Local server won't start | Port conflicts | Use `--port` flag or kill existing processes |
 | Auth works locally, fails in CI | No config file in CI | Set `FOUNDRY_API_CLIENT_ID` env vars |
 | Tenant command works for user, not agent | Agent network sandbox | Request elevation, then retry once |
+| Codex tenant command returns `connection issue` without a PTY | Foundry CLI requires terminal behavior | Retry the identical command with `tty: true`; retain `--no-prompt` where supported |
 | Page 404 after deploy/release | App not installed from App Catalog | Install from catalog, wait for propagation |
 | Page 404 on new cloud only | Cloud-specific IDs in manifest | Strip IDs with yq before deploying to new cloud |
 | Blank page, no CORS errors | Vite `root` changed from `src` | Restore `root: 'src'` in vite.config.js |

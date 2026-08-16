@@ -32,6 +32,8 @@ metadata:
 >
 > **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
+> **CRITICAL FOR CODEX: allocate a PTY (`tty: true`) for every `foundry` command**, alongside `--no-prompt`. Without one, tenant commands fail with a misleading `connection issue` — retry with a PTY before blaming credentials.
+>
 > **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
 >
 > **Superpowers skills MAY supplement** (TDD discipline, code review) but MUST NOT replace this workflow.
@@ -146,11 +148,8 @@ foundry profile active   # Verify credentials (reads local config only)
 foundry apps list        # First call that reaches the tenant; CLI 2.0.2+
 ```
 
-`foundry apps list` is optional, for avoiding name collisions. An "unknown
-command" error means a CLI older than 2.0.2, not broken auth. Because it is the
-first command to reach the tenant, failing it while `profile active` succeeds
-points at network or a pending approval prompt rather than credentials. See
-[headless operation](references/headless-operation.md).
+`foundry apps list` is optional and needs CLI 2.0.2+. These three fail for
+unrelated reasons — see [headless operation](references/headless-operation.md).
 
 ### Step 4: Scaffold the App
 
