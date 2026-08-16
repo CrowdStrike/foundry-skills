@@ -99,7 +99,16 @@ def load_spec(path):
     text = Path(path).read_text(encoding='utf-8')
     if path.endswith(('.yaml', '.yml')):
         if not HAS_YAML:
-            print("ERROR: PyYAML required for YAML files: pip install pyyaml", file=sys.stderr)
+            # A bare `pip install` fails with externally-managed-environment on
+            # Homebrew and system Pythons (PEP 668), so point at a venv instead.
+            print(
+                "ERROR: PyYAML required for YAML files. A plain 'pip install' fails on\n"
+                "most modern Pythons (PEP 668: externally-managed-environment). Use a venv:\n"
+                "  python3 -m venv /tmp/foundry-venv\n"
+                "  /tmp/foundry-venv/bin/pip install pyyaml\n"
+                "  /tmp/foundry-venv/bin/python <this script> <spec>",
+                file=sys.stderr,
+            )
             sys.exit(1)
         return yaml.safe_load(text), 'yaml'
     return json.loads(text), 'json'

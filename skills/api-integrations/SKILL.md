@@ -69,7 +69,14 @@ python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_f
 python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
 ```
 
-> **Dependencies:** The script requires `pyyaml`. Install dependencies once with `python3 -m pip install -r /path/to/foundry-skills/requirements.txt`. This applies to Claude Code plugin installs and other assistants; plugin installation does not install Python packages.
+> **Dependencies:** The script requires `pyyaml`, and installing the plugin does not install Python packages. A bare `pip install` fails on Homebrew and system Pythons with `externally-managed-environment` (PEP 668), so set up a venv once in the checkout and run the script from it:
+>
+> ```bash
+> SKILLS_REPO=/path/to/foundry-skills
+> python3 -m venv "$SKILLS_REPO/.venv"
+> "$SKILLS_REPO/.venv/bin/pip" install -r "$SKILLS_REPO/requirements.txt"
+> "$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/api-integrations/scripts/adapt_spec_for_foundry.py" /tmp/VendorApi.yaml
+> ```
 
 The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 
