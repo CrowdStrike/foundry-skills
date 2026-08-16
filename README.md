@@ -38,10 +38,20 @@ git clone https://github.com/CrowdStrike/foundry-skills.git
 | Assistant | Command |
 |-----------|---------|
 | Claude Code | `claude --plugin-dir /path/to/foundry-skills` |
-| Codex | `codex plugin marketplace add /path/to/foundry-skills` |
 | Copilot CLI | `copilot --plugin-dir /path/to/foundry-skills` |
 | Cursor | `agent --plugin-dir /path/to/foundry-skills` |
 | Antigravity CLI | `agy plugin install /path/to/foundry-skills` |
+
+Codex has no `--plugin-dir`. It discovers skills from `~/.agents/skills/` instead, one directory per skill, so symlink them:
+
+```bash
+mkdir -p ~/.agents/skills
+for skill in /path/to/foundry-skills/skills/*/; do
+  ln -s "${skill%/}" ~/.agents/skills/
+done
+```
+
+Because these are symlinks, edits are live immediately — no reinstall, and nothing to go stale. Restart Codex or run `/reload-plugins` to re-index.
 
 </details>
 

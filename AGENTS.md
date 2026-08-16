@@ -173,28 +173,23 @@ When building Falcon Foundry apps, take your time and do each step thoroughly. Q
 
 ### Testing a branch in Codex
 
-Claude Code, Copilot CLI, and Cursor load a working copy with `--plugin-dir`. Codex has no equivalent, so it installs from a marketplace snapshot, which introduces two traps worth knowing before you trust a test run.
-
-**The `--ref` you pass is not the code you get.** Codex installs the plugin from the `source.ref` declared inside `.agents/plugins/marketplace.json`; `codex plugin marketplace add --ref <branch>` only chooses which manifest it reads. Because `release.sh` pins that ref to the released tag, testing a branch needs a temporary commit:
+Codex has no `--plugin-dir`. It discovers skills from `~/.agents/skills/`, one directory per skill, so symlink the working tree and edits are live immediately:
 
 ```bash
-sed -i '' 's|"ref": "main"|"ref": "my-branch"|' .agents/plugins/marketplace.json
-git commit -aqm "TEMP: point marketplace at branch" && git push
+mkdir -p ~/.agents/skills
+for skill in "$PWD"/skills/*/; do ln -s "${skill%/}" ~/.agents/skills/; done
 ```
 
-**Refresh the snapshot after every push.** Without `upgrade`, Codex reinstalls from the previous snapshot and still reports success, so you silently test stale code. Note that `remove` requires the `@marketplace` qualifier; the bare plugin name errors out.
+Restart Codex or run `/reload-plugins` to re-index. Do not install the plugin from a marketplace at the same time — Codex loads **both** sources, so the same skill appears twice with different content, and you cannot tell which copy influenced a run. Verify what is actually loaded, including the source path for each skill:
+
+```bash
+codex debug prompt-input | grep -o 'file: [^)]*SKILL.md'
+```
+
+Every Foundry entry should resolve to `~/.agents/skills/`. If any point into `~/.codex/plugins/cache/`, remove the installed plugin first:
 
 ```bash
 codex plugin remove crowdstrike-falcon-foundry@foundry-marketplace
-codex plugin marketplace upgrade
-codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
-Confirm you actually got branch code before spending a run, by grepping the installed copy for something only your branch contains. Pass a second file so an unmatched glob can't leave `grep` reading stdin:
-
-```bash
-f=$(find ~/.codex/plugins/cache -path '*crowdstrike-falcon-foundry*/skills/development-workflow/SKILL.md' | head -1)
-grep -c "<a string only on your branch>" "$f" /dev/null
-```
-
-Revert the temporary commit before merging.
+`./test-assistants.sh` handles this isolation automatically and restores your setup afterward.
