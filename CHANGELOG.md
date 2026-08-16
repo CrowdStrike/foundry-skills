@@ -8,7 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **Install instructions for five AI coding assistants** — Claude Code, Codex, Copilot CLI, Cursor, and Antigravity CLI each get a verified marketplace command, plus an expandable table of local-clone commands for testing a branch. Four of the five load a local clone with a single flag (`--plugin-dir` for Claude Code, Copilot CLI, and Cursor; `agy plugin install` for Antigravity CLI); Codex registers the clone as a marketplace source instead.
+- **Agent Plugins manifest** — A root `plugin.json` conforming to the [Agent Plugins](https://agent-plugins.org) 1.0.0 spec, so any conforming client can discover the plugin alongside the existing Claude and Codex manifests. CI validates it and `release.sh` bumps its version with the others.
 - US-3 cloud region to the cloud-region documentation: added `us-3` to the `FOUNDRY_CLOUD_REGION` value lists (headless-operation reference, e2e-testing env var table) and the multi-cloud deployment section. Foundry CLI 2.0.2 added US-3 support; the base URL (`api.us-3.crowdstrike.com`) is in FalconPy as of v1.6.4.
+
+### Removed
+
+- **`XDG_CONFIG_HOME` normalization guidance** — The development-workflow skill told agents to export `XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"` before diagnosing a missing profile, on the premise that coding-agent launchers override the variable. The premise was unverified (the variable is unset in a normal shell, and Codex inherits that unset value), and the command could not have fixed an override anyway: `:-` substitutes only when a variable is unset or empty, so under a real override it preserves the override. The Foundry CLI does honor `XDG_CONFIG_HOME`, so the line documenting the config-file path keeps the expansion — that one describes a default rather than prescribing a command.
 
 ## [1.4.1] - 2026-08-07
 
