@@ -142,13 +142,15 @@ For other decisions, prefer reasonable defaults: use React for UI, download publ
 
 ```bash
 foundry version          # Verify CLI installed
-foundry profile active   # Verify authentication
-foundry apps list        # Check existing apps (avoid name collisions)
+foundry profile active   # Verify credentials (reads local config only)
+foundry apps list        # First call that reaches the tenant; CLI 2.0.2+
 ```
 
-If any of these fail, see [headless operation](references/headless-operation.md)
-for setup options (env vars, non-interactive profile creation) and sandbox
-diagnostics. Never copy credentials into the workspace.
+`foundry apps list` is optional, for avoiding name collisions. An "unknown
+command" error means a CLI older than 2.0.2, not broken auth. Because it is the
+first command to reach the tenant, failing it while `profile active` succeeds
+points at network or a pending approval prompt rather than credentials. See
+[headless operation](references/headless-operation.md).
 
 ### Step 4: Scaffold the App
 

@@ -116,6 +116,24 @@ When operating as a CLI agent:
 6. **Headless mode** is detected automatically by Foundry CLI v2.0.1+. For older versions or standalone scripts/CI, export `FOUNDRY_UI_HEADLESS_MODE=true` manually.
 7. **Choose the app directory automatically:** Use the current directory unless it is an unrelated repository; in that case use a sibling directory and request write access if the sandbox requires it.
 
+### Distinguishing prerequisite failures
+
+The three prerequisite commands fail for different reasons, and treating them alike sends the diagnosis down the wrong path:
+
+| Command | Reaches tenant? | A failure means |
+|---------|-----------------|-----------------|
+| `foundry version` | No | CLI not installed or not on `PATH` |
+| `foundry profile active` | No, reads local config | No profile configured — set env vars or create one non-interactively |
+| `foundry apps list` | Yes | Network, an approval gate, or a CLI older than 2.0.2 — not credentials, if `profile active` succeeded |
+
+`foundry apps list` arrived in Foundry CLI 2.0.2. On an older CLI it fails as an unknown or unrecognized command, which is not an authentication problem. Report the CLI version and move on; the command is only there to avoid app-name collisions, so losing it costs a collision check, not the workflow.
+
+### Commands gated behind user approval
+
+Some assistants run only a small trusted set of commands (`ls`, `cat`, `sed`) unattended and escalate everything else for user approval. `foundry` is never in that set, so every invocation can surface an approval request.
+
+A command that was denied, or that never ran because approval was still pending, has produced no evidence about credentials or connectivity. Do not treat it as an auth failure, do not retry it in a loop hoping it slips through, and do not start rewriting profiles or config paths. Ask the user once to approve it, or give them the command to run and paste back. If the assistant supports a persistent allowlist, suggest adding read-only Foundry commands to it so the prerequisite check stops prompting.
+
 ### Sandboxed assistants
 
 Some assistants run shell commands with network sandboxing. A profile command can succeed because it only reads local configuration, while a tenant command such as `foundry apps list` or `foundry apps validate` fails with only `connection issue`. The CLI holds client credentials on disk and exchanges them for a short-lived token in memory on each run, so it never needs to write to the config directory — a tenant failure points at network access, not file permissions.
