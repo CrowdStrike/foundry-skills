@@ -125,12 +125,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# The cap has to leave room for the report to be written after the deadline, or the
-# harness kills the assistant mid-sentence and we are back to guessing.
-if [ "$TIMEOUT" -le "$REPORT_AT" ]; then
-  TIMEOUT=$(( REPORT_AT + 30 ))
-fi
-
 # Concurrency slows each agent: three at once all pegged a 120s cap they beat easily
 # alone. But 240s only moved the peg — they used nearly all of it and wall clock got
 # worse (278s vs 200s). 150s is the middle: room to report under contention, not so
@@ -138,6 +132,13 @@ fi
 if [ -z "$TIMEOUT" ]; then
   if [ "$PARALLEL" -eq 1 ]; then TIMEOUT=150; else TIMEOUT=120; fi
 fi
+
+# The cap has to leave room for the report to be written after the deadline, or the
+# harness kills the assistant mid-sentence and we are back to guessing.
+if [ "$TIMEOUT" -le "$REPORT_AT" ]; then
+  TIMEOUT=$(( REPORT_AT + 30 ))
+fi
+
 
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[0;33m'
 BLUE=$'\033[0;34m'; MAGENTA=$'\033[0;35m'; CYAN=$'\033[0;36m'
