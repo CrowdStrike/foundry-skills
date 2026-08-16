@@ -138,14 +138,26 @@ restore() {
 # that, the signal lands on the wrapper, the assistant keeps going, and the loop
 # moves on to the next one.
 CHILD_PID=""
+INTERRUPTED=0
 on_interrupt() {
-  printf '\n  %s▲%s  interrupted — stopping the current assistant\n' "$YELLOW" "$RESET"
+  # Second Ctrl-C: give up on tidiness and leave now.
+  if [ "$INTERRUPTED" -eq 1 ]; then
+    printf '\n  %s▲%s  forcing exit\n' "$YELLOW" "$RESET"
+    [ -n "$CHILD_PID" ] && kill -KILL -- -"$CHILD_PID" 2>/dev/null
+    exit 130
+  fi
+  INTERRUPTED=1
+  printf '\n  %s▲%s  stopping the assistant (Ctrl-C again to force)\n' "$YELLOW" "$RESET"
   if [ -n "$CHILD_PID" ]; then
-    pkill -TERM -P "$CHILD_PID" 2>/dev/null || true
-    kill -TERM "$CHILD_PID" 2>/dev/null || true
-    sleep 0.5
-    pkill -KILL -P "$CHILD_PID" 2>/dev/null || true
-    kill -KILL "$CHILD_PID" 2>/dev/null || true
+    # Signal the whole process group, not just the job. Assistants spawn node, npm,
+    # and the Foundry CLI; killing only the direct child leaves those running and
+    # the script appears to hang.
+    kill -TERM -- -"$CHILD_PID" 2>/dev/null || kill -TERM "$CHILD_PID" 2>/dev/null || true
+    for _ in 1 2 3 4 5 6; do
+      kill -0 -- -"$CHILD_PID" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -KILL -- -"$CHILD_PID" 2>/dev/null || true
   fi
   # restore still runs, via the EXIT trap.
   exit 130
@@ -355,9 +367,12 @@ for entry in "${ASSISTANTS[@]}"; do
   done
 
   start=$(date +%s)
-  # Background + wait, so Ctrl-C has a PID to kill (see on_interrupt).
+  # `set -m` gives the job its own process group, so on_interrupt can signal the
+  # entire tree with kill -- -PGID. Without it, Ctrl-C leaves grandchildren alive.
+  set -m
   ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) > "$log" 2>&1 &
   CHILD_PID=$!
+  set +m
   wait "$CHILD_PID"
   rc=$?
   CHILD_PID=""
