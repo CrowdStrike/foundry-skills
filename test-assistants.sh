@@ -459,12 +459,12 @@ classify() {
   local log="$1" rc="$2" body status skills raw_cmds raw_blocker cmds detail cat
   body=$(grep -v '^[[:space:]]*>' "$log" 2>/dev/null)
 
-  grep -qiE "Error: unknown (flag|command)"        <<< "$body" && { echo "FAIL|flag|rejected a CLI flag||"; return; }
-  grep -qiE "Error:.*connection issue|^\s*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)||"; return; }
-  grep -qiE "Error: no TTY available|could not open a new TTY|/dev/tty: device not configured" <<< "$body" && { echo "FAIL|tty|CLI demanded a TTY||"; return; }
+  grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error: unknown (flag|command)" <<< "$body" && { echo "FAIL|flag|rejected a CLI flag||"; return; }
+  grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error:.*connection issue|^[[:space:]]*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)||"; return; }
+  grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error: no TTY available|^[[:space:]]*(❌[[:space:]]*)?could not open a new TTY|/dev/tty: device not configured" <<< "$body" && { echo "FAIL|tty|CLI demanded a TTY||"; return; }
   grep -qiE "Not inside a trusted directory"       <<< "$body" && { echo "FAIL|trust|refused to run in this directory||"; return; }
   grep -qiE "Error:.*no profiles found|no active profile" <<< "$body" && { echo "FAIL|profile|no usable Foundry profile||"; return; }
-  grep -qiE "Error: EOF"                           <<< "$body" && { echo "FAIL|eof|interactive prompt hung the CLI||"; return; }
+  grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error: EOF" <<< "$body" && { echo "FAIL|eof|interactive prompt hung the CLI||"; return; }
 
   status=$(report_field STATUS      <<< "$body")
   raw_cmds=$(report_field COMMANDS  <<< "$body")
@@ -546,7 +546,9 @@ $(report_instructions)"
   # `set -m` gives the job its own process group, so on_interrupt can signal the
   # entire tree with kill -- -PGID. Without it, Ctrl-C leaves grandchildren alive.
   set -m
-  ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) > "$log" 2>&1 &
+  # < /dev/null is load-bearing: `claude -p` reads stdin and, backgrounded without
+  # a redirect, blocks waiting for input that never arrives — 120s, zero bytes logged.
+  ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) < /dev/null > "$log" 2>&1 &
   CHILD_PID=$!
   set +m
   wait "$CHILD_PID"
