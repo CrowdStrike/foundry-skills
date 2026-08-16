@@ -128,6 +128,19 @@ The three prerequisite commands fail for different reasons, and treating them al
 
 `foundry apps list` arrived in Foundry CLI 2.0.2. On an older CLI it fails as an unknown or unrecognized command, which is not an authentication problem. Report the CLI version and move on; the command is only there to avoid app-name collisions, so losing it costs a collision check, not the workflow.
 
+### Which commands reach the tenant
+
+Only these four contact the CID, so only these can fail for network, credential, or approval reasons:
+
+- `foundry apps list`
+- `foundry apps validate`
+- `foundry apps deploy`
+- `foundry apps release`
+
+Everything else in the prerequisite and scaffolding path is local: `foundry version` reports the binary, and `foundry profile list` / `profile active` / `profile create` only read and write the local configuration file. A failure in a local command is never a connectivity or credential problem, and a failure in one of the four above is never a missing-CLI problem.
+
+Two consequences worth keeping straight. Under an assistant that gates commands, expect an approval request on each of the four and none on the local ones. And `deploy` and `release` mutate tenant state, so a retry after an ambiguous failure is not free — confirm what actually landed with `foundry apps list-deployments` before running either again.
+
 ### Commands gated behind user approval
 
 Some assistants run only a small trusted set of commands (`ls`, `cat`, `sed`) unattended and escalate everything else for user approval. `foundry` is never in that set, so every invocation can surface an approval request.
@@ -136,7 +149,7 @@ A command that was denied, or that never ran because approval was still pending,
 
 ### Sandboxed assistants
 
-Some assistants run shell commands with network sandboxing. A profile command can succeed because it only reads local configuration, while a tenant command such as `foundry apps list` or `foundry apps validate` fails with only `connection issue`. The CLI holds client credentials on disk and exchanges them for a short-lived token in memory on each run, so it never needs to write to the config directory — a tenant failure points at network access, not file permissions.
+Some assistants run shell commands with network sandboxing. A profile command can succeed because it only reads local configuration, while one of the four tenant commands above fails with only `connection issue`. The CLI holds client credentials on disk and exchanges them for a short-lived token in memory on each run, so it never needs to write to the config directory — a tenant failure points at network access, not file permissions.
 
 If the same command works in the user's terminal, the agent process is sandboxed. Say so, then request elevated or unsandboxed network access through the assistant's supported permission mechanism and retry once. If elevation is unavailable, tell the user which permission to enable, or give them the exact command to run and ask for its output. Do not delete or recreate the user's profile before making that comparison, do not copy `configuration.yml` into the workspace, and do not redirect the config path to a workspace-local directory — each of those hides the working profile instead of fixing access. If elevated execution still fails, continue with the authentication diagnostics above.
 
