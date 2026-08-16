@@ -190,7 +190,7 @@ fi
 # CLI's token-cache write, so bypassing it would make this pass while users fail.
 ASSISTANTS=(
   "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --dangerously-skip-permissions"
-  "Codex|codex|~/.agents/skills|exec %%PROMPT%%"
+  "Codex|codex|~/.agents/skills|exec %%PROMPT%% --skip-git-repo-check"
   "Copilot CLI|copilot|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --allow-all"
   "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force"
   "Antigravity CLI|agy|~/.agents/skills|-p %%PROMPT%% --dangerously-skip-permissions"
@@ -277,9 +277,15 @@ elif [ "$FAILURES" -eq 0 ]; then
   printf '  %sall %s tested assistant(s) reached the tenant%s\n' "$GREEN" "$TESTED" "$RESET"
 else
   printf '  %s%s of %s failed%s\n' "$RED" "$FAILURES" "$TESTED" "$RESET"
-  info 'A "connection issue" failure usually means the sandbox denied the CLI its'
-  info 'token-cache write to ~/.config/foundry/ — see debugging-workflows.'
-  [ "$EXPIRE_TOKEN" -eq 0 ] && info 'Re-run with --expire-token to force that path on every trial.'
+  # Only offer the token-cache explanation when a run actually hit that error.
+  if printf '%s\n' "${RESULTS[@]}" | grep -q "connection issue"; then
+    info 'A "connection issue" failure means the sandbox denied the CLI its'
+    info 'token-cache write to ~/.config/foundry/ — see debugging-workflows.'
+    [ "$EXPIRE_TOKEN" -eq 0 ] && info 'Re-run with --expire-token to force that path on every trial.'
+  else
+    info 'No connection-issue failures — read the logs above; the cause is'
+    info 'something other than the token cache.'
+  fi
 fi
 
 if [ -n "$SAVE_FILE" ]; then
