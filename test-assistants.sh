@@ -35,8 +35,8 @@
 #
 # Usage:
 #   ./test-assistants.sh                      # test every installed assistant
-#   ./test-assistants.sh --only codex         # test one (repeatable)
-#   ./test-assistants.sh --skip antigravity   # test all but one (repeatable)
+#   ./test-assistants.sh --include codex      # test only these (comma-separated)
+#   ./test-assistants.sh --exclude antigravity # test all but these (comma-separated)
 #   ./test-assistants.sh --report-at 90       # ask for the report later (default 60s)
 #   ./test-assistants.sh --timeout 300        # raise the hard cap (default 120s)
 #   ./test-assistants.sh --e2e                # build and DEPLOY for real (see below)
@@ -67,6 +67,9 @@
 # Without this, a still-valid token means no write is attempted and a sandbox
 # permission failure cannot reproduce. The file is a regenerable cache, not a
 # credential; the CLI recreates it from configuration.yml.
+#
+# Needs bash 4.3+ for case conversion and namerefs. macOS ships 3.2, so this runs
+# under the Homebrew bash the shebang finds on PATH, not /bin/bash.
 #
 # Exit status is non-zero if any tested assistant failed.
 
@@ -170,10 +173,24 @@ BLOCKER: <one line naming a real problem, quoting the CLI error verbatim if ther
 EOF
 }
 
+# Both selectors take a comma-separated list and are repeatable, so
+# `--include codex,cursor` and `--include codex --include cursor` are the same thing.
+# The comma form matches how the eval harness spells its filter.
+add_selectors() {   # array_name csv
+  local -n arr="$1"
+  local IFS=','
+  read -r -a _parts <<< "$2"
+  local v
+  for v in ${_parts[@]+"${_parts[@]}"}; do
+    v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
+    [ -n "$v" ] && arr+=("$v")
+  done
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --only)         ONLY+=("$2"); shift 2 ;;
-    --skip)         SKIP+=("$2"); shift 2 ;;
+    --include|--only) add_selectors ONLY "$2"; shift 2 ;;
+    --exclude|--skip) add_selectors SKIP "$2"; shift 2 ;;
     --report-at)    REPORT_AT="$2"; shift 2 ;;
     --timeout)      TIMEOUT="$2"; shift 2 ;;
     --save)         SAVE_FILE="$2"; shift 2 ;;
