@@ -40,7 +40,7 @@ git clone https://github.com/CrowdStrike/foundry-skills.git
 | Claude Code | `claude --plugin-dir /path/to/foundry-skills` |
 | Codex | `codex plugin marketplace add /path/to/foundry-skills` |
 | Copilot CLI | `copilot --plugin-dir /path/to/foundry-skills` |
-| Cursor | `ln -s /path/to/foundry-skills ~/.cursor/plugins/local/crowdstrike-falcon-foundry` then reload |
+| Cursor | `agent --plugin-dir /path/to/foundry-skills` |
 | Antigravity CLI | `agy plugin install /path/to/foundry-skills` |
 
 </details>
