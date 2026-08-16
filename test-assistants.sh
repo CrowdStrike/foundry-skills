@@ -108,7 +108,26 @@ restore() {
     rmdir "$STASH" 2>/dev/null || true
   fi
 }
-trap restore EXIT INT TERM
+
+# Ctrl-C must kill the assistant that is actually running, not just this script.
+# The child runs in the background so it has its own PID we can signal; without
+# that, the signal lands on the wrapper, the assistant keeps going, and the loop
+# moves on to the next one.
+CHILD_PID=""
+on_interrupt() {
+  printf '\n  %s▲%s  interrupted — stopping the current assistant\n' "$YELLOW" "$RESET"
+  if [ -n "$CHILD_PID" ]; then
+    pkill -TERM -P "$CHILD_PID" 2>/dev/null || true
+    kill -TERM "$CHILD_PID" 2>/dev/null || true
+    sleep 0.5
+    pkill -KILL -P "$CHILD_PID" 2>/dev/null || true
+    kill -KILL "$CHILD_PID" 2>/dev/null || true
+  fi
+  # restore still runs, via the EXIT trap.
+  exit 130
+}
+trap on_interrupt INT TERM
+trap restore EXIT
 
 isolate() {
   head2 "Isolating skill sources (so results mean something)"
@@ -205,16 +224,25 @@ want() {
 
 # Returns STATUS|CATEGORY|detail. The category is the trackable part: it says which
 # known failure mode was hit, so counts can be compared across runs and branches.
-# A hard failure anywhere outweighs a success line, since assistants often retry
-# and print both, and we care whether the run hit a wall at all.
+#
+# Assistants echo skill text into their output, and that text discusses these very
+# errors ("...fail with `unknown flag`"). Matching bare phrases therefore reports
+# our own documentation as a failure. So: strip markdown-quoted lines, anchor on the
+# CLI's actual `Error:` prefix, and treat a real app table as decisive proof the
+# tenant was reached.
 classify() {
-  local log="$1" rc="$2"
-  grep -qiE "unknown flag|unknown command" "$log" 2>/dev/null && { echo "FAIL|flag|rejected a CLI flag"; return; }
-  grep -qi  "connection issue"            "$log" 2>/dev/null && { echo "FAIL|connection|connection issue (denied token-cache write?)"; return; }
-  grep -qiE "no TTY available|could not open a new TTY|device not configured" "$log" 2>/dev/null && { echo "FAIL|tty|CLI demanded a TTY"; return; }
-  grep -qiE "not inside a trusted directory|skip-git-repo-check" "$log" 2>/dev/null && { echo "FAIL|trust|refused to run in this directory"; return; }
-  grep -qiE "no profiles found|no active profile" "$log" 2>/dev/null && { echo "FAIL|profile|no usable Foundry profile"; return; }
-  grep -qE  "APP ID|App ID"               "$log" 2>/dev/null && { echo "PASS|ok|listed apps"; return; }
+  local log="$1" rc="$2" body
+  body=$(grep -v '^\s*>' "$log" 2>/dev/null)
+
+  # Unambiguous positive evidence from real command output.
+  grep -qE "^\s*\|\s*APP ID|^Apps:" <<< "$body" && { echo "PASS|ok|listed apps"; return; }
+
+  grep -qiE "Error: unknown (flag|command)"        <<< "$body" && { echo "FAIL|flag|rejected a CLI flag"; return; }
+  grep -qiE "Error:.*connection issue|^\s*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)"; return; }
+  grep -qiE "Error: no TTY available|could not open a new TTY|/dev/tty: device not configured" <<< "$body" && { echo "FAIL|tty|CLI demanded a TTY"; return; }
+  grep -qiE "Not inside a trusted directory"       <<< "$body" && { echo "FAIL|trust|refused to run in this directory"; return; }
+  grep -qiE "Error:.*no profiles found|no active profile" <<< "$body" && { echo "FAIL|profile|no usable Foundry profile"; return; }
+
   { [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; } && { echo "TIMEOUT|timeout|exceeded ${TIMEOUT}s"; return; }
   [ "$rc" -ne 0 ] && { echo "FAIL|other|exited $rc without reaching the tenant"; return; }
   echo "UNKNOWN|other|finished but printed no app list"
@@ -251,8 +279,12 @@ for entry in "${ASSISTANTS[@]}"; do
   done
 
   start=$(date +%s)
-  ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) > "$log" 2>&1
+  # Background + wait, so Ctrl-C has a PID to kill (see on_interrupt).
+  ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) > "$log" 2>&1 &
+  CHILD_PID=$!
+  wait "$CHILD_PID"
   rc=$?
+  CHILD_PID=""
   elapsed=$(( $(date +%s) - start ))
 
   if [ "$source" = "~/.agents/skills" ]; then unlink_repo_skills; fi
