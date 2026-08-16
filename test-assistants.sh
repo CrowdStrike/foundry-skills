@@ -880,8 +880,8 @@ find_manifest() {   # bin
   # then fall back to whatever path the transcript mentions.
   MANIFEST_PATH=$(grep -oE '/[^ "]*/manifest\.yml' "$LOG_DIR/${bin}.log" 2>/dev/null | head -1)
   if [ -z "$MANIFEST_PATH" ]; then
-    MANIFEST_PATH=$(find "$HOME/dev" -maxdepth 2 -name manifest.yml 2>/dev/null \
-      | xargs grep -l -- "-${bin}\$" 2>/dev/null | head -1)
+    MANIFEST_PATH=$(find "$HOME/dev" -maxdepth 2 -name manifest.yml \
+      -exec grep -l -- "-${bin}\$" {} + 2>/dev/null | head -1)
   fi
   [ -n "$MANIFEST_PATH" ] && [ -f "$MANIFEST_PATH" ] && FOUND_OUTSIDE=1
   [ -f "${MANIFEST_PATH:-/nonexistent}" ] || MANIFEST_PATH=""
