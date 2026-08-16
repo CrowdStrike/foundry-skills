@@ -170,3 +170,31 @@ When building Falcon Foundry apps, take your time and do each step thoroughly. Q
 - Run `./test-hooks.sh` before submitting a pull request
 - Run `npx markdownlint-cli2 "**/*.md"` to validate markdown formatting
 - Snapshots and use-case files follow standardized frontmatter formats
+
+### Testing a branch in Codex
+
+Claude Code, Copilot CLI, and Cursor load a working copy with `--plugin-dir`. Codex has no equivalent, so it installs from a marketplace snapshot, which introduces two traps worth knowing before you trust a test run.
+
+**The `--ref` you pass is not the code you get.** Codex installs the plugin from the `source.ref` declared inside `.agents/plugins/marketplace.json`; `codex plugin marketplace add --ref <branch>` only chooses which manifest it reads. Because `release.sh` pins that ref to the released tag, testing a branch needs a temporary commit:
+
+```bash
+sed -i '' 's|"ref": "main"|"ref": "my-branch"|' .agents/plugins/marketplace.json
+git commit -aqm "TEMP: point marketplace at branch" && git push
+```
+
+**Refresh the snapshot after every push.** Without `upgrade`, Codex reinstalls from the previous snapshot and still reports success, so you silently test stale code. Note that `remove` requires the `@marketplace` qualifier; the bare plugin name errors out.
+
+```bash
+codex plugin remove crowdstrike-falcon-foundry@foundry-marketplace
+codex plugin marketplace upgrade
+codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
+```
+
+Confirm you actually got branch code before spending a run, by grepping the installed copy for something only your branch contains. Pass a second file so an unmatched glob can't leave `grep` reading stdin:
+
+```bash
+f=$(find ~/.codex/plugins/cache -path '*crowdstrike-falcon-foundry*/skills/development-workflow/SKILL.md' | head -1)
+grep -c "<a string only on your branch>" "$f" /dev/null
+```
+
+Revert the temporary commit before merging.
