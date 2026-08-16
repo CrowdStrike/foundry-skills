@@ -399,7 +399,7 @@ fi
 # Codex gets no sandbox-bypass flag on purpose. Its sandbox is what breaks the
 # CLI's token-cache write, so bypassing it would make this pass while users fail.
 ASSISTANTS=(
-  "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --dangerously-skip-permissions"
+  "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --dangerously-skip-permissions --verbose --output-format stream-json"
   "Codex|codex|~/.agents/skills|exec %%PROMPT%% --skip-git-repo-check"
   "Copilot CLI|copilot|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --allow-all"
   "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force"
