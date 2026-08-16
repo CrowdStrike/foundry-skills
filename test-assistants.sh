@@ -39,6 +39,7 @@
 #   ./test-assistants.sh --timeout 300        # raise the hard cap (default 120s)
 #   ./test-assistants.sh --expire-token       # delete the cached token first (see below)
 #   ./test-assistants.sh --save results.json  # machine-readable results
+#   ./test-assistants.sh --sequential         # one at a time (default: two groups in parallel)
 #   ./test-assistants.sh --no-isolate         # skip bias control (not recommended)
 #   ./test-assistants.sh --verbose            # list every plugin and symlink touched
 #
@@ -59,6 +60,7 @@ ONLY=()
 ISOLATE=1
 EXPIRE_TOKEN=0
 VERBOSE=0
+PARALLEL=1   # two groups in parallel; --sequential to disable
 LOG_DIR="/tmp/foundry-assistant-test"
 SKILL_HOME="$HOME/.agents/skills"
 STASH="$LOG_DIR/stashed-symlinks"
@@ -116,6 +118,7 @@ while [[ $# -gt 0 ]]; do
     --prompt)       PROMPT="$2"; shift 2 ;;
     --no-isolate)   ISOLATE=0; shift ;;
     -v|--verbose)   VERBOSE=1; shift ;;
+    --sequential)   PARALLEL=0; shift ;;
     --expire-token) EXPIRE_TOKEN=1; shift ;;
     -h|--help)      sed -n '2,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
@@ -236,30 +239,30 @@ recover_orphans() {
 # The child runs in the background so it has its own PID we can signal; without
 # that, the signal lands on the wrapper, the assistant keeps going, and the loop
 # moves on to the next one.
-CHILD_PID=""
+CHILD_PIDS=()
 INTERRUPTED=0
 on_interrupt() {
-  # Second Ctrl-C: give up on tidiness and leave now.
   if [ "$INTERRUPTED" -eq 1 ]; then
     printf '\n  %s▲%s  forcing exit\n' "$YELLOW" "$RESET"
-    [ -n "$CHILD_PID" ] && kill -KILL -- -"$CHILD_PID" 2>/dev/null
+    for _p in ${CHILD_PIDS[@]+"${CHILD_PIDS[@]}"}; do kill -KILL -- -"$_p" 2>/dev/null; done
     exit 130
   fi
   INTERRUPTED=1
-  printf '\n  %s▲%s  stopping the assistant (Ctrl-C again to force)\n' "$YELLOW" "$RESET"
-  if [ -n "$CHILD_PID" ]; then
-    # Signal the whole process group, not just the job. Assistants spawn node, npm,
-    # and the Foundry CLI; killing only the direct child leaves those running and
-    # the script appears to hang.
-    kill -TERM -- -"$CHILD_PID" 2>/dev/null || kill -TERM "$CHILD_PID" 2>/dev/null || true
-    for _ in 1 2 3 4 5 6; do
-      kill -0 -- -"$CHILD_PID" 2>/dev/null || break
-      sleep 0.25
-    done
-    kill -KILL -- -"$CHILD_PID" 2>/dev/null || true
-  fi
-  # restore still runs, via the EXIT trap.
-  exit 130
+  printf '\n  %s▲%s  stopping %s assistant(s) (Ctrl-C again to force)\n' \
+    "$YELLOW" "$RESET" "${#CHILD_PIDS[@]}"
+  # Signal each whole process group: assistants spawn node, npm and the Foundry CLI,
+  # and killing only the direct child leaves those running.
+  for _p in ${CHILD_PIDS[@]+"${CHILD_PIDS[@]}"}; do
+    kill -TERM -- -"$_p" 2>/dev/null || kill -TERM "$_p" 2>/dev/null || true
+  done
+  for _ in 1 2 3 4 5 6; do
+    local alive=0
+    for _p in ${CHILD_PIDS[@]+"${CHILD_PIDS[@]}"}; do kill -0 -- -"$_p" 2>/dev/null && alive=1; done
+    [ "$alive" -eq 0 ] && break
+    sleep 0.25
+  done
+  for _p in ${CHILD_PIDS[@]+"${CHILD_PIDS[@]}"}; do kill -KILL -- -"$_p" 2>/dev/null; done
+  exit 130   # restore runs via the EXIT trap
 }
 trap on_interrupt INT TERM
 trap restore EXIT
@@ -518,64 +521,75 @@ classify() {
   echo "FAIL|stalled|reported $(clean "$status" 12) but ran no commands|$skills|$cmds"
 }
 
+# All assistants share ONE token cache at ~/.config/foundry/token.json. Run in
+# parallel with an expired token and they race to refresh it: concurrent logins plus
+# a write race on the same file. Warming it once first means nobody needs to refresh,
+# since the token lasts ~30 minutes and the whole run takes a few.
+warm_token() {
+  command -v foundry >/dev/null 2>&1 || return 0
+  head2 "Warming the shared token cache"
+  if foundry apps list >/dev/null 2>&1; then
+    ok "token valid — no assistant will need to refresh it mid-run"
+  else
+    warn "could not reach the tenant; assistants may each try to refresh the token"
+    info "that is a write race on ~/.config/foundry/token.json — expect noisy failures"
+  fi
+}
+
+# --expire-token exists to force the refresh path, which is exactly what must not
+# happen concurrently. Serialise in that mode.
+if [ "$EXPIRE_TOKEN" -eq 1 ] && [ "$PARALLEL" -eq 1 ]; then
+  PARALLEL=0
+  warn "--expire-token forces sequential mode (concurrent token refresh would race)"
+fi
+[ "$PARALLEL" -eq 1 ] && warm_token
+
 head2 "Running"
 info "real app-creation prompt · self-report at ${REPORT_AT}s · hard cap ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
 printf '\n'
 
 RESULTS=(); CATEGORIES=(); FAILURES=0; TESTED=0
 
-for entry in "${ASSISTANTS[@]}"; do
-  IFS='|' read -r name bin source argv <<< "$entry"
-  want "$name" || continue
-
-  if ! command -v "$bin" >/dev/null 2>&1; then
-    printf '  %s%-16s SKIP%s    %s not installed\n' "$DIM" "$name" "$RESET" "$bin"
-    RESULTS+=("$name|SKIP|skip|not installed|0|none|")
-    continue
-  fi
-
-  # Assistants without --plugin-dir need the symlinks in place for their run only.
-  if [ "$source" = "~/.agents/skills" ]; then link_repo_skills; fi
-
-  if [ "$EXPIRE_TOKEN" -eq 1 ]; then rm -f "$HOME/.config/foundry/token.json"; fi
-
-  log="$LOG_DIR/${bin}.log"
-  printf '  %s%-16s%s running… ' "$BLUE" "$name" "$RESET"
-
+# Two groups, because they need OPPOSITE filesystem state and cannot overlap:
+# --plugin-dir assistants run with this repo's symlinks stashed away, while Codex and
+# Antigravity need those same symlinks present. Set the state once per group, run the
+# group in parallel, then move on. Wall clock becomes the slowest member of each group
+# instead of the sum of all five.
+launch() {   # name bin source argv  -> echoes "pid|start"
+  local name="$1" bin="$2" argv="$4" log="$LOG_DIR/${2}.log"
+  local -a parts=() cmd=()
   read -r -a parts <<< "$argv"
   cmd=("$bin")
   # The canonical prompt, then the reporting instructions. Appended, never spliced:
   # CI asserts the PROMPT line still starts with the README text.
-  full_prompt="${PROMPT}
+  local full_prompt="${PROMPT}
 $(report_instructions)"
-  for p in "${parts[@]}"; do
-    if [ "$p" = "%%PROMPT%%" ]; then cmd+=("$full_prompt"); else cmd+=("$p"); fi
+  local pp
+  for pp in "${parts[@]}"; do
+    if [ "$pp" = "%%PROMPT%%" ]; then cmd+=("$full_prompt"); else cmd+=("$pp"); fi
   done
-
-  start=$(date +%s)
-  # `set -m` gives the job its own process group, so on_interrupt can signal the
-  # entire tree with kill -- -PGID. Without it, Ctrl-C leaves grandchildren alive.
+  local start; start=$(date +%s)
+  # `set -m` gives each job its own process group so on_interrupt can signal the whole
+  # tree. < /dev/null is load-bearing: `claude -p` reads stdin and, backgrounded
+  # without a redirect, blocks on input that never arrives — full timeout, empty log.
   set -m
-  # < /dev/null is load-bearing: `claude -p` reads stdin and, backgrounded without
-  # a redirect, blocks waiting for input that never arrives — 120s, zero bytes logged.
   ( cd "$LOG_DIR" && env -u CLAUDECODE "$TIMEOUT_BIN" "$TIMEOUT" "${cmd[@]}" ) < /dev/null > "$log" 2>&1 &
-  CHILD_PID=$!
+  local pid=$!
   set +m
-  wait "$CHILD_PID"
-  rc=$?
-  CHILD_PID=""
-  elapsed=$(( $(date +%s) - start ))
+  echo "$pid|$start"
+}
 
-  if [ "$source" = "~/.agents/skills" ]; then unlink_repo_skills; fi
-
+report_one() {   # name bin source rc elapsed
+  local name="$1" bin="$2" source="$3" rc="$4" elapsed="$5"
+  local log="$LOG_DIR/${bin}.log" status category detail rskills rcmds
   IFS='|' read -r status category detail rskills rcmds <<< "$(classify "$log" "$rc")"
   case "$status" in
-    PASS)    printf '\r  %s%-16s%s %s%sPASS%s   %-43s %s%ss%s\n' \
+    PASS)    printf '  %s%-16s%s %s%sPASS%s   %-43s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$GREEN$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET" ;;
-    TIMEOUT) printf '\r  %s%-16s%s %s%sTIMEOUT%s %-42s %s%ss%s\n' \
+    TIMEOUT) printf '  %s%-16s%s %s%sTIMEOUT%s %-42s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$YELLOW$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
-    *)       printf '\r  %s%-16s%s %s%sFAIL%s    %s%-42s%s %s%ss%s\n' \
+    *)       printf '  %s%-16s%s %s%sFAIL%s    %s%-42s%s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$RED$BOLD" "$RESET" "$RED" "$detail" "$RESET" "$DIM" "$elapsed" "$RESET"
              FAILURES=$((FAILURES+1)) ;;
   esac
@@ -584,11 +598,77 @@ $(report_instructions)"
   # log, and the pair that shows a pass came from the working tree.
   [ -n "$rskills" ] && info "skills: $rskills"
   [ -n "$rcmds" ]   && info "ran: $rcmds"
-
   [ "$status" != "PASS" ] && CATEGORIES+=("$category")
   RESULTS+=("$name|$status|$category|$detail|$elapsed|$source|$rskills")
   TESTED=$((TESTED+1))
-done
+  return 0
+}
+
+run_group() {
+  local want_src="$1"
+  # `local -a x` leaves the array UNSET under set -u; `=()` makes it set-but-empty.
+  local -a g_names=() g_bins=() g_pids=() g_starts=()
+  local entry name bin source argv
+
+  for entry in "${ASSISTANTS[@]}"; do
+    IFS='|' read -r name bin source argv <<< "$entry"
+    want "$name" || continue
+    [ "$source" = "$want_src" ] || continue
+    if ! command -v "$bin" >/dev/null 2>&1; then
+      printf '  %s%-16s SKIP%s    %s not installed\n' "$DIM" "$name" "$RESET" "$bin"
+      RESULTS+=("$name|SKIP|skip|not installed|0|none|")
+      continue
+    fi
+    g_names+=("$name"); g_bins+=("$bin")
+  done
+  [ ${#g_names[@]} -eq 0 ] && return 0
+
+  # Set the filesystem state ONCE for the whole group.
+  [ "$want_src" = "~/.agents/skills" ] && link_repo_skills
+  [ "$EXPIRE_TOKEN" -eq 1 ] && rm -f "$HOME/.config/foundry/token.json"
+
+  local i pid_start
+  for i in "${!g_names[@]}"; do
+    for entry in "${ASSISTANTS[@]}"; do
+      IFS='|' read -r name bin source argv <<< "$entry"
+      [ "$name" = "${g_names[$i]}" ] || continue
+      pid_start=$(launch "$name" "$bin" "$source" "$argv")
+      g_pids+=("${pid_start%%|*}"); g_starts+=("${pid_start##*|}")
+      CHILD_PIDS+=("${pid_start%%|*}")
+      if [ "$PARALLEL" -eq 1 ]; then
+        printf '  %s%-16s%s %sstarted%s\n' "$BLUE" "$name" "$RESET" "$DIM" "$RESET"
+      else
+        printf '  %s%-16s%s running… ' "$BLUE" "$name" "$RESET"
+        wait "${g_pids[$i]}"; g_rcs[$i]=$?
+        printf '\r'
+      fi
+      break
+    done
+  done
+
+  if [ "$PARALLEL" -eq 1 ]; then
+    printf '\n'
+    for i in "${!g_pids[@]}"; do wait "${g_pids[$i]}"; g_rcs[$i]=$?; done
+  fi
+
+  for i in "${!g_names[@]}"; do
+    for entry in "${ASSISTANTS[@]}"; do
+      IFS='|' read -r name bin source argv <<< "$entry"
+      [ "$name" = "${g_names[$i]}" ] || continue
+      report_one "$name" "$bin" "$source" "${g_rcs[$i]:-1}" \
+        "$(( $(date +%s) - ${g_starts[$i]} ))"
+      break
+    done
+  done
+
+  [ "$want_src" = "~/.agents/skills" ] && unlink_repo_skills
+  CHILD_PIDS=()
+  return 0
+}
+
+declare -a g_rcs=()
+run_group "--plugin-dir"
+run_group "~/.agents/skills"
 
 head2 "Summary"
 if [ "$TESTED" -eq 0 ]; then
