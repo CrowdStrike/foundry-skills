@@ -36,6 +36,7 @@
 # Usage:
 #   ./test-assistants.sh                      # test every installed assistant
 #   ./test-assistants.sh --only codex         # test one (repeatable)
+#   ./test-assistants.sh --skip antigravity   # test all but one (repeatable)
 #   ./test-assistants.sh --report-at 90       # ask for the report later (default 60s)
 #   ./test-assistants.sh --timeout 300        # raise the hard cap (default 120s)
 #   ./test-assistants.sh --e2e                # build and DEPLOY for real (see below)
@@ -76,6 +77,7 @@ TIMEOUT=""    # default set below: higher in parallel, where agents contend
 E2E=0         # --e2e: build and deploy for real instead of smoke-testing
 SAVE_FILE=""
 ONLY=()
+SKIP=()
 ISOLATE=1
 EXPIRE_TOKEN=0
 VERBOSE=0
@@ -169,6 +171,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --only)         ONLY+=("$2"); shift 2 ;;
+    --skip)         SKIP+=("$2"); shift 2 ;;
     --report-at)    REPORT_AT="$2"; shift 2 ;;
     --timeout)      TIMEOUT="$2"; shift 2 ;;
     --save)         SAVE_FILE="$2"; shift 2 ;;
@@ -477,9 +480,17 @@ ASSISTANTS=(
 )
 
 want() {
+  local n="$1" b="$2" o
+  # Match either the display name or the binary. Names are what the table shows;
+  # binaries are what the log files are named after, so `--only agent` has to select
+  # Cursor or someone reading agent.log gets a silent empty run.
+  for o in ${SKIP[@]+"${SKIP[@]}"}; do
+    [[ "${n,,}" == *"${o,,}"* || "${b,,}" == *"${o,,}"* ]] && return 1
+  done
   [ ${#ONLY[@]} -eq 0 ] && return 0
-  local n="$1" o
-  for o in "${ONLY[@]}"; do [[ "${n,,}" == *"${o,,}"* ]] && return 0; done
+  for o in "${ONLY[@]}"; do
+    [[ "${n,,}" == *"${o,,}"* || "${b,,}" == *"${o,,}"* ]] && return 0
+  done
   return 1
 }
 
@@ -774,7 +785,7 @@ run_group() {
 
   for entry in "${ASSISTANTS[@]}"; do
     IFS='|' read -r name bin source argv <<< "$entry"
-    want "$name" || continue
+    want "$name" "$bin" || continue
     [ "$source" = "$want_src" ] || continue
     if ! command -v "$bin" >/dev/null 2>&1; then
       printf '  %s%-16s SKIP%s    %s not installed\n' "$DIM" "$name" "$RESET" "$bin"
