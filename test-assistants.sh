@@ -90,7 +90,9 @@ Two more things, because this is a timed test harness rather than a real build.
 Do not try to finish the app. You have about ${REPORT_AT} seconds of wall clock; run \`date\`
 if you need to know where you are. When that is up, stop wherever you have got to and
 report. Report early — right away — if something blocks you, if you find yourself
-about to ask me a question, or if you sense you are about to be interrupted. The
+about to ask me a question, or if you sense you are about to be interrupted.
+Running out of the time budget is expected and is not a failure — report what you
+have done so far with BLOCKER: NONE. The
 report is worth more to me than the extra progress.
 
 To report, end your reply with these five lines, in this order, each starting a line
@@ -98,10 +100,10 @@ of plain text. No code fence, no blockquote, no bullets, no bold, and no angle
 brackets in anything you write:
 
 FOUNDRY-REPORT
-STATUS: <one word — WORKING if the CLI is doing real work, BLOCKED if something stopped you, DONE if the app is built>
+STATUS: <one word — WORKING if the CLI is doing real work, BLOCKED only if a real problem stopped you, DONE if the app is built. Running out of the time budget is NOT blocked; that is WORKING>
 SKILLS: <comma-separated paths of the skill files you loaded, or NONE>
 COMMANDS: <comma-separated, every foundry command you ran, each written as the command followed by => OK or => FAIL: reason. NONE if you ran none>
-BLOCKER: <one line naming what stopped you, quoting the CLI error text verbatim if there was one. NONE if nothing did>
+BLOCKER: <one line naming a real problem, quoting the CLI error verbatim if there was one. NONE if nothing did. The time budget is not a blocker — if you simply ran out of time and nothing failed, write NONE>
 EOF
 }
 
@@ -484,7 +486,15 @@ classify() {
     echo "FAIL|other|stopped without reporting (exit $rc)|$skills|$cmds"; return
   fi
 
-  # A blocker is the result, whatever else the assistant managed to do.
+  # Our own time budget is not a failure, however the assistant phrases it. Codex
+  # reported "Timed test harness limit stopped me" as a blocker while every command
+  # it ran had succeeded. Discard that class of blocker before judging.
+  if grep -qiE 'time (budget|limit)|timed? (out|harness)|harness limit|ran out of time|60[- ]second' <<< "$raw_blocker"; then
+    raw_blocker=NONE
+    grep -qi 'BLOCK' <<< "$status" && status=WORKING
+  fi
+
+  # A real blocker is the result, whatever else the assistant managed to do.
   if grep -qi 'BLOCK' <<< "$status" || ! is_none "$raw_blocker"; then
     cat=$(blocker_category "$raw_blocker")
     detail=$(clean "blocked: ${raw_blocker:-no detail given}" 40)
@@ -560,7 +570,7 @@ $(report_instructions)"
 
   IFS='|' read -r status category detail rskills rcmds <<< "$(classify "$log" "$rc")"
   case "$status" in
-    PASS)    printf '\r  %s%-16s%s %s%sPASS%s    %-42s %s%ss%s\n' \
+    PASS)    printf '\r  %s%-16s%s %s%sPASS%s   %-43s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$GREEN$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET" ;;
     TIMEOUT) printf '\r  %s%-16s%s %s%sTIMEOUT%s %-42s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$YELLOW$BOLD" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET"
