@@ -131,10 +131,12 @@ if [ "$TIMEOUT" -le "$REPORT_AT" ]; then
   TIMEOUT=$(( REPORT_AT + 30 ))
 fi
 
-# Concurrency slows each agent: three at once all pegged a 120s cap that they beat
-# comfortably when run alone. Parallel runs therefore get a larger budget.
+# Concurrency slows each agent: three at once all pegged a 120s cap they beat easily
+# alone. But 240s only moved the peg — they used nearly all of it and wall clock got
+# worse (278s vs 200s). 150s is the middle: room to report under contention, not so
+# much that they spend it all.
 if [ -z "$TIMEOUT" ]; then
-  if [ "$PARALLEL" -eq 1 ]; then TIMEOUT=240; else TIMEOUT=120; fi
+  if [ "$PARALLEL" -eq 1 ]; then TIMEOUT=150; else TIMEOUT=120; fi
 fi
 
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[0;33m'
@@ -333,7 +335,9 @@ isolate() {
     local link
     for link in "$SKILL_HOME"/*; do
       [ -L "$link" ] || continue
-      points_into_repo "$link" || continue
+      # Every skill symlink, not only this repo's. A sibling repo competes just as much:
+      # Cursor loaded fusion-skills' `setup` and ran 2 foundry commands where Claude,
+      # seeing only ours, ran 8.
       mv "$link" "$STASH/" && STASHED=$((STASHED+1)) && vok "stashed symlink $(basename "$link")"
     done
     [ "$STASHED" -eq 0 ] && rmdir "$STASH" 2>/dev/null || true
