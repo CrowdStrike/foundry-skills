@@ -203,24 +203,28 @@ want() {
   return 1
 }
 
-# A hard failure anywhere outweighs a success line: assistants often retry and
-# print both, and we care whether the run hit a wall at all.
+# Returns STATUS|CATEGORY|detail. The category is the trackable part: it says which
+# known failure mode was hit, so counts can be compared across runs and branches.
+# A hard failure anywhere outweighs a success line, since assistants often retry
+# and print both, and we care whether the run hit a wall at all.
 classify() {
   local log="$1" rc="$2"
-  grep -qiE "unknown flag|unknown command" "$log" 2>/dev/null && { echo "FAIL|bad flag or unsupported command"; return; }
-  grep -qi  "connection issue"            "$log" 2>/dev/null && { echo "FAIL|connection issue (denied token-cache write?)"; return; }
-  grep -qiE "no profiles found|no active profile" "$log" 2>/dev/null && { echo "FAIL|no usable Foundry profile"; return; }
-  grep -qE  "APP ID|App ID"               "$log" 2>/dev/null && { echo "PASS|listed apps"; return; }
-  { [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; } && { echo "TIMEOUT|exceeded ${TIMEOUT}s"; return; }
-  [ "$rc" -ne 0 ] && { echo "FAIL|exited $rc without reaching the tenant"; return; }
-  echo "UNKNOWN|finished but printed no app list"
+  grep -qiE "unknown flag|unknown command" "$log" 2>/dev/null && { echo "FAIL|flag|rejected a CLI flag"; return; }
+  grep -qi  "connection issue"            "$log" 2>/dev/null && { echo "FAIL|connection|connection issue (denied token-cache write?)"; return; }
+  grep -qiE "no TTY available|could not open a new TTY|device not configured" "$log" 2>/dev/null && { echo "FAIL|tty|CLI demanded a TTY"; return; }
+  grep -qiE "not inside a trusted directory|skip-git-repo-check" "$log" 2>/dev/null && { echo "FAIL|trust|refused to run in this directory"; return; }
+  grep -qiE "no profiles found|no active profile" "$log" 2>/dev/null && { echo "FAIL|profile|no usable Foundry profile"; return; }
+  grep -qE  "APP ID|App ID"               "$log" 2>/dev/null && { echo "PASS|ok|listed apps"; return; }
+  { [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; } && { echo "TIMEOUT|timeout|exceeded ${TIMEOUT}s"; return; }
+  [ "$rc" -ne 0 ] && { echo "FAIL|other|exited $rc without reaching the tenant"; return; }
+  echo "UNKNOWN|other|finished but printed no app list"
 }
 
 head2 "Running"
 info "tenant check: foundry apps list · timeout ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
 printf '\n'
 
-RESULTS=(); FAILURES=0; TESTED=0
+RESULTS=(); CATEGORIES=(); FAILURES=0; TESTED=0
 
 for entry in "${ASSISTANTS[@]}"; do
   IFS='|' read -r name bin source argv <<< "$entry"
@@ -228,7 +232,7 @@ for entry in "${ASSISTANTS[@]}"; do
 
   if ! command -v "$bin" >/dev/null 2>&1; then
     printf '  %s%-16s SKIP%s    %s not installed\n' "$DIM" "$name" "$RESET" "$bin"
-    RESULTS+=("$name|SKIP|not installed|0|none")
+    RESULTS+=("$name|SKIP|skip|not installed|0|none")
     continue
   fi
 
@@ -253,7 +257,7 @@ for entry in "${ASSISTANTS[@]}"; do
 
   if [ "$source" = "~/.agents/skills" ]; then unlink_repo_skills; fi
 
-  IFS='|' read -r status detail <<< "$(classify "$log" "$rc")"
+  IFS='|' read -r status category detail <<< "$(classify "$log" "$rc")"
   case "$status" in
     PASS)    printf '\r  %s%-16s%s %s%sPASS%s    %-42s %s%ss%s\n' \
                "$BOLD" "$name" "$RESET" "$BOLD" "$GREEN" "$RESET" "$detail" "$DIM" "$elapsed" "$RESET" ;;
@@ -266,7 +270,8 @@ for entry in "${ASSISTANTS[@]}"; do
   esac
   info "source: $source · log: ${log/#$HOME/\~}"
 
-  RESULTS+=("$name|$status|$detail|$elapsed|$source")
+  [ "$status" != "PASS" ] && CATEGORIES+=("$category")
+  RESULTS+=("$name|$status|$category|$detail|$elapsed|$source")
   TESTED=$((TESTED+1))
 done
 
@@ -274,17 +279,31 @@ head2 "Summary"
 if [ "$TESTED" -eq 0 ]; then
   printf '  no assistants tested\n'
 elif [ "$FAILURES" -eq 0 ]; then
-  printf '  %sall %s tested assistant(s) reached the tenant%s\n' "$GREEN" "$TESTED" "$RESET"
+  printf '  %s%s of %s reached the tenant%s\n' "$GREEN" "$TESTED" "$TESTED" "$RESET"
 else
-  printf '  %s%s of %s failed%s\n' "$RED" "$FAILURES" "$TESTED" "$RESET"
-  # Only offer the token-cache explanation when a run actually hit that error.
-  if printf '%s\n' "${RESULTS[@]}" | grep -q "connection issue"; then
-    info 'A "connection issue" failure means the sandbox denied the CLI its'
-    info 'token-cache write to ~/.config/foundry/ — see debugging-workflows.'
+  printf '  %s%s of %s reached the tenant%s · %s%s failed%s\n' \
+    "$GREEN" "$((TESTED-FAILURES))" "$TESTED" "$RESET" "$RED" "$FAILURES" "$RESET"
+  printf '\n  %sfailures by cause%s\n' "$BOLD" "$RESET"
+  # Counts per known failure mode, worth tracking run to run.
+  printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | sort | uniq -c | sort -rn | while read -r n cat; do
+    case "$cat" in
+      connection) label="connection issue — denied token-cache write" ; col=$RED ;;
+      tty)        label="TTY demanded by the CLI"                     ; col=$MAGENTA ;;
+      flag)       label="unsupported CLI flag"                        ; col=$YELLOW ;;
+      trust)      label="refused to run in the test directory"        ; col=$YELLOW ;;
+      profile)    label="no usable Foundry profile"                   ; col=$YELLOW ;;
+      timeout)    label="timed out"                                   ; col=$YELLOW ;;
+      *)          label="other"                                       ; col=$DIM ;;
+    esac
+    printf '    %s%s×%s %s%s%s\n' "$BOLD" "$n" "$RESET" "$col" "$label" "$RESET"
+  done
+  printf '\n'
+  if printf '%s\n' ${CATEGORIES[@]+"${CATEGORIES[@]}"} | grep -qx connection; then
+    info 'A connection issue means the sandbox denied the CLI its token-cache'
+    info 'write to ~/.config/foundry/ — see debugging-workflows.'
     [ "$EXPIRE_TOKEN" -eq 0 ] && info 'Re-run with --expire-token to force that path on every trial.'
   else
-    info 'No connection-issue failures — read the logs above; the cause is'
-    info 'something other than the token cache.'
+    info 'No connection or TTY failures. Read the logs above.'
   fi
 fi
 
@@ -294,10 +313,10 @@ if [ -n "$SAVE_FILE" ]; then
       "$TIMEOUT" "$ISOLATE" "$EXPIRE_TOKEN"
     first=1
     for r in "${RESULTS[@]}"; do
-      IFS='|' read -r n s d e src <<< "$r"
+      IFS='|' read -r n st cat d e src <<< "$r"
       [ $first -eq 0 ] && printf ',\n'; first=0
-      printf '    {"assistant": "%s", "status": "%s", "detail": "%s", "seconds": %s, "source": "%s"}' \
-        "$n" "$s" "$d" "$e" "$src"
+      printf '    {"assistant": "%s", "status": "%s", "category": "%s", "detail": "%s", "seconds": %s, "source": "%s"}' \
+        "$n" "$st" "$cat" "$d" "$e" "$src"
     done
     printf '\n  ]\n}\n'
   } > "$SAVE_FILE"
