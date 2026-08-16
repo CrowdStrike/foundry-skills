@@ -47,24 +47,6 @@ Run `foundry login --no-config` once in an interactive environment. This outputs
 - Linux/macOS: `${XDG_CONFIG_HOME:-$HOME/.config}/foundry/configuration.yml`
 - Windows: `C:\Users\<username>\.config\foundry\configuration.yml`
 
-### XDG Configuration in Sandboxed Agents
-
-Some coding-agent launchers override `XDG_CONFIG_HOME`, which makes an existing
-Falcon Foundry profile appear to be missing. Normalize it before profile and
-tenant checks:
-
-```bash
-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-foundry profile active
-foundry apps list
-```
-
-The Foundry CLI honors `XDG_CONFIG_HOME`. Do not set it to a temporary or
-workspace-local directory because that hides the user's existing profile. Do
-not copy `configuration.yml` into the workspace. If the assistant can see the
-profile but cannot update `$XDG_CONFIG_HOME/foundry`, request write access to
-that existing directory through the assistant's permission mechanism.
-
 ## Non-Interactive Command Flags
 
 Commands that prompt for user input support `--no-prompt` to suppress prompts and fail with an error if required flags are missing. **Always use `--no-prompt` when running commands from agents or scripts.**
@@ -132,14 +114,13 @@ When operating as a CLI agent:
 4. **Always pass all required flags:** Never rely on interactive prompts — always include `--no-prompt` where supported
 5. **Use `--no-git` on `foundry apps create`:** Prevents git init prompts in environments where git may not be configured
 6. **Headless mode** is detected automatically by Foundry CLI v2.0.1+. For older versions or standalone scripts/CI, export `FOUNDRY_UI_HEADLESS_MODE=true` manually.
-7. **Normalize XDG configuration:** Export `XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"` before concluding that an existing profile is missing.
-8. **Choose the app directory automatically:** Use the current directory unless it is an unrelated repository; in that case use a sibling directory and request write access if the sandbox requires it.
+7. **Choose the app directory automatically:** Use the current directory unless it is an unrelated repository; in that case use a sibling directory and request write access if the sandbox requires it.
 
 ### Sandboxed assistants
 
-Some assistants run shell commands with network sandboxing. A profile command can succeed because it reads local configuration while a tenant command such as `foundry apps list` or `foundry apps validate` fails with only `connection issue`.
+Some assistants run shell commands with network sandboxing. A profile command can succeed because it only reads local configuration, while a tenant command such as `foundry apps list` or `foundry apps validate` fails with only `connection issue`. The CLI holds client credentials on disk and exchanges them for a short-lived token in memory on each run, so it never needs to write to the config directory — a tenant failure points at network access, not file permissions.
 
-If the same tenant command works in the user's terminal, explain that the agent process is likely sandboxed and request elevated or unsandboxed network access. Then retry the command once with the assistant's supported permission mechanism. If elevation is unavailable, tell the user which permission to enable or give them the exact command to run and ask for its output. Do not delete or recreate the user's profile before this comparison. If elevated execution still fails, continue with the authentication diagnostics above.
+If the same command works in the user's terminal, the agent process is sandboxed. Say so, then request elevated or unsandboxed network access through the assistant's supported permission mechanism and retry once. If elevation is unavailable, tell the user which permission to enable, or give them the exact command to run and ask for its output. Do not delete or recreate the user's profile before making that comparison, do not copy `configuration.yml` into the workspace, and do not redirect the config path to a workspace-local directory — each of those hides the working profile instead of fixing access. If elevated execution still fails, continue with the authentication diagnostics above.
 
 ## Counter-Rationalizations for Interactive Mode
 

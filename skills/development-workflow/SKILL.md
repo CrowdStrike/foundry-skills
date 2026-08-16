@@ -146,11 +146,9 @@ foundry profile active   # Verify authentication
 foundry apps list        # Check existing apps (avoid name collisions)
 ```
 
-Before diagnosing a missing profile, export
-`XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"`. Never redirect it into
-the workspace or copy credentials. See
-[headless operation](references/headless-operation.md) for access and
-authentication failures.
+If any of these fail, see [headless operation](references/headless-operation.md)
+for setup options (env vars, non-interactive profile creation) and sandbox
+diagnostics. Never copy credentials into the workspace.
 
 ### Step 4: Scaffold the App
 
