@@ -40,6 +40,7 @@
 #   ./test-assistants.sh --report-at 90       # ask for the report later (default 60s)
 #   ./test-assistants.sh --timeout 300        # raise the hard cap (default 120s)
 #   ./test-assistants.sh --e2e                # build and DEPLOY for real (see below)
+#   ./test-assistants.sh --judge              # judge the last --e2e run, launching nothing
 #   ./test-assistants.sh --expire-token       # delete the cached token first (see below)
 #   ./test-assistants.sh --save results.json  # machine-readable results
 #   ./test-assistants.sh --sequential         # one at a time (default: two groups in parallel)
@@ -75,6 +76,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPORT_AT=""  # default set below: near the end of the run, which differs by mode
 TIMEOUT=""    # default set below: higher in parallel, where agents contend
 E2E=0         # --e2e: build and deploy for real instead of smoke-testing
+JUDGE=0       # --judge: check a previous --e2e run against ground truth, launching nothing
 SAVE_FILE=""
 ONLY=()
 SKIP=()
@@ -178,6 +180,7 @@ while [[ $# -gt 0 ]]; do
     --prompt)       PROMPT="$2"; shift 2 ;;
     --no-isolate)   ISOLATE=0; shift ;;
     --e2e)          E2E=1; shift ;;
+    --judge)        JUDGE=1; shift ;;
     -v|--verbose)   VERBOSE=1; shift ;;
     --sequential)   PARALLEL=0; shift ;;
     --expire-token) EXPIRE_TOKEN=1; shift ;;
@@ -201,6 +204,10 @@ if [ -z "$TIMEOUT" ]; then
   else                           TIMEOUT=120
   fi
 fi
+
+# Judging reads files and the tenant. It launches nothing, so there is nothing to
+# isolate and no reason to touch the user's plugins or symlinks.
+[ "$JUDGE" -eq 1 ] && ISOLATE=0
 
 if [ -z "$REPORT_AT" ]; then
   if [ "$E2E" -eq 1 ]; then REPORT_AT=780; else REPORT_AT=60; fi
@@ -463,7 +470,7 @@ recover_orphans
 if [ "$ISOLATE" -eq 1 ]; then
   isolate
 else
-  warn "bias control skipped (--no-isolate): results may reflect an installed copy"
+  [ "$JUDGE" -eq 0 ] && warn "bias control skipped (--no-isolate): results may reflect an installed copy"
 fi
 
 # ── Assistants ─────────────────────────────────────────────────
@@ -689,8 +696,10 @@ fi
 [ "$PARALLEL" -eq 1 ] && warm_token
 
 RUN_START=$(date +%s)
-head2 "Running"
-if [ "$E2E" -eq 1 ]; then
+[ "$JUDGE" -eq 0 ] && head2 "Running"
+if [ "$JUDGE" -eq 1 ]; then
+  :
+elif [ "$E2E" -eq 1 ]; then
   info "END-TO-END: real deploy required · report at ${REPORT_AT}s · hard cap ${TIMEOUT}s · logs in ${LOG_DIR/#$HOME/\~}"
   info "a PASS means the assistant reported a deployment id; verify it with ./verify-apps.sh"
 else
@@ -839,9 +848,124 @@ run_group() {
   return 0
 }
 
+# ── Judging ───────────────────────────────────────────────────────
+# A PASS above means the assistant SAID it deployed. This checks whether it did, and
+# whether the app contains what was asked for. Every check reads a file or the tenant;
+# none of it trusts the transcript.
+#
+# Apps are located by identity rather than by path, because the per-assistant working
+# directory is advisory: Copilot ran `cd /Users/mraible/dev` and scaffolded there, so a
+# judge that only looked where it was told would have failed a genuinely working app.
+# An app found elsewhere is reported as "escaped", not as a failure.
+
+# Newline-separated "name<TAB>state" for everything on the tenant. One call, reused.
+tenant_apps() {
+  foundry apps list 2>/dev/null | awk -F'|' 'NF>3 && $2 !~ /APP ID/ {
+    gsub(/^[ \t]+|[ \t]+$/, "", $3); gsub(/^[ \t]+|[ \t]+$/, "", $4)
+    if ($3 != "") printf "%s\t%s\n", $3, $4
+  }'
+}
+
+# Sets MANIFEST_PATH and FOUND_OUTSIDE. Deliberately not echoing the path: called
+# through $(...) the assignments would happen in a subshell and never reach the caller,
+# which is the same trap that broke launch() returning a pid.
+MANIFEST_PATH=""
+FOUND_OUTSIDE=""
+find_manifest() {   # bin
+  local bin="$1"
+  MANIFEST_PATH=""; FOUND_OUTSIDE=""
+  MANIFEST_PATH=$(find "$LOG_DIR/e2e/$bin" -name manifest.yml -maxdepth 3 2>/dev/null | head -1)
+  [ -n "$MANIFEST_PATH" ] && return
+  # Not where we put it. Look where an assistant has actually been known to wander,
+  # then fall back to whatever path the transcript mentions.
+  MANIFEST_PATH=$(grep -oE '/[^ "]*/manifest\.yml' "$LOG_DIR/${bin}.log" 2>/dev/null | head -1)
+  if [ -z "$MANIFEST_PATH" ]; then
+    MANIFEST_PATH=$(find "$HOME/dev" -maxdepth 2 -name manifest.yml 2>/dev/null \
+      | xargs grep -l -- "-${bin}\$" 2>/dev/null | head -1)
+  fi
+  [ -n "$MANIFEST_PATH" ] && [ -f "$MANIFEST_PATH" ] && FOUND_OUTSIDE=1
+  [ -f "${MANIFEST_PATH:-/nonexistent}" ] || MANIFEST_PATH=""
+}
+
+# Present-or-not for the things the skills are supposed to produce. Each maps to one
+# sub-skill, so a missing mark says which skill did not really run.
+judge_one() {   # name bin claimed_app claimed_deployment
+  local name="$1" bin="$2" c_app="$3" c_dep="$4"
+  local manifest app_dir app_name state marks="" notes=""
+
+  find_manifest "$bin"; manifest="$MANIFEST_PATH"
+  if [ -z "$manifest" ]; then
+    printf '  %s%-16s%s %s✘ NO APP%s  nothing on disk for this assistant\n' \
+      "$BOLD" "$name" "$RESET" "$RED$BOLD" "$RESET"
+    JUDGED+=("$name|NOAPP|||"); return
+  fi
+  app_dir=$(dirname "$manifest")
+  app_name=$(sed -n 's/^name:[[:space:]]*//p' "$manifest" | head -1)
+  [ -n "$FOUND_OUTSIDE" ] && notes="built outside its working directory: ${app_dir/#$HOME/\~}"
+
+  state=$(tenant_apps | awk -F'\t' -v n="$app_name" '$1==n {print $2; exit}')
+  [ -z "$state" ] && state="ABSENT"
+
+  # api-integrations, with the two markers that only appear if the skill was applied:
+  # Okta's SSWS auth prefix, and x-cs-operation-config for sharing with Fusion SOAR.
+  local spec
+  spec=$(find "$app_dir/api-integrations" -type f \( -name '*.yaml' -o -name '*.yml' -o -name '*.json' \) 2>/dev/null | head -1)
+  [ -n "$spec" ] && marks+="api " || marks+="--- "
+  [ -n "$spec" ] && grep -qi 'SSWS' "$spec" && marks+="ssws " || marks+="---- "
+  [ -n "$spec" ] && grep -q 'x-cs-operation-config' "$spec" && marks+="soar " || marks+="---- "
+
+  grep -qE '^workflows:' "$manifest" && grep -qE '^\s+- id:|^\s+[a-z].*:' <<< "$(sed -n '/^workflows:/,/^[a-z]/p' "$manifest")" \
+    && marks+="wf " || marks+="-- "
+  grep -qE '^[[:space:]]+extensions:' "$manifest" && ! sed -n '/extensions:/,+3p' "$manifest" | grep -q '\[\]' \
+    && marks+="ext " || marks+="--- "
+
+  # The UI is only real if it talks to the integration and uses the design system.
+  # Scoped to source files: an unscoped grep matches @shoelace-style in a lock file or
+  # a bundled copy in node_modules, which says nothing about what the code renders.
+  local ui_src=(--exclude-dir=node_modules --include='*.js' --include='*.jsx' --include='*.html')
+  grep -rqs "${ui_src[@]}" -e 'apiIntegration(' "$app_dir/ui" && marks+="api-js " || marks+="------ "
+  grep -rqsE "${ui_src[@]}" -e '<sl-' "$app_dir/ui" && marks+="shoelace" || marks+="--------"
+
+  local verdict colour
+  case "$state" in
+    Released|Deployed) verdict=OK;      colour=$GREEN ;;
+    ABSENT)            verdict=NOTENANT; colour=$RED ;;
+    *)                 verdict=STATE;   colour=$YELLOW ;;
+  esac
+  # The disagreement that matters: it claimed a deployment the tenant cannot show.
+  [ "$verdict" = NOTENANT ] && [ -n "$c_dep" ] && notes="claimed $c_dep but the tenant has no such app"
+  [ -n "$c_app" ] && [ "$c_app" != "$app_name" ] && [ "$c_app" != "?" ] \
+    && notes="${notes:+$notes; }reported \"$c_app\" but the manifest says \"$app_name\""
+
+  printf '  %s%-16s%s %s%-9s%s %-22s %s%s%s\n' \
+    "$BOLD" "$name" "$RESET" "$colour$BOLD" "$state" "$RESET" "$app_name" "$DIM" "$marks" "$RESET"
+  [ -n "$notes" ] && info "$notes"
+  JUDGED+=("$name|$verdict|$app_name|$state|$marks")
+}
+
+run_judge() {
+  head2 "Judging against the tenant and the files on disk"
+  info "state · app · api ssws soar wf ext api-js shoelace   (dashes mean absent)"
+  JUDGED=()
+  local entry name bin source argv r rn rapp rdep
+  for entry in "${ASSISTANTS[@]}"; do
+    IFS='|' read -r name bin source argv <<< "$entry"
+    want "$name" "$bin" || continue
+    rapp=""; rdep=""
+    for r in ${RESULTS[@]+"${RESULTS[@]}"}; do
+      IFS='|' read -r rn _ _ _ _ _ _ rapp rdep <<< "$r"
+      [ "$rn" = "$name" ] && break
+      rapp=""; rdep=""
+    done
+    judge_one "$name" "$bin" "$rapp" "$rdep"
+  done
+}
+
 declare -a g_rcs=()
-run_group "--plugin-dir"
-run_group "~/.agents/skills"
+if [ "$JUDGE" -eq 0 ]; then
+  run_group "--plugin-dir"
+  run_group "~/.agents/skills"
+fi
 
 WALL=$(( $(date +%s) - RUN_START ))
 SEQ=0
@@ -849,6 +973,12 @@ for r in ${RESULTS[@]+"${RESULTS[@]}"}; do
   IFS='|' read -r _n _s _c _d _e _src _sk <<< "$r"
   SEQ=$(( SEQ + ${_e:-0} ))
 done
+
+if [ "$JUDGE" -eq 1 ]; then
+  run_judge
+  printf '\n'
+  exit 0
+fi
 
 head2 "Summary"
 if [ "$TESTED" -eq 0 ]; then
