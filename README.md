@@ -93,6 +93,7 @@ Other assistants discover and follow the skills but do not run these Claude Code
 | `security-patterns` | OAuth scoping, input validation, content security |
 | `debugging-workflows` | Systematic troubleshooting for CLI, manifest, and deployment issues |
 | `e2e-testing` | End-to-end testing with `@crowdstrike/foundry-playwright` |
+| `fusion-redirect` | Declines standalone Falcon Fusion workflow requests and points to the `crowdstrike-falcon-fusion` plugin |
 
 ## Architecture
 
