@@ -173,34 +173,4 @@ When building Falcon Foundry apps, take your time and do each step thoroughly. Q
 
 ### Testing a branch in Codex
 
-Register the checkout as a local marketplace so skills are properly namespaced:
-
-```bash
-codex plugin marketplace add "$PWD"
-codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-Codex resolves the Git remote and tracks the branch, so it fetches from GitHub rather than reading your working directory. The refresh cycle after making changes is:
-
-```bash
-git push
-codex plugin marketplace upgrade foundry-marketplace
-codex plugin remove crowdstrike-falcon-foundry@foundry-marketplace
-codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-This is heavier than Claude Code's `--plugin-dir` (which loads live from disk), but it gives you proper namespacing (`crowdstrike-falcon-foundry:development-workflow`) and avoids the flat-namespace collisions that symlinking into `~/.agents/skills/` creates.
-
-Do not also symlink skills into `~/.agents/skills/` — that loads them as bare personal skills outside the plugin namespace, creating duplicates. Check what is loaded and where it came from:
-
-```bash
-codex debug prompt-input | grep -o 'file: [^)]*SKILL.md'
-```
-
-Every Foundry entry should resolve to `~/.codex/plugins/cache/foundry-marketplace/`. If any point into `~/.agents/skills/`, remove the symlinks:
-
-```bash
-rm ~/.agents/skills/{api-integrations,collections-development,debugging-workflows,development-workflow,e2e-testing,functions-development,functions-falcon-api,fusion-redirect,security-patterns,ui-development,workflows-development}
-```
-
-`./test-assistants.sh` handles isolation for you and restores your setup afterward.
+See the "Install from a local clone" section in the README. Codex always caches on install rather than loading live from disk, so changes require a remove + re-add cycle. `./test-assistants.sh` handles isolation for you and restores your setup afterward.

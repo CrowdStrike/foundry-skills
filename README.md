@@ -45,7 +45,7 @@ git clone https://github.com/CrowdStrike/foundry-skills.git
 | Cursor | `agent --plugin-dir /path/to/foundry-skills` |
 | Antigravity CLI | `agy plugin install /path/to/foundry-skills` |
 
-Codex resolves the Git remote and tracks the branch. After pushing changes, refresh with `codex plugin marketplace upgrade foundry-marketplace` then reinstall the plugin. The other assistants load directly from the path and pick up edits immediately.
+Claude Code, Copilot CLI, and Cursor load directly from the path and pick up edits immediately. Codex copies into its plugin cache on install, so after making changes run `codex plugin remove crowdstrike-falcon-foundry@foundry-marketplace && codex plugin add crowdstrike-falcon-foundry@foundry-marketplace` to refresh.
 
 </details>
 
