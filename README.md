@@ -77,7 +77,7 @@ The Claude Code plugin includes hooks that ensure the right skills get used:
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
 
-Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the sandbox diagnostics in the debugging skill.
+Codex discovers `hooks/hooks.json` on its own and sets `CLAUDE_PLUGIN_ROOT` for compatibility, so these hooks can execute there — but they are written and tested against Claude Code's hook contract, so treat their behavior on Codex as unvalidated. Copilot CLI, Cursor, and Antigravity CLI do not run them at all. On any assistant where the hooks do not run, apply the documented `--no-prompt` guardrails and invoke the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the sandbox diagnostics in the debugging skill.
 
 ## Skills
 
