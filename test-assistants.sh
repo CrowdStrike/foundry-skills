@@ -499,7 +499,7 @@ ASSISTANTS=(
   "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --dangerously-skip-permissions --verbose --output-format stream-json"
   "Codex|codex|~/.agents/skills|exec %%PROMPT%% --skip-git-repo-check"
   "Copilot CLI|copilot|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --allow-all"
-  "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force"
+  "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force --trust"
   "Antigravity CLI|agy|~/.agents/skills|-p %%PROMPT%% --dangerously-skip-permissions"
 )
 
