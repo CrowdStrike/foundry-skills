@@ -180,11 +180,16 @@ codex plugin marketplace add "$PWD"
 codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
-Codex caches the plugin on install. After making changes, refresh it:
+Codex resolves the Git remote and tracks the branch, so it fetches from GitHub rather than reading your working directory. The refresh cycle after making changes is:
 
 ```bash
-codex plugin upgrade crowdstrike-falcon-foundry@foundry-marketplace
+git push
+codex plugin marketplace upgrade foundry-marketplace
+codex plugin remove crowdstrike-falcon-foundry@foundry-marketplace
+codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
+
+This is heavier than Claude Code's `--plugin-dir` (which loads live from disk), but it gives you proper namespacing (`crowdstrike-falcon-foundry:development-workflow`) and avoids the flat-namespace collisions that symlinking into `~/.agents/skills/` creates.
 
 Do not also symlink skills into `~/.agents/skills/` — that loads them as bare personal skills outside the plugin namespace, creating duplicates. Check what is loaded and where it came from:
 
