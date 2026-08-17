@@ -10,3 +10,6 @@ __pycache__/
 # Repo images live in images/ and stay tracked.
 *.png
 !images/*.png
+
+# OpenAI submission bundle built by ./release.sh --bundle
+crowdstrike-falcon-foundry-*.zip

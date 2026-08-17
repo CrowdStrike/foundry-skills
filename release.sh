@@ -152,6 +152,9 @@ build_bundle() {
 
   # Every relative path the skills reference must resolve inside the archive.
   # This is what catches a skill that starts using a new top-level directory.
+  # `|| true` keeps the substitution from tripping `set -e`: under pipefail the
+  # inner grep exits non-zero for any file with no links, which would otherwise
+  # abort the whole script. The captured stdout (the MISSING lines) is unaffected.
   local missing
   missing=$(cd "$work" && find skills -name '*.md' | while read -r f; do
     d=$(dirname "$f")
@@ -160,7 +163,7 @@ build_bundle() {
         target=$(python3 -c 'import os,sys; print(os.path.normpath(os.path.join(sys.argv[1], sys.argv[2])))' "$d" "$link")
         [[ -e "$target" ]] || printf '%s -> %s\n' "$f" "$link"
       done
-  done)
+  done) || true
   if [[ -z "$missing" ]]; then
     printf "${GREEN}✓${RESET} Every path referenced by a skill resolves inside the archive\n"
   else
