@@ -173,25 +173,29 @@ When building Falcon Foundry apps, take your time and do each step thoroughly. Q
 
 ### Testing a branch in Codex
 
-Codex discovers skills from `~/.agents/skills/`, one directory per skill. Symlink the working tree so edits are live:
+Register the checkout as a local marketplace so skills are properly namespaced:
 
 ```bash
-mkdir -p ~/.agents/skills
-for skill in "$PWD"/skills/*/; do ln -s "${skill%/}" ~/.agents/skills/; done
+codex plugin marketplace add "$PWD"
+codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
 ```
 
-Restart Codex or run `/reload-plugins` to re-index.
+Codex caches the plugin on install. After making changes, refresh it:
 
-Do not also install the plugin from a marketplace — Codex loads both sources, giving you two copies of each skill. Check what is loaded and where it came from:
+```bash
+codex plugin upgrade crowdstrike-falcon-foundry@foundry-marketplace
+```
+
+Do not also symlink skills into `~/.agents/skills/` — that loads them as bare personal skills outside the plugin namespace, creating duplicates. Check what is loaded and where it came from:
 
 ```bash
 codex debug prompt-input | grep -o 'file: [^)]*SKILL.md'
 ```
 
-Every Foundry entry should resolve to `~/.agents/skills/`. If any point into `~/.codex/plugins/cache/`, remove the installed plugin:
+Every Foundry entry should resolve to `~/.codex/plugins/cache/foundry-marketplace/`. If any point into `~/.agents/skills/`, remove the symlinks:
 
 ```bash
-codex plugin remove crowdstrike-falcon-foundry@foundry-marketplace
+rm ~/.agents/skills/{api-integrations,collections-development,debugging-workflows,development-workflow,e2e-testing,functions-development,functions-falcon-api,fusion-redirect,security-patterns,ui-development,workflows-development}
 ```
 
-`./test-assistants.sh` does this isolation for you and restores your setup afterward.
+`./test-assistants.sh` handles isolation for you and restores your setup afterward.

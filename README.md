@@ -28,7 +28,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 
 Claude Code, Codex, Copilot CLI, and Cursor have each been verified end to end: installed with the command above, then used to build and deploy an app to a live Falcon Foundry tenant from the example prompt below and nothing else.
 
-For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. Any assistant that reads from `~/.agents/skills/` can discover these skills. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
+For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. These skills follow the [Agent Plugins](https://agent-plugins.org) format and include a `.codex-plugin/plugin.json` manifest for native Codex discovery. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
 
 <details>
 <summary><strong>Install from a local clone</strong> (for development or testing a branch)</summary>
@@ -40,20 +40,12 @@ git clone https://github.com/CrowdStrike/foundry-skills.git
 | Assistant | Command |
 |-----------|---------|
 | Claude Code | `claude --plugin-dir /path/to/foundry-skills` |
+| Codex | `codex plugin marketplace add /path/to/foundry-skills && codex plugin add crowdstrike-falcon-foundry@foundry-marketplace` |
 | Copilot CLI | `copilot --plugin-dir /path/to/foundry-skills` |
 | Cursor | `agent --plugin-dir /path/to/foundry-skills` |
 | Antigravity CLI | `agy plugin install /path/to/foundry-skills` |
 
-Codex has no `--plugin-dir`. It discovers skills from `~/.agents/skills/` instead, one directory per skill, so symlink them:
-
-```bash
-mkdir -p ~/.agents/skills
-for skill in /path/to/foundry-skills/skills/*/; do
-  ln -s "${skill%/}" ~/.agents/skills/
-done
-```
-
-Because these are symlinks, edits are live immediately — no reinstall, and nothing to go stale. Restart Codex or run `/reload-plugins` to re-index.
+Codex caches the plugin on install rather than loading live from the checkout. After making changes, run `codex plugin upgrade crowdstrike-falcon-foundry@foundry-marketplace` to refresh. The other assistants load directly from the path and pick up edits immediately.
 
 </details>
 
