@@ -30,6 +30,17 @@ CLAUDE_MARKETPLACE_JSON="$SCRIPT_DIR/.claude-plugin/marketplace.json"
 CODEX_MARKETPLACE_JSON="$SCRIPT_DIR/.agents/plugins/marketplace.json"
 MARKETPLACE_URL="https://github.com/CrowdStrike/foundry-skills.git"
 EXPLICIT_VERSION=""
+BUNDLE_ONLY=0
+BUNDLE_REF=""
+
+# Everything the OpenAI skills-only bundle must contain. Single source of truth:
+# a skill that starts referencing a new top-level path needs adding here, and
+# build_bundle fails loudly if a referenced path is missing from the archive.
+#
+# Deliberately excluded: hooks/ (Codex discovers hooks/hooks.json and would run
+# Claude-contract hooks unvalidated), .claude-plugin/ and the root plugin.json
+# (one plugin root per archive, and only the Codex manifest is needed here).
+BUNDLE_PATHS=(.codex-plugin skills use-cases requirements.txt LICENSE README.md)
 
 # Argument parsing
 while [[ $# -gt 0 ]]; do
@@ -38,8 +49,14 @@ while [[ $# -gt 0 ]]; do
       EXPLICIT_VERSION="$2"
       shift 2
       ;;
+    --bundle)
+      BUNDLE_REF="${2:-}"
+      shift
+      [[ -n "${BUNDLE_REF:-}" && "$BUNDLE_REF" != --* ]] && shift || BUNDLE_REF=""
+      BUNDLE_ONLY=1
+      ;;
     *)
-      printf "${RED}Usage: $0 [--version X.Y.Z]${RESET}\n" >&2
+      printf "${RED}Usage: $0 [--version X.Y.Z] [--bundle [ref]]${RESET}\n" >&2
       exit 1
       ;;
   esac
@@ -71,7 +88,116 @@ calculate_next_version() {
   esac
 }
 
+# Build the OpenAI skills-only submission bundle and verify it before upload.
+# The portal validates structure after upload; this catches the same problems
+# locally, where fixing them is cheap.
+build_bundle() {
+  local ref="${1:-}"
+  if [[ -z "$ref" ]]; then
+    ref=$(git -C "$SCRIPT_DIR" describe --tags --abbrev=0 2>/dev/null || echo "")
+    [[ -z "$ref" ]] && { printf "${RED}✗${RESET} No tags found. Pass a ref: ./release.sh --bundle v1.5.0\n" >&2; return 1; }
+    printf "${YELLOW}⚠${RESET} No ref given, using latest tag: %s\n" "$ref"
+  fi
+  git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null \
+    || { printf "${RED}✗${RESET} Ref not found: %s\n" "$ref" >&2; return 1; }
+
+  local version="${ref#v}"
+  local zip="$SCRIPT_DIR/crowdstrike-falcon-foundry-${version}.zip"
+  printf "\n${BLUE}Building skills-only bundle from %s${RESET}\n" "$ref"
+
+  git -C "$SCRIPT_DIR" archive --format=zip --output="$zip" "$ref" "${BUNDLE_PATHS[@]}" \
+    || { printf "${RED}✗${RESET} git archive failed\n" >&2; return 1; }
+
+  local work; work=$(mktemp -d)
+  # shellcheck disable=SC2064
+  trap "rm -rf '$work'" RETURN
+  unzip -q "$zip" -d "$work" || { printf "${RED}✗${RESET} Archive is not readable\n" >&2; return 1; }
+
+  local fail=0
+
+  # Exactly one plugin root, at the archive root.
+  if [[ -f "$work/.codex-plugin/plugin.json" ]]; then
+    printf "${GREEN}✓${RESET} Codex manifest present at the archive root\n"
+  else
+    printf "${RED}✗${RESET} Missing .codex-plugin/plugin.json\n"; fail=1
+  fi
+  local roots
+  roots=$(find "$work" -maxdepth 2 -type d \( -name .codex-plugin -o -name .claude-plugin -o -name .agent-plugin \) | wc -l | tr -d ' ')
+  if [[ "$roots" == "1" ]]; then
+    printf "${GREEN}✓${RESET} Exactly one plugin root\n"
+  else
+    printf "${RED}✗${RESET} Found %s plugin manifests; the portal requires exactly one\n" "$roots"; fail=1
+  fi
+
+  # At least one skill.
+  local skills
+  skills=$(find "$work/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "$skills" -ge 1 ]]; then
+    printf "${GREEN}✓${RESET} %s skills with a SKILL.md\n" "$skills"
+  else
+    printf "${RED}✗${RESET} No skills/<name>/SKILL.md found\n"; fail=1
+  fi
+
+  # Disqualifiers for a skills-only submission.
+  local bad=0
+  [[ -e "$work/.mcp.json" || -e "$work/.app.json" ]] && bad=1
+  grep -rqs "mcpServers" "$work/.codex-plugin/plugin.json" && bad=1
+  grep -rqs "screenshots" "$work/.codex-plugin/plugin.json" && bad=1
+  [[ -d "$work/hooks" ]] && { printf "${RED}✗${RESET} hooks/ is in the archive; Codex would run Claude-contract hooks unvalidated\n"; fail=1; }
+  if [[ "$bad" == "0" ]]; then
+    printf "${GREEN}✓${RESET} No mcpServers, .mcp.json, .app.json or interface.screenshots\n"
+  else
+    printf "${RED}✗${RESET} Archive contains something a skills-only plugin may not ship\n"; fail=1
+  fi
+
+  # Every relative path the skills reference must resolve inside the archive.
+  # This is what catches a skill that starts using a new top-level directory.
+  local missing
+  missing=$(cd "$work" && find skills -name '*.md' | while read -r f; do
+    d=$(dirname "$f")
+    grep -ohE '\]\((\.\./)*[A-Za-z0-9_./-]+\.(md|py|sh|json|ya?ml)\)' "$f" 2>/dev/null \
+      | sed 's/^](//; s/)$//' | while read -r link; do
+        target=$(python3 -c 'import os,sys; print(os.path.normpath(os.path.join(sys.argv[1], sys.argv[2])))' "$d" "$link")
+        [[ -e "$target" ]] || printf '%s -> %s\n' "$f" "$link"
+      done
+  done)
+  if [[ -z "$missing" ]]; then
+    printf "${GREEN}✓${RESET} Every path referenced by a skill resolves inside the archive\n"
+  else
+    printf "${RED}✗${RESET} Referenced paths missing from the archive:\n%s\n" "$missing"
+    printf "  Add the containing directory to BUNDLE_PATHS in release.sh.\n"; fail=1
+  fi
+
+  # Runtime dependencies that no markdown link points at, so the link check above
+  # cannot see them. requirements.txt is named inside a shell snippet; use-cases is
+  # globbed at runtime by development-workflow.
+  local dep
+  for dep in requirements.txt use-cases; do
+    if [[ -e "$work/$dep" ]]; then
+      printf "${GREEN}✓${RESET} %s present (referenced at runtime, not by a link)\n" "$dep"
+    else
+      printf "${RED}✗${RESET} %s missing; skills reference it outside a markdown link\n" "$dep"; fail=1
+    fi
+  done
+
+  local count size
+  count=$(find "$work" -type f | wc -l | tr -d ' ')
+  size=$(du -h "$zip" | cut -f1 | tr -d ' ')
+  printf "\n  %s files, %s: %s\n" "$count" "$size" "$zip"
+
+  if [[ "$fail" != "0" ]]; then
+    printf "\n${RED}Bundle failed validation. Do not upload it.${RESET}\n" >&2
+    return 1
+  fi
+  printf "\n${GREEN}Bundle is ready to upload at https://platform.openai.com/plugins${RESET}\n"
+}
+
 main() {
+  if [[ "$BUNDLE_ONLY" == "1" ]]; then
+    build_bundle "$BUNDLE_REF"
+    return $?
+  fi
+
   printf "${BLUE}=== Plugin Release Workflow ===${RESET}\n\n"
 
   # Preflight checks
@@ -227,7 +353,11 @@ main() {
   printf "anthropics/claude-plugins-official or re-submit through the plugin submission form.\n\n"
 
   printf "${BLUE}Step 9: Update OpenAI Plugins Directory${RESET}\n"
-  printf "\nAfter publishing the GitHub release, upload the updated skills-only bundle at:\n"
+  printf "\nAfter publishing the GitHub release, build and verify the skills-only bundle:\n"
+  printf "  ./release.sh --bundle v${NEXT_VERSION}\n\n"
+  printf "That archives only what the skills need, checks it against the portal's\n"
+  printf "structural rules, and refuses to produce an uploadable file if a skill\n"
+  printf "references a path the archive is missing. Then upload it at:\n"
   printf "  https://platform.openai.com/plugins\n\n"
   printf "Submit the new version for review, then publish it after approval. The public\n"
   printf "Plugins Directory uses reviewed snapshots rather than the repository marketplace ref.\n\n"
