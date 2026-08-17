@@ -8,7 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **Install instructions for five AI coding assistants** — Claude Code, Codex, Copilot CLI, Cursor, and Antigravity CLI each get a verified marketplace command, plus an expandable table of local-clone commands for testing a branch. Four of the five load a local clone with a single flag (`--plugin-dir` for Claude Code, Copilot CLI, and Cursor; `agy plugin install` for Antigravity CLI); Codex registers the clone as a marketplace source instead.
+- **Agent Plugins manifest** — A root `plugin.json` conforming to the [Agent Plugins](https://agent-plugins.org) 1.0.0 spec, so any conforming client can discover the plugin alongside the existing Claude and Codex manifests. CI validates it and `release.sh` bumps its version with the others.
 - US-3 cloud region to the cloud-region documentation: added `us-3` to the `FOUNDRY_CLOUD_REGION` value lists (headless-operation reference, e2e-testing env var table) and the multi-cloud deployment section. Foundry CLI 2.0.2 added US-3 support; the base URL (`api.us-3.crowdstrike.com`) is in FalconPy as of v1.6.4.
+
+### Fixed
+
+- **Sub-skill routing survives a single-entry-point install** — `development-workflow` now documents that sub-skills live beside it on disk as `../<name>/SKILL.md`, and how to handle a capability-level request that lands on the orchestrator: read the sub-skill from disk first, then skip straight to the CLI command when `manifest.yml` already exists. Assistants that register only the orchestrator no longer have to infer this. The orchestrator's trigger description is unchanged, so skill selection on a fully-registered install behaves exactly as before.
+- **Sub-skills point back to the orchestrator** — All nine sub-skills now link to `development-workflow` near the top of the file, so an assistant without routing hooks that selects a sub-skill directly still finds the CLI prerequisite check, scaffolding order, and manifest coordination. Previously only `e2e-testing` mentioned the orchestrator, and only in a footer.
 
 ## [1.4.1] - 2026-08-07
 

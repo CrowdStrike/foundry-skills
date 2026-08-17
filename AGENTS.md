@@ -170,3 +170,7 @@ When building Falcon Foundry apps, take your time and do each step thoroughly. Q
 - Run `./test-hooks.sh` before submitting a pull request
 - Run `npx markdownlint-cli2 "**/*.md"` to validate markdown formatting
 - Snapshots and use-case files follow standardized frontmatter formats
+
+### Testing a branch in Codex
+
+See the "Install from a local clone" section in the README. Codex always caches on install rather than loading live from disk, so changes require a remove + re-add cycle. `./test-assistants.sh` handles isolation for you and restores your setup afterward.

@@ -25,6 +25,7 @@ RESET='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 CLAUDE_PLUGIN_JSON="$SCRIPT_DIR/.claude-plugin/plugin.json"
 CODEX_PLUGIN_JSON="$SCRIPT_DIR/.codex-plugin/plugin.json"
+ROOT_PLUGIN_JSON="$SCRIPT_DIR/plugin.json"
 CLAUDE_MARKETPLACE_JSON="$SCRIPT_DIR/.claude-plugin/marketplace.json"
 CODEX_MARKETPLACE_JSON="$SCRIPT_DIR/.agents/plugins/marketplace.json"
 MARKETPLACE_URL="https://github.com/CrowdStrike/foundry-skills.git"
@@ -155,7 +156,9 @@ main() {
   mv /tmp/claude-plugin.json.tmp "$CLAUDE_PLUGIN_JSON"
   jq --arg v "$NEXT_VERSION" '.version = $v' "$CODEX_PLUGIN_JSON" > /tmp/codex-plugin.json.tmp
   mv /tmp/codex-plugin.json.tmp "$CODEX_PLUGIN_JSON"
-  printf "${GREEN}✓${RESET} Claude and Codex manifests → v${NEXT_VERSION}\n"
+  jq --arg v "$NEXT_VERSION" '.version = $v' "$ROOT_PLUGIN_JSON" > /tmp/root-plugin.json.tmp
+  mv /tmp/root-plugin.json.tmp "$ROOT_PLUGIN_JSON"
+  printf "${GREEN}✓${RESET} Claude, Codex, and Agent Plugins manifests → v${NEXT_VERSION}\n"
 
   printf "\n${BLUE}Step 1b: Update marketplace metadata${RESET}\n"
   jq --arg v "$NEXT_VERSION" '.plugins[0].version = $v' "$CLAUDE_MARKETPLACE_JSON" > /tmp/claude-marketplace.json.tmp
@@ -196,7 +199,7 @@ main() {
   printf "\n${BLUE}Step 5: Commit and create PR${RESET}\n"
   local release_branch="release/v${NEXT_VERSION}"
   git checkout -b "$release_branch"
-  git add "$CLAUDE_PLUGIN_JSON" "$CODEX_PLUGIN_JSON" \
+  git add "$CLAUDE_PLUGIN_JSON" "$CODEX_PLUGIN_JSON" "$ROOT_PLUGIN_JSON" \
     "$CLAUDE_MARKETPLACE_JSON" "$CODEX_MARKETPLACE_JSON" \
     "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md \
     "$SCRIPT_DIR/CHANGELOG.md" "$SCRIPT_DIR/release.sh"

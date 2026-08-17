@@ -16,109 +16,46 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 - **Authentication**: Run `foundry login` to authenticate
 - **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI, or any tool that supports loading reference documentation
 
-### Claude Code (Tested)
+### Install
 
-Install from the [Anthropic Plugin Marketplace](https://github.com/anthropics/claude-plugins-official):
+| Assistant | Command | Marketplace |
+|-----------|---------|-------------|
+| Claude Code | `/plugin install crowdstrike-falcon-foundry` | [Anthropic](https://claude.com/plugins/crowdstrike-falcon-foundry) |
+| Codex | `codex plugin add crowdstrike-falcon-foundry` | [OpenAI](https://chatgpt.com/plugins) (pending) |
+| Copilot CLI | `copilot plugin install CrowdStrike/foundry-skills` | [GitHub](https://github.com/marketplace?type=copilot-plugins) |
+| Cursor | `/add-plugin crowdstrike-falcon-foundry` | [Cursor](https://cursor.com/marketplace) (pending) |
+| Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | [Google](https://antigravity.google/docs/plugins) |
 
-```
-/plugin install crowdstrike-falcon-foundry
-```
+Claude Code, Codex, Copilot CLI, and Cursor have each been verified end to end: installed with the command above, then used to build and deploy an app to a live Falcon Foundry tenant from the example prompt below and nothing else.
 
-Or register this repo as a plugin marketplace, then install:
+For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. These skills follow the [Agent Plugins](https://agent-plugins.org) format and include a `.codex-plugin/plugin.json` manifest for native Codex discovery. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
 
-```
-/plugin marketplace add CrowdStrike/foundry-skills
-/plugin install crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-Or install from a local clone for development:
-
-```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-claude --plugin-dir /path/to/foundry-skills
-```
-
-The `--plugin-dir` flag loads the plugin for that session. To make it permanent, add it to your `.claude/settings.json`:
-
-```json
-{
-  "plugins": ["/path/to/foundry-skills"]
-}
-```
-
-Changes to skill files take effect on the next Claude Code session — no reinstall needed.
-
-### Codex
-
-Install from the OpenAI Plugins Directory:
-
-```bash
-codex plugin add crowdstrike-falcon-foundry
-```
-
-Or register this repository as a plugin marketplace, then install:
-
-```bash
-codex plugin marketplace add CrowdStrike/foundry-skills
-codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-After the marketplace is registered, installing on another machine is one command:
-
-```bash
-codex plugin add crowdstrike-falcon-foundry@foundry-marketplace
-```
-
-Codex discovers the bundled skills automatically. See the [Codex skills docs](https://learn.chatgpt.com/docs/build-skills) for details.
-
-### Copilot CLI (Experimental)
-
-Copilot CLI shares the `~/.agents/skills/` discovery directory with Codex:
+<details>
+<summary><strong>Install from a local clone</strong> (for development or testing a branch)</summary>
 
 ```bash
 git clone https://github.com/CrowdStrike/foundry-skills.git
+```
+
+| Assistant | Command |
+|-----------|---------|
+| Claude Code | `claude --plugin-dir /path/to/foundry-skills` |
+| Copilot CLI | `copilot --plugin-dir /path/to/foundry-skills` |
+| Cursor | `agent --plugin-dir /path/to/foundry-skills` |
+| Antigravity CLI | `agy plugin install /path/to/foundry-skills` |
+
+Codex has no `--plugin-dir`. It discovers skills from `~/.agents/skills/` instead, one symlink per skill:
+
+```bash
 mkdir -p ~/.agents/skills
-ln -s /path/to/foundry-skills/skills ~/.agents/skills/foundry-skills
+for skill in /path/to/foundry-skills/skills/*/; do
+  ln -s "${skill%/}" ~/.agents/skills/
+done
 ```
 
-Restart Copilot CLI to discover the skills.
+Edits are live immediately. Restart Codex to re-index.
 
-### Cursor (Experimental)
-
-Add a rule file to your project's `.cursor/rules/` directory:
-
-```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-mkdir -p .cursor/rules
-cat > .cursor/rules/foundry-skills.mdc << 'EOF'
----
-description: Use when building Falcon Foundry apps — API integrations, workflows, UI pages, functions, collections
-alwaysApply: false
----
-
-Reference the Falcon Foundry skills in /path/to/foundry-skills/skills/ for building Foundry apps.
-The primary orchestrator is development-workflow/SKILL.md.
-EOF
-```
-
-Cursor activates the rule automatically when your prompt matches the description.
-
-### Antigravity CLI (Experimental)
-
-Link the skills so Antigravity discovers them as native Agent Skills:
-
-```bash
-git clone https://github.com/CrowdStrike/foundry-skills.git
-agy skills link /path/to/foundry-skills/skills --scope user
-```
-
-This creates symlinks in `~/.gemini/antigravity-cli/skills/` so all skills are available in every workspace. Use `--scope workspace` to install into the current project's `.agents/skills/` instead. Verify with `agy skills list` or `/skills list` inside a session.
-
-Antigravity activates the right skill on demand based on your prompt.
-
-### Other Tools
-
-These skills are plain markdown files. Any AI coding assistant that can read local files can use them. See `AGENTS.md` for the full development guide, or point your tool at the `skills/` directory and start with `development-workflow/SKILL.md` as the entry point.
+</details>
 
 ## Usage
 
@@ -126,7 +63,7 @@ These skills are plain markdown files. Any AI coding assistant that can read loc
 
 This prompt exercises the full skill set — API integration, workflow, and UI:
 
-> Can you create a Falcon Foundry app for me that has an Okta API integration with openapi? Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
+> Create a Falcon Foundry app for me that has an Okta API integration with openapi. Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
 
 ### How Claude Code skill routing works
 
@@ -140,7 +77,7 @@ The Claude Code plugin includes hooks that ensure the right skills get used:
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
 
-Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the XDG configuration and network-sandbox diagnostics.
+Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the sandbox diagnostics in the debugging skill.
 
 ## Skills
 

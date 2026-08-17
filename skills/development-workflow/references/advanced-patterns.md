@@ -185,3 +185,25 @@ For action IDs in workflow YAML, use the `api_integrations.{name}.{operationId}`
 ## Deployment Nuance
 
 `foundry apps deploy` requires `--change-type` and `--change-log`. The `--no-prompt` flag is available as a global Controller flag and skips the deployment confirmation prompt and TUI monitor, but is not required when all flags are provided. `foundry apps release` requires `--deployment-id`, `--change-type`, and `--notes` and works fully non-interactively when all three flags are provided.
+
+## Testing an Existing App Locally
+
+When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
+
+1. **Configure credentials** — copy `.env.sample` to `.env` in the `e2e/` directory and fill in valid Falcon credentials (username, password, TOTP secret, base URL) and app name. `APP_NAME` defaults to the repo name. `FALCON_` credentials must be for a non-SSO user because TOTP is used in e2e tests. This file is gitignored and required for local test runs.
+
+2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Remember to `git checkout manifest.yml` after deploy to revert ID changes.
+
+3. **Deploy and release:**
+
+   ```bash
+   foundry apps deploy --change-type Patch --change-log "e2e testing" --no-prompt
+   # Poll until successful
+   foundry apps list-deployments
+   # Release
+   foundry apps release --deployment-id <id> --change-type Patch --notes "e2e testing" --no-prompt
+   ```
+
+4. **Run tests:** `cd e2e && npm test`
+
+5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)

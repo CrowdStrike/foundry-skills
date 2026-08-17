@@ -47,24 +47,6 @@ Run `foundry login --no-config` once in an interactive environment. This outputs
 - Linux/macOS: `${XDG_CONFIG_HOME:-$HOME/.config}/foundry/configuration.yml`
 - Windows: `C:\Users\<username>\.config\foundry\configuration.yml`
 
-### XDG Configuration in Sandboxed Agents
-
-Some coding-agent launchers override `XDG_CONFIG_HOME`, which makes an existing
-Falcon Foundry profile appear to be missing. Normalize it before profile and
-tenant checks:
-
-```bash
-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-foundry profile active
-foundry apps list
-```
-
-The Foundry CLI honors `XDG_CONFIG_HOME`. Do not set it to a temporary or
-workspace-local directory because that hides the user's existing profile. Do
-not copy `configuration.yml` into the workspace. If the assistant can see the
-profile but cannot update `$XDG_CONFIG_HOME/foundry`, request write access to
-that existing directory through the assistant's permission mechanism.
-
 ## Non-Interactive Command Flags
 
 Commands that prompt for user input support `--no-prompt` to suppress prompts and fail with an error if required flags are missing. **Always use `--no-prompt` when running commands from agents or scripts.**
@@ -132,14 +114,23 @@ When operating as a CLI agent:
 4. **Always pass all required flags:** Never rely on interactive prompts — always include `--no-prompt` where supported
 5. **Use `--no-git` on `foundry apps create`:** Prevents git init prompts in environments where git may not be configured
 6. **Headless mode** is detected automatically by Foundry CLI v2.0.1+. For older versions or standalone scripts/CI, export `FOUNDRY_UI_HEADLESS_MODE=true` manually.
-7. **Normalize XDG configuration:** Export `XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"` before concluding that an existing profile is missing.
-8. **Choose the app directory automatically:** Use the current directory unless it is an unrelated repository; in that case use a sibling directory and request write access if the sandbox requires it.
+7. **Choose the app directory automatically:** Use the current directory unless it is an unrelated repository; in that case use a sibling directory and request write access if the sandbox requires it.
 
-### Sandboxed assistants
+### The token cache write is expected — approve it
 
-Some assistants run shell commands with network sandboxing. A profile command can succeed because it reads local configuration while a tenant command such as `foundry apps list` or `foundry apps validate` fails with only `connection issue`.
+The CLI stores long-lived client credentials in `configuration.yml`, but keeps the short-lived access token in a **separate** file, `~/.config/foundry/token.json`. That token lasts about 30 minutes. When it expires, the next tenant command mints a new one and writes it back to that file.
 
-If the same tenant command works in the user's terminal, explain that the agent process is likely sandboxed and request elevated or unsandboxed network access. Then retry the command once with the assistant's supported permission mechanism. If elevation is unavailable, tell the user which permission to enable or give them the exact command to run and ask for its output. Do not delete or recreate the user's profile before this comparison. If elevated execution still fails, continue with the authentication diagnostics above.
+**This write is normal and is the more secure design.** A 30-minute token that gets rotated on disk is safer than a long-lived one held anywhere, and keeping it outside the workspace means it never lands in the app directory or gets committed. Seeing `token.json` change is correct behavior, not tampering.
+
+Sandboxed assistants that confine writes to the workspace will be denied that write. The CLI then reports only `connection issue`, which describes the symptom and not the cause — nothing is wrong with the network or the credentials. Because a session usually starts with an already-expired token, this fails within the first few seconds rather than after 30 minutes of work.
+
+When the write is denied, **request write access to `~/.config/foundry/` and retry the same command.** Do not stop the workflow, and do not ask the user to relaunch their assistant — this is a routine, low-risk escalation of the same kind as reading the profile, and it is the expected way to proceed. State plainly why you need it: the CLI is refreshing its own token cache.
+
+Do not respond by rewriting the profile, redirecting the config path into the workspace, or copying `configuration.yml` anywhere — each hides the working credentials instead of granting the one write that is needed.
+
+### Sandboxed network access
+
+If the token write succeeds and tenant commands still fail with `connection issue`, then suspect the network. Ask the user to run the same command in their terminal; when it works there, request elevated or unsandboxed network access and retry once. If elevation is unavailable, tell the user which permission to enable, or give them the exact command to run and ask for its output. Local profile commands do not prove the agent process can reach the tenant.
 
 ## Counter-Rationalizations for Interactive Mode
 

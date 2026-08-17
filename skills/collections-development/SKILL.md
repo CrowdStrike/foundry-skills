@@ -19,6 +19,8 @@ metadata:
 >
 > You MUST design Collections with proper JSON Schemas, validation rules, and access patterns.
 
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+
 Falcon Foundry Collections are NoSQL document stores with JSON Schema validation. They provide persistent storage for app data with CRUD operations, FQL queries, and schema enforcement.
 
 ## Collection Naming Constraints

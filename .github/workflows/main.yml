@@ -43,7 +43,9 @@ jobs:
       - name: Validate hooks.json
         run: python -m json.tool hooks/hooks.json > /dev/null
       - name: Validate plugin.json
-        run: python -m json.tool .claude-plugin/plugin.json > /dev/null
+        run: |
+          python -m json.tool .claude-plugin/plugin.json > /dev/null
+          python -m json.tool plugin.json > /dev/null
       - name: Validate SKILL.md frontmatter
         run: |
           fail=0
@@ -97,6 +99,34 @@ jobs:
             [ -x "$script" ] || { echo "FAIL: $script is not executable"; fail=1; }
           done
           exit $fail
+      - name: Validate eval prompt consistency
+        run: |
+          # The app-creation prompt lives in three places: the README example, the
+          # eval harness, and the assistant smoke test. They must not drift.
+          fail=0
+          readme=$(grep -m1 '^> Create a Falcon Foundry app' README.md | sed 's/^> //')
+          skill=$(sed -n 's/^PROMPT="\(Create a Falcon Foundry app[^"]*\)$/\1/p' test-skill.sh | head -1)
+          assist=$(sed -n 's/^PROMPT="\(Create a Falcon Foundry app.*\)"$/\1/p' test-assistants.sh | head -1)
+          for name in readme skill assist; do
+            eval "v=\$$name"
+            if [ -z "$v" ]; then echo "FAIL: could not extract the prompt from $name"; fail=1; fi
+          done
+          # The README text is canonical. Both harnesses must START with it; they are
+          # allowed to append automation instructions ("proceed without asking me any
+          # questions", a JSON result schema) that would be wrong to show a human.
+          case "$assist" in
+            "$readme"*) ;;
+            *) echo "FAIL: test-assistants.sh prompt does not start with the README text"
+               echo "  README: $readme"
+               echo "  assist: $assist"; fail=1 ;;
+          esac
+          case "$skill" in
+            "$readme"*) ;;
+            *) echo "FAIL: test-skill.sh prompt does not start with the README text"
+               echo "  skill: $skill"; fail=1 ;;
+          esac
+          [ $fail -eq 0 ] && echo "Eval prompt consistent across README, test-skill.sh, test-assistants.sh"
+          exit $fail
       - name: Validate version consistency
         run: |
           fail=0
@@ -108,6 +138,13 @@ jobs:
           # marketplace.json must match plugin.json
           if [ "$marketplace_version" != "$plugin_version" ]; then
             echo "FAIL: marketplace.json plugins[0].version '$marketplace_version' != plugin.json '$plugin_version'"
+            fail=1
+          fi
+
+          # Root Agent Plugins manifest must match plugin.json
+          root_plugin_version=$(jq -r '.version' plugin.json)
+          if [ "$root_plugin_version" != "$plugin_version" ]; then
+            echo "FAIL: plugin.json version '$root_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
             fail=1
           fi
 

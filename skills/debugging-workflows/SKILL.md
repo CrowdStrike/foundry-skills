@@ -15,6 +15,8 @@ metadata:
 
 Systematic procedures for diagnosing and resolving common CrowdStrike Falcon Foundry development issues.
 
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+
 ## Quick Diagnosis
 
 ```
@@ -101,9 +103,17 @@ foundry profile delete --name <name> --no-prompt # Reset corrupted profile
 foundry login                                    # Re-authenticate
 ```
 
-### Sandboxed Agent Connectivity
+### `connection issue` on Tenant Commands (Sandboxed Agents)
 
-If `foundry version`, `foundry profile list`, and `foundry profile active` succeed but tenant commands return only `connection issue`, ask the user to run the same command in their terminal. When it works there, explain that the agent process is likely sandboxed and request elevated or unsandboxed network access. Retry once with the assistant's supported permission mechanism before changing credentials. If elevation is unavailable, tell the user which permission to enable or provide the exact command to run and ask for its output. Local profile commands do not prove that the agent process can reach the tenant.
+**Check the token cache write first — it is the usual cause and it is not a network problem.**
+
+The CLI keeps its short-lived access token in `~/.config/foundry/token.json`, separate from the credentials in `configuration.yml`. The token lasts about 30 minutes, and the next tenant command after it expires writes a fresh one back to that file. That write is expected and is the safer design: a rotating 30-minute token beats a long-lived one, and keeping it out of the workspace means it never gets committed.
+
+Assistants that confine writes to the workspace are denied that write, and the CLI reports only `connection issue` — the symptom, not the cause. Since a session usually begins with an already-expired token, this appears within the first few seconds, not after half an hour.
+
+Fix: **request write access to `~/.config/foundry/` and retry the same command.** Say why — the CLI is refreshing its own token cache — and treat it as a routine low-risk escalation rather than a blocker. Do not ask the user to relaunch their assistant, and do not rewrite the profile, redirect the config path into the workspace, or copy credentials; those hide working credentials instead of granting the one needed write.
+
+If the write succeeds and tenant commands still fail, then treat it as network: ask the user to run the command in their own terminal, and if it works there, request unsandboxed network access and retry once.
 
 ### Manifest Validation
 
@@ -174,6 +184,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Deploy fails silently | Tenant missing required module (SKU) | Verify tenant has Falcon module for scopes |
 | Local server won't start | Port conflicts | Use `--port` flag or kill existing processes |
 | Auth works locally, fails in CI | No config file in CI | Set `FOUNDRY_API_CLIENT_ID` env vars |
+| `connection issue` in a sandboxed agent | Denied write to the CLI's token cache | Grant write to `~/.config/foundry/`; the token refresh is expected |
 | Tenant command works for user, not agent | Agent network sandbox | Request elevation, then retry once |
 | Page 404 after deploy/release | App not installed from App Catalog | Install from catalog, wait for propagation |
 | Page 404 on new cloud only | Cloud-specific IDs in manifest | Strip IDs with yq before deploying to new cloud |

@@ -30,7 +30,7 @@ metadata:
 > 3. Delegate capability-specific content to Foundry sub-skills
 > 4. Hand-write ONLY what the CLI cannot generate (OpenAPI content, workflow logic, UI code)
 >
-> **CRITICAL: `--no-prompt` is supported by nearly all commands.** Always add `--no-prompt` to prevent interactive prompts that cause `Error: EOF` in non-interactive environments. Supported commands include: `apps create`, `apps validate`, `apps deploy`, `apps release`, `apps delete` (also needs `--force-delete`), `functions create`, `collections create`, `ui pages create`, `ui extensions create`, `rtr-scripts create`, `profile create`, `workflows create`, and `api-integrations create`. When unsure, run `foundry <command> --help` to check. When a CLI command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
+> **CRITICAL: add `--no-prompt` to every command that accepts it** — without it, interactive prompts cause `Error: EOF`. The `create`, `validate`, `deploy`, `release`, and `delete` commands all accept it (`apps delete` also needs `--force-delete`). Three reject it and fail with `unknown flag`: `foundry version`, `apps list`, and `apps list-deployments`. Verify with `foundry <command> --help`. When a command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
 > **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
 >
@@ -62,49 +62,17 @@ Security review           → security-patterns
 E2E testing / Playwright  → e2e-testing
 
 Standalone Fusion workflow (no app — trigger + existing actions only)
-└── Advise the Falcon Fusion plugin — see Cross-Plugin Advisory
+└── fusion-redirect (declines and points to the Falcon Fusion plugin)
 ```
 
-## Cross-Plugin Advisory (Fusion vs. Foundry)
+### Routing When Sub-Skills Are Not Registered
 
-A Falcon Fusion workflow can be authored **standalone** (no app wrapper) when it
-only needs a trigger plus actions that already exist in the CID. That is the
-sibling **Falcon Fusion** plugin's job (`crowdstrike-falcon-fusion`), not this one.
+Sub-skills live beside this one as `../<name>/SKILL.md`. On a single-entry-point install only this skill is discoverable, so capability-level requests land here — that is intended, not a mis-route. Read the sub-skill file from disk before writing any capability content, then:
 
-| Situation | Action |
-|-----------|--------|
-| Just a workflow: trigger + existing actions, no UI/function/collection/manifest | **Advise the Falcon Fusion plugin** — see the required response below. Do NOT scaffold a Foundry app. |
-| Workflow needs a UI, function, collection, or custom API integration to be BUILT | **Proceed here** — that's a Foundry app; use the App Creation Flow. |
-| A workflow *inside* an app you're already building | **Proceed here** — use `workflows-development`. |
+- **`manifest.yml` already present** — skip Steps 1-2 and Step 4. Run the Step 3 prerequisite check, add the capability with its Step 5 CLI command, and follow Manifest Coordination.
+- **No app yet** — run the full App Creation Flow.
 
-> **⚠️ MUST NOT silently do the Fusion plugin's job.** The common failure is to
-> recognize no app is needed, then hand the user workflow YAML anyway without
-> ever telling them a better-suited plugin exists. Declining to scaffold is only
-> half the redirect — **naming the plugin is required output.**
-
-When redirecting, your response MUST contain all three:
-
-1. A statement that this needs no Foundry app
-2. The plugin name **`crowdstrike-falcon-fusion`** written out
-3. How to get it: `/plugin install crowdstrike-falcon-fusion` or
-   https://claude.com/plugins/crowdstrike-falcon-fusion
-
-Name the plugin, not a GitHub repo — most users install from the marketplace and
-a repo link is a detour.
-
-**Do not hand-write the workflow YAML in a redirect.** Producing the artifact
-yourself defeats the purpose: the Fusion plugin discovers real action IDs from
-the live API, validates against the platform schema, and imports and releases to
-the CID. A YAML block with placeholder action IDs is strictly worse than sending
-the user somewhere that can finish the job. Offer a one-line sketch of the shape
-if it helps, then redirect.
-
-A negated capability is not a request for it. "no UI", "without a function",
-"I don't need a collection" all mean the request is *smaller*, not larger — so
-they push **toward** redirecting, never away. If every action already exists and
-there's no UI/function/collection to build, redirect. The routing decision is
-yours; `scripts/detect_fusion_redirect.py` beside this skill is available as a heuristic
-cross-check and never blocks.
+This never overrides the fusion-redirect skill: a standalone Fusion workflow request is still a redirect, not a capability to add.
 
 
 ## App Creation Flow
@@ -146,11 +114,12 @@ foundry profile active   # Verify authentication
 foundry apps list        # Check existing apps (avoid name collisions)
 ```
 
-Before diagnosing a missing profile, export
-`XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"`. Never redirect it into
-the workspace or copy credentials. See
-[headless operation](references/headless-operation.md) for access and
-authentication failures.
+If a tenant command fails with only `connection issue`, the usual cause is a
+sandbox denying the CLI's token-cache write to `~/.config/foundry/` — an
+expected refresh, not a network fault. Request write access to that directory
+and retry; see
+[headless operation](references/headless-operation.md). Never redirect the
+config path into the workspace or copy credentials.
 
 ### Step 4: Scaffold the App
 
@@ -287,27 +256,6 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 - `foundry apps deploy` / `foundry apps release` — deployment
 - `foundry api-integrations create` etc. — adding new capabilities
 
-## Testing an Existing App Locally
-
-When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
-
-1. **Configure credentials** — copy `.env.sample` to `.env` in the `e2e/` directory and fill in valid Falcon credentials (username, password, TOTP secret, base URL) and app name. `APP_NAME` defaults to the repo name. `FALCON_` credentials must be for a non-SSO user because TOTP is used in e2e tests. This file is gitignored and required for local test runs.
-
-2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Remember to `git checkout manifest.yml` after deploy to revert ID changes.
-
-3. **Deploy and release:**
-   ```bash
-   foundry apps deploy --change-type Patch --change-log "e2e testing" --no-prompt
-   # Poll until successful
-   foundry apps list-deployments
-   # Release
-   foundry apps release --deployment-id <id> --change-type Patch --notes "e2e testing" --no-prompt
-   ```
-
-4. **Run tests:** `cd e2e && npm test`
-
-5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)
-
 ## Manifest Coordination
 
 **Dependency order:** Collections → Functions → Workflows → UI (each may depend on the previous)
@@ -326,7 +274,7 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 | Superpowers plugin coordination | [references/superpowers-integration.md](references/superpowers-integration.md) |
 | Token management, performance targets | [references/performance-optimization.md](references/performance-optimization.md) |
 | Counter-rationalizations, red flags | [references/counter-rationalizations.md](references/counter-rationalizations.md) |
-| Lifecycle phases, manifest patterns, CLI state, app operations | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Lifecycle phases, manifest patterns, CLI state, app operations, local e2e runs | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Improving These Skills
 

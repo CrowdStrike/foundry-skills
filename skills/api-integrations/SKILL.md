@@ -21,6 +21,8 @@ metadata:
 >
 > **Note:** For `api-integrations create`, always include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
 
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+
 This skill covers exposing external APIs (third-party services or CrowdStrike Falcon APIs) to the Falcon Foundry platform via OpenAPI/Swagger specifications. These integrations make API operations available to Falcon Fusion SOAR workflows, Foundry UI extensions, Foundry Functions, and other Foundry capabilities.
 
 **API integrations are how Foundry manages credentials.** There is no secrets system, no encrypted env vars, and no key vault. When you register an API integration, the platform collects credentials at install time and manages tokens automatically. This is why functions MUST call third-party REST APIs through `APIIntegrations().execute_command_proxy()` — not via raw HTTP with env vars.
@@ -67,7 +69,14 @@ python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_f
 python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
 ```
 
-> **Dependencies:** The script requires `pyyaml`. Install dependencies once with `python3 -m pip install -r /path/to/foundry-skills/requirements.txt`. This applies to Claude Code plugin installs and other assistants; plugin installation does not install Python packages.
+> **Dependencies:** The script requires `pyyaml`, and installing the plugin does not install Python packages. A bare `pip install` fails on Homebrew and system Pythons with `externally-managed-environment` (PEP 668), so set up a venv once in the checkout and run the script from it:
+>
+> ```bash
+> SKILLS_REPO=/path/to/foundry-skills
+> python3 -m venv "$SKILLS_REPO/.venv"
+> "$SKILLS_REPO/.venv/bin/pip" install -r "$SKILLS_REPO/requirements.txt"
+> "$SKILLS_REPO/.venv/bin/python" "$SKILLS_REPO/skills/api-integrations/scripts/adapt_spec_for_foundry.py" /tmp/VendorApi.yaml
+> ```
 
 The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 

@@ -24,6 +24,8 @@ metadata:
 > 2. Validate step dependencies before workflow execution
 > 3. Implement onError blocks for every multi-step workflow
 
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+
 Falcon Foundry Workflows are YAML-defined automation units executed by the Falcon Fusion engine. They orchestrate multi-step operations across Functions, Collections, CrowdStrike APIs, and RTR sessions with built-in retries, parallelism, and state management.
 
 ## Prerequisites
@@ -163,13 +165,11 @@ If a function was created without it, recreate the function. That changes its `w
 
 ## Calling API Integration Operations
 
-> **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an HTTP Action is faster than an API integration — no app, no OpenAPI spec, no deploy. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).
+> **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an [HTTP Action](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/) is faster than an API integration — no app, no OpenAPI spec, no deploy, and 130+ pre-built templates. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).
 
 Workflows invoke API integration operations using the `api_integrations.{name}.{operationId}` pattern:
 
 > **⚠️ Always use registered integrations.** If an API integration is declared in `manifest.yml`, the workflow MUST call it via `api_integrations.{name}.{operationId}`. Do NOT use a function that makes raw HTTP calls to the same API with hardcoded credentials or template variables like `{{API_TOKEN}}`. The platform manages authentication, rate limiting, and audit logging through the integration.
-
-> **💡 HTTP Actions alternative:** For simple API calls that don't need custom logic, consider [HTTP Actions](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/) instead of building a full API integration. HTTP Actions let workflows call external REST APIs directly with no code and no app deployment. Over 130 pre-built templates are available. Use a Foundry API integration only when you also need a custom UI, serverless functions, or complex business logic.
 
 ```yaml
 actions:

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "crowdstrike-falcon-foundry",
+  "version": "1.4.1",
+  "description": "Build Falcon Foundry apps with guided workflows for UI, functions, collections, Falcon Fusion SOAR workflows, and API integrations.",
+  "author": {
+    "name": "CrowdStrike",
+    "url": "https://github.com/CrowdStrike"
+  },
+  "homepage": "https://github.com/CrowdStrike/foundry-skills",
+  "repository": "https://github.com/CrowdStrike/foundry-skills",
+  "license": "MIT",
+  "keywords": [
+    "crowdstrike",
+    "falcon",
+    "foundry",
+    "cybersecurity",
+    "workflows"
+  ]
+}

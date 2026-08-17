@@ -24,6 +24,8 @@ metadata:
 > 2. Implement structured JSON responses with proper status codes
 > 3. Apply input validation before processing any request
 
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+
 Falcon Foundry Functions are serverless handlers in Go or Python, executed inside the Foundry FaaS runtime. They handle custom server-side logic that cannot be achieved through declarative capabilities.
 
 ## Functions as a Last Resort
