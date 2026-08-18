@@ -277,7 +277,7 @@ if __name__ == '__main__':
 
 ### The `search=` Keyword Gotcha
 
-**CRITICAL:** Pass the query payload as `search=`, not `body=`. FalconPy's guard reads only `kwargs.get("search")`, so `body=` returns a local error without issuing a request. The docstring lists `body` as accepted, but the guard ignores it ([falconpy#1491](https://github.com/CrowdStrike/falconpy/issues/1491)).
+**Use `search=`.** It works on every FalconPy version. `body=` was silently ignored before 1.6.5 ([falconpy#1491](https://github.com/CrowdStrike/falconpy/issues/1491), fixed in [#1497](https://github.com/CrowdStrike/falconpy/pull/1497)). Since FalconPy is unpinned, `search=` is the safe default.
 
 Response keys are asymmetric: `start_search` renames its payload to `resources` (read `started["resources"]["id"]`), while `get_search_status` does not (read `status["body"]`).
 

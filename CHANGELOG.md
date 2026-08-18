@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Agent Plugins manifest** — A root `plugin.json` following the [Agent Plugins](https://agent-plugins.org) 1.0.0 spec, so any conforming client recognizes the repo as a plugin. It sits alongside the Claude and Codex manifests. CI validates it and `release.sh` bumps its version with the rest.
 - US-3 cloud region to the cloud-region documentation: added `us-3` to the `FOUNDRY_CLOUD_REGION` value lists (headless-operation reference, e2e-testing env var table) and the multi-cloud deployment section. Foundry CLI 2.0.2 added US-3 support; the base URL (`api.us-3.crowdstrike.com`) is in FalconPy as of v1.6.4.
 
+### Changed
+
+- **NGSIEM `start_search` keyword guidance updated for FalconPy 1.6.5** — The `search=` keyword remains the recommended approach (works on all versions), but the explanation now notes that `body=` was fixed in FalconPy 1.6.5 ([#1497](https://github.com/CrowdStrike/falconpy/pull/1497)). Since FalconPy is unpinned, `search=` is still the safe default.
+
 ### Fixed
 
 - **`connection issue` on tenant commands (Codex)** — Codex confines writes to the workspace, so the CLI cannot write `~/.config/foundry/token.json`, where it keeps its short-lived access token. The CLI reports only the symptom, which sent agents off investigating networks and credentials. The debugging skill now explains that the roughly 30-minute token refresh is expected, and that the fix is to request write access to that one directory and retry. Any assistant with a workspace-scoped sandbox can hit this. Codex is where it was observed.
