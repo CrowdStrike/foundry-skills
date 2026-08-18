@@ -113,22 +113,21 @@ PROMPT="Create a Falcon Foundry app for me that has an Okta API integration with
 report_instructions() {
   cat <<EOF
 
-Two more things, because this is a timed test harness rather than a real build.
+This is a lightweight smoke test of the SKILL, not a real build. Your ONLY goal is
+to confirm the skill loaded and the Foundry CLI runs: run one or two quick commands
+(for example \`foundry version\`, \`foundry profile active\`, or \`foundry apps list\`),
+then STOP and report. Do NOT scaffold, create, or deploy an app.
 
-Do not try to finish the app. You have about ${REPORT_AT} seconds of wall clock; run \`date\`
-if you need to know where you are. When that is up, stop wherever you have got to and
-report. Report early — right away — if something blocks you, if you find yourself
-about to ask me a question, or if you sense you are about to be interrupted.
-Running out of the time budget is expected and is not a failure — report what you
-have done so far with BLOCKER: NONE. The
-report is worth more to me than the extra progress.
+Report within about ${REPORT_AT} seconds — run \`date\` to check where you are. Report
+immediately if something blocks you or you find yourself about to ask a question.
+Running out of the time budget is not a failure; report what you have with BLOCKER: NONE.
 
 To report, end your reply with these five lines, in this order, each starting a line
 of plain text. No code fence, no blockquote, no bullets, no bold, and no angle
 brackets in anything you write:
 
 FOUNDRY-REPORT
-STATUS: <one word — WORKING if the CLI is doing real work, BLOCKED only if a real problem stopped you, DONE if the app is built. Running out of the time budget is NOT blocked; that is WORKING>
+STATUS: <one word — WORKING or DONE if the skill loaded and a foundry command ran, BLOCKED only if a real problem stopped you. Running out of the time budget is NOT blocked; that is WORKING>
 SKILLS: <comma-separated paths of the skill files you loaded, or NONE>
 COMMANDS: <comma-separated, every foundry command you ran, each written as the command followed by => OK or => FAIL: reason. NONE if you ran none>
 BLOCKER: <one line naming a real problem, quoting the CLI error verbatim if there was one. NONE if nothing did. The time budget is not a blocker — if you simply ran out of time and nothing failed, write NONE>
@@ -499,7 +498,7 @@ ASSISTANTS=(
   "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --dangerously-skip-permissions --verbose --output-format stream-json"
   "Codex|codex|~/.agents/skills|exec %%PROMPT%% --skip-git-repo-check"
   "Copilot CLI|copilot|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --allow-all"
-  "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force --trust"
+  "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force --trust --output-format stream-json"
   "Antigravity CLI|agy|~/.agents/skills|-p %%PROMPT%% --dangerously-skip-permissions"
 )
 
@@ -623,6 +622,15 @@ classify() {
   if grep -qiE 'time (budget|limit)|timed? (out|harness)|harness limit|ran out of time|60[- ]second' <<< "$raw_blocker"; then
     raw_blocker=NONE
     grep -qi 'BLOCK' <<< "$status" && status=WORKING
+  fi
+
+  # A model sometimes writes the NONE sentinel straight into an explanatory
+  # sentence with no separator ("NONEThe background job was stopped") — it meant
+  # NONE and merely broke the one-line contract. The glued capital letter is the
+  # signature; a genuine "None of the endpoints could be exposed" keeps its space
+  # and is left intact. Only when the model did not self-report BLOCKED.
+  if [[ "$raw_blocker" =~ ^[Nn][Oo][Nn][Ee][A-Za-z] ]] && ! grep -qi 'BLOCK' <<< "$status"; then
+    raw_blocker=NONE
   fi
 
   # A real blocker is the result, whatever else the assistant managed to do.
