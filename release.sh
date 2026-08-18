@@ -158,8 +158,8 @@ build_bundle() {
   local missing
   missing=$(cd "$work" && find skills -name '*.md' | while read -r f; do
     d=$(dirname "$f")
-    grep -ohE '\]\((\.\./)*[A-Za-z0-9_./-]+\.(md|py|sh|json|ya?ml)\)' "$f" 2>/dev/null \
-      | sed 's/^](//; s/)$//' | while read -r link; do
+    grep -ohE '\]\((\.\./)*[A-Za-z0-9_./-]+\.(md|py|sh|json|ya?ml)(#[^)]*)?\)' "$f" 2>/dev/null \
+      | sed 's/^](//; s/)$//; s/#.*$//' | while read -r link; do
         target=$(python3 -c 'import os,sys; print(os.path.normpath(os.path.join(sys.argv[1], sys.argv[2])))' "$d" "$link")
         [[ -e "$target" ]] || printf '%s -> %s\n' "$f" "$link"
       done
