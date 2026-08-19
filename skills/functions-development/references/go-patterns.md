@@ -17,7 +17,7 @@ func newHandler(_ context.Context, _ *slog.Logger, cfg myConfig) fdk.Handler {
 
 ## Alerts Handler with Falcon Client Auth and Response Helpers
 
-Full alerts handler using the older `http.Handler` pattern with explicit Falcon client setup:
+Full alerts handler using `PostCombinedAlertsV1` (query + get in one call). Uses the concrete gofalcon response types rather than `interface{}`, and checks `Payload.Errors` the way the SDK examples do:
 
 ```go
 // functions/alerts/main.go
@@ -33,6 +33,7 @@ import (
     "github.com/crowdstrike/gofalcon/falcon"
     "github.com/crowdstrike/gofalcon/falcon/client"
     "github.com/crowdstrike/gofalcon/falcon/client/alerts"
+    "github.com/crowdstrike/gofalcon/falcon/models"
     fdk "github.com/CrowdStrike/foundry-fn-go"
 )
 
@@ -52,13 +53,11 @@ type APIError struct {
 func Handler(w http.ResponseWriter, r *http.Request) {
     ctx := r.Context()
 
-    // Validate request method
     if r.Method != http.MethodGet {
         respondError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Only GET method is supported")
         return
     }
 
-    // Get CrowdStrike client via FDK
     accessToken := r.Header.Get("X-CS-ACCESSTOKEN")
     opts := fdk.FalconClientOpts()
     falconClient, err := falcon.NewClient(&falcon.ApiConfig{
@@ -68,11 +67,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         UserAgentOverride: opts.UserAgent,
     })
     if err != nil {
-        respondError(w, http.StatusInternalServerError, "AUTH_FAILED", "Failed to authenticate with Falcon API")
+        respondError(w, http.StatusInternalServerError, "AUTH_FAILED",
+            fmt.Sprintf("Failed to authenticate: %s", falcon.ErrorExplain(err)))
         return
     }
 
-    // Fetch alerts
     alertsData, err := fetchAlerts(ctx, falconClient, r)
     if err != nil {
         respondError(w, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
@@ -82,27 +81,32 @@ func Handler(w http.ResponseWriter, r *http.Request) {
     respondSuccess(w, alertsData)
 }
 
-func fetchAlerts(ctx context.Context, client *client.CrowdStrikeAPISpecification, r *http.Request) (interface{}, error) {
-    // Parse query parameters
+func fetchAlerts(ctx context.Context, c *client.CrowdStrikeAPISpecification, r *http.Request) (interface{}, error) {
     limit := int64(50)
     if l := r.URL.Query().Get("limit"); l != "" {
         fmt.Sscanf(l, "%d", &limit)
         if limit > 100 {
-            limit = 100 // Cap at 100
+            limit = 100
         }
     }
 
-    // Query alerts
-    params := alerts.NewQueryAlertsParams().
+    filter := `product:'detections'`
+    params := alerts.NewPostCombinedAlertsV1Params().
         WithContext(ctx).
-        WithLimit(&limit)
+        WithBody(&models.DetectsapiPostCombinedAlertsV1Request{
+            Filter: filter,
+            Limit:  limit,
+        })
 
-    resp, err := client.Alerts.QueryAlerts(params)
+    resp, err := c.Alerts.PostCombinedAlertsV1(params)
     if err != nil {
-        return nil, fmt.Errorf("failed to query alerts: %w", err)
+        return nil, fmt.Errorf("failed to query alerts: %s", falcon.ErrorExplain(err))
+    }
+    if err = falcon.AssertNoError(resp.Payload.Errors); err != nil {
+        return nil, fmt.Errorf("API returned errors: %w", err)
     }
 
-    return resp.Payload, nil
+    return resp.Payload.Resources, nil
 }
 
 func respondSuccess(w http.ResponseWriter, data interface{}) {
