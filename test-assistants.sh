@@ -113,22 +113,21 @@ PROMPT="Create a Falcon Foundry app for me that has an Okta API integration with
 report_instructions() {
   cat <<EOF
 
-Two more things, because this is a timed test harness rather than a real build.
+This is a lightweight smoke test of the SKILL, not a real build. Your ONLY goal is
+to confirm the skill loaded and the Foundry CLI runs: run one or two quick commands
+(for example \`foundry version\`, \`foundry profile active\`, or \`foundry apps list\`),
+then STOP and report. Do NOT scaffold, create, or deploy an app.
 
-Do not try to finish the app. You have about ${REPORT_AT} seconds of wall clock; run \`date\`
-if you need to know where you are. When that is up, stop wherever you have got to and
-report. Report early — right away — if something blocks you, if you find yourself
-about to ask me a question, or if you sense you are about to be interrupted.
-Running out of the time budget is expected and is not a failure — report what you
-have done so far with BLOCKER: NONE. The
-report is worth more to me than the extra progress.
+Report within about ${REPORT_AT} seconds — run \`date\` to check where you are. Report
+immediately if something blocks you or you find yourself about to ask a question.
+Running out of the time budget is not a failure; report what you have with BLOCKER: NONE.
 
 To report, end your reply with these five lines, in this order, each starting a line
 of plain text. No code fence, no blockquote, no bullets, no bold, and no angle
 brackets in anything you write:
 
 FOUNDRY-REPORT
-STATUS: <one word — WORKING if the CLI is doing real work, BLOCKED only if a real problem stopped you, DONE if the app is built. Running out of the time budget is NOT blocked; that is WORKING>
+STATUS: <one word — WORKING or DONE if the skill loaded and a foundry command ran, BLOCKED only if a real problem stopped you. Running out of the time budget is NOT blocked; that is WORKING>
 SKILLS: <comma-separated paths of the skill files you loaded, or NONE>
 COMMANDS: <comma-separated, every foundry command you ran, each written as the command followed by => OK or => FAIL: reason. NONE if you ran none>
 BLOCKER: <one line naming a real problem, quoting the CLI error verbatim if there was one. NONE if nothing did. The time budget is not a blocker — if you simply ran out of time and nothing failed, write NONE>
@@ -499,7 +498,7 @@ ASSISTANTS=(
   "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --dangerously-skip-permissions --verbose --output-format stream-json"
   "Codex|codex|~/.agents/skills|exec %%PROMPT%% --skip-git-repo-check"
   "Copilot CLI|copilot|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --allow-all"
-  "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force --trust"
+  "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force --trust --output-format stream-json"
   "Antigravity CLI|agy|~/.agents/skills|-p %%PROMPT%% --dangerously-skip-permissions"
 )
 
@@ -567,6 +566,10 @@ blocker_category() {
   # loser looks broken. Categorised separately so it cannot be read as an assistant
   # problem.
   grep -qiE 'name already exists|already in use|duplicate app'  <<< "$t" && { echo dupname;    return; }
+  # A server-side 5xx from the deploy/API (Internal Server Error, trace-id for
+  # support). The app validated locally; the tenant API failed the deploy itself.
+  # Categorised separately from a skills fault so a run of API 500s is legible.
+  grep -qiE 'internal server error|HTTP 50[0-9]\b|\b50[0-9] (internal server|bad gateway|service unavailable)|(deploy|import) failed.*(internal server|50[0-9])' <<< "$t" && { echo api500; return; }
   echo other
 }
 
@@ -583,14 +586,20 @@ blocker_category() {
 # "sat there doing nothing", and it read a clean timeout as success.
 classify() {
   local log="$1" rc="$2" body status skills raw_cmds raw_blocker cmds detail cat
-  # Claude streams stream-json, so its report arrives inside an escaped JSON string.
-  # Expanding \n puts the labels and the blockquoted skill text back at line start,
-  # where the patterns below expect them. The second sed drops the JSON tail that
-  # follows the closing quote, which would otherwise be read as part of BLOCKER; it
-  # anchors on a quote plus `}` or `]` rather than the first quote, because BLOCKER is
-  # asked to quote the CLI error verbatim. No-ops on plain-text logs.
-  body=$(sed -e 's/\\n/\
-/g' -e 's/"[]}].*$//' "$log" 2>/dev/null | grep -v '^[[:space:]]*>')
+  # Claude and Cursor stream stream-json, so the report arrives inside an escaped
+  # JSON string. The first sed expands \n to restore line structure. The second,
+  # run as a separate process so it sees the already-split lines individually,
+  # drops JSON structure that trails the closing quote: "}]}" from a content array
+  # or "," from a result-level string. A single sed with two -e expressions would
+  # apply the trim to the original long line before the split, killing everything.
+  body=$(sed 's/\\n/\
+/g' "$log" 2>/dev/null | sed 's/"[]}),].*$//' | grep -v '^[[:space:]]*>')
+
+  # Environment conditions that are not a skills or harness fault and cannot be
+  # fixed by re-running the skill — an SKIP, not a failure. Anchored on assistant
+  # billing/backend phrasing so neither can match a skill doc's own guidance.
+  grep -qiE "quota reached|quota exceeded|upgrade your subscription|subscription (required|expired|to increase)|insufficient (credits|quota)|out of (credits|quota)" <<< "$body" && { echo "SKIP|account|account quota/subscription limit reached||"; return; }
+  grep -qiE "experiencing high traffic|our servers are (experiencing|busy|overloaded)|temporarily (unavailable|overloaded)|(server|service) is (busy|overloaded)|please try again in a (minute|moment|few)|overloaded_error" <<< "$body" && { echo "SKIP|transient|assistant backend busy — retryable||"; return; }
 
   grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error: unknown (flag|command)" <<< "$body" && { echo "FAIL|flag|rejected a CLI flag||"; return; }
   grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error:.*connection issue|^[[:space:]]*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)||"; return; }
@@ -623,6 +632,15 @@ classify() {
   if grep -qiE 'time (budget|limit)|timed? (out|harness)|harness limit|ran out of time|60[- ]second' <<< "$raw_blocker"; then
     raw_blocker=NONE
     grep -qi 'BLOCK' <<< "$status" && status=WORKING
+  fi
+
+  # A model sometimes writes the NONE sentinel straight into an explanatory
+  # sentence with no separator ("NONEThe background job was stopped") — it meant
+  # NONE and merely broke the one-line contract. The glued capital letter is the
+  # signature; a genuine "None of the endpoints could be exposed" keeps its space
+  # and is left intact. Only when the model did not self-report BLOCKED.
+  if [[ "$raw_blocker" =~ ^[Nn][Oo][Nn][Ee][A-Za-z] ]] && ! grep -qi 'BLOCK' <<< "$status"; then
+    raw_blocker=NONE
   fi
 
   # A real blocker is the result, whatever else the assistant managed to do.
