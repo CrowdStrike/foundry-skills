@@ -1,6 +1,6 @@
 {
   "name": "crowdstrike-falcon-foundry",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Build Falcon Foundry apps with guided workflows for UI, functions, collections, Falcon Fusion SOAR workflows, and API integrations.",
   "author": {
     "name": "CrowdStrike",

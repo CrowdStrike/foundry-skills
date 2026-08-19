@@ -584,16 +584,25 @@ blocker_category() {
 # the assistant's own report, which is what decides everything else. Nothing is
 # inferred from how far the transcript got: that could not tell "still building" from
 # "sat there doing nothing", and it read a clean timeout as success.
+# Read an assistant's report out of a log that may be JSON-wrapped. Claude and Cursor
+# stream stream-json, so the report arrives inside an escaped JSON string. The first sed
+# expands \n to restore line structure. The second, run as a separate process so it sees
+# the already-split lines individually, drops JSON structure that trails the closing
+# quote: "}]}" from a content array or "," from a result-level string. A single sed with
+# two -e expressions would apply the trim to the original long line before the split,
+# killing everything. The final grep drops quoted context so a report echoed back inside
+# a prompt cannot be mistaken for the real one.
+#
+# Every reader of a log goes through here: the classifier and the --e2e claim capture
+# both need the same shape, and two copies of this transform would drift.
+unwrap_log() {   # log
+  sed 's/\\n/\
+/g' "$1" 2>/dev/null | sed 's/"[]}),].*$//' | grep -v '^[[:space:]]*>'
+}
+
 classify() {
   local log="$1" rc="$2" body status skills raw_cmds raw_blocker cmds detail cat
-  # Claude and Cursor stream stream-json, so the report arrives inside an escaped
-  # JSON string. The first sed expands \n to restore line structure. The second,
-  # run as a separate process so it sees the already-split lines individually,
-  # drops JSON structure that trails the closing quote: "}]}" from a content array
-  # or "," from a result-level string. A single sed with two -e expressions would
-  # apply the trim to the original long line before the split, killing everything.
-  body=$(sed 's/\\n/\
-/g' "$log" 2>/dev/null | sed 's/"[]}),].*$//' | grep -v '^[[:space:]]*>')
+  body=$(unwrap_log "$log")
 
   # Environment conditions that are not a skills or harness fault and cannot be
   # fixed by re-running the skill — an SKIP, not a failure. Anchored on assistant
@@ -766,6 +775,10 @@ launch() {   # name bin source argv
     # Its own directory, or four assistants scaffold on top of each other. The binary
     # name doubles as the app-name suffix — short, and already unique per assistant.
     work_dir="$LOG_DIR/e2e/$bin"
+    # LOG_DIR persists between runs, so clear this assistant's directory before it
+    # scaffolds: an app left behind by an earlier run is indistinguishable from this
+    # run's once both are on disk. Only this assistant's own subdirectory is removed.
+    rm -rf "$work_dir"
     mkdir -p "$work_dir"
     tail_instructions=$(e2e_instructions "$bin")
   else
@@ -812,7 +825,7 @@ report_one() {   # name bin source rc elapsed
   # in the display string: verify-apps.sh has to look them up on the tenant.
   local rapp="" rdep=""
   if [ "$E2E" -eq 1 ]; then
-    local ebody; ebody=$(grep -v '^[[:space:]]*>' "$log" 2>/dev/null)
+    local ebody; ebody=$(unwrap_log "$log")
     rapp=$(clean "$(report_field APP        <<< "$ebody")" 60)
     rdep=$(clean "$(report_field DEPLOYMENT <<< "$ebody")" 60)
   fi
@@ -889,7 +902,7 @@ run_group() {
 # none of it trusts the transcript.
 #
 # Apps are located by identity rather than by path, because the per-assistant working
-# directory is advisory: Copilot ran `cd /Users/mraible/dev` and scaffolded there, so a
+# directory is advisory: Copilot ran `cd ~/dev` and scaffolded there, so a
 # judge that only looked where it was told would have failed a genuinely working app.
 # An app found elsewhere is reported as "escaped", not as a failure.
 
@@ -909,7 +922,8 @@ FOUND_OUTSIDE=""
 find_manifest() {   # bin
   local bin="$1"
   MANIFEST_PATH=""; FOUND_OUTSIDE=""
-  MANIFEST_PATH=$(find "$LOG_DIR/e2e/$bin" -name manifest.yml -maxdepth 3 2>/dev/null | head -1)
+  MANIFEST_PATH=$(find "$LOG_DIR/e2e/$bin" -name manifest.yml -maxdepth 3 -print0 2>/dev/null \
+    | xargs -0 stat -f '%m %N' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
   [ -n "$MANIFEST_PATH" ] && return
   # Not where we put it. Look where an assistant has actually been known to wander,
   # then fall back to whatever path the transcript mentions.
@@ -930,13 +944,51 @@ judge_one() {   # name bin claimed_app claimed_deployment
 
   find_manifest "$bin"; manifest="$MANIFEST_PATH"
   if [ -z "$manifest" ]; then
+    # Nothing readable on disk is not the same as nothing built. Copilot CLI authors
+    # inside its own session workspace (~/.copilot/session-state/<id>/files/), which no
+    # search here covers, and it line-wraps absolute paths in its transcript so the
+    # log-path fallback misses them too. A claimed app the tenant can show has shipped;
+    # only its markers are unreadable.
+    local t_state=""
+    [ -n "$c_app" ] && [ "$c_app" != "?" ] \
+      && t_state=$(tenant_apps | awk -F'\t' -v n="$c_app" '$1==n {print $2; exit}')
+    if [ -n "$t_state" ]; then
+      printf '  %s%-16s%s %s%-9s%s %-22s %son tenant, no files on disk%s\n' \
+        "$BOLD" "$name" "$RESET" "$YELLOW$BOLD" "$t_state" "$RESET" "$c_app" "$DIM" "$RESET"
+      info "markers unread: authored outside any path this judge searches"
+      JUDGED+=("$name|ONTENANT|$c_app|$t_state|"); return
+    fi
+    # Nothing claimed and nothing on disk means the assistant never got as far as
+    # reporting: excluded from this run, or stopped by its own backend.
+    if [ -z "$c_app" ] || [ "$c_app" = "?" ]; then
+      printf '  %s%-16s%s %sno result%s  nothing claimed and nothing on disk\n' \
+        "$BOLD" "$name" "$RESET" "$DIM" "$RESET"
+      JUDGED+=("$name|NORESULT|||"); return
+    fi
     printf '  %s%-16s%s %s✘ NO APP%s  nothing on disk for this assistant\n' \
       "$BOLD" "$name" "$RESET" "$RED$BOLD" "$RESET"
     JUDGED+=("$name|NOAPP|||"); return
   fi
+
   app_dir=$(dirname "$manifest")
   app_name=$(sed -n 's/^name:[[:space:]]*//p' "$manifest" | head -1)
   [ -n "$FOUND_OUTSIDE" ] && notes="built outside its working directory: ${app_dir/#$HOME/\~}"
+
+  # The claim is what this run produced; a manifest is only evidence for it. When the two
+  # disagree the directory usually belongs to an earlier run, since LOG_DIR persists, or
+  # the assistant authored somewhere this search does not reach. Reading markers out of it
+  # would then describe a different app entirely. If the tenant can show the claimed app,
+  # judge that and say plainly that the files are not it.
+  if [ -n "$c_app" ] && [ "$c_app" != "?" ] && [ "$c_app" != "$app_name" ]; then
+    local c_state
+    c_state=$(tenant_apps | awk -F'\t' -v n="$c_app" '$1==n {print $2; exit}')
+    if [ -n "$c_state" ]; then
+      printf '  %s%-16s%s %s%-9s%s %-22s %smarkers unread%s\n' \
+        "$BOLD" "$name" "$RESET" "$GREEN$BOLD" "$c_state" "$RESET" "$c_app" "$DIM" "$RESET"
+      info "on disk at ${app_dir/#$HOME/\~} is \"$app_name\", not the app this run reported"
+      JUDGED+=("$name|ONTENANT|$c_app|$c_state|"); return
+    fi
+  fi
 
   state=$(tenant_apps | awk -F'\t' -v n="$app_name" '$1==n {print $2; exit}')
   [ -z "$state" ] && state="ABSENT"
@@ -982,16 +1034,27 @@ run_judge() {
   head2 "Judging against the tenant and the files on disk"
   info "state · app · api ssws soar wf ext api-js shoelace   (dashes mean absent)"
   JUDGED=()
-  local entry name bin source argv r rn rapp rdep
+  local entry name bin source argv r rn rapp rdep log
   for entry in "${ASSISTANTS[@]}"; do
     IFS='|' read -r name bin source argv <<< "$entry"
     want "$name" "$bin" || continue
+    log="$LOG_DIR/${bin}.log"
+    # An assistant excluded from the run, or not installed, has no log and nothing
+    # to judge.
+    [ -s "$log" ] || continue
     rapp=""; rdep=""
     for r in ${RESULTS[@]+"${RESULTS[@]}"}; do
       IFS='|' read -r rn _ _ _ _ _ _ rapp rdep <<< "$r"
       [ "$rn" = "$name" ] && break
       rapp=""; rdep=""
     done
+    # `--judge` on its own has no in-memory RESULTS, so read the claims back out of the
+    # log. The two checks that compare a claim against reality need them.
+    if [ -z "$rapp" ]; then
+      local jbody; jbody=$(unwrap_log "$log")
+      rapp=$(clean "$(report_field APP        <<< "$jbody")" 60)
+      rdep=$(clean "$(report_field DEPLOYMENT <<< "$jbody")" 60)
+    fi
     judge_one "$name" "$bin" "$rapp" "$rdep"
   done
 }
