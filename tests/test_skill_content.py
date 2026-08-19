@@ -128,7 +128,7 @@ class TestFunctionSchemaRequirements:
     def test_does_not_claim_manifest_edit_binds_schemas(self):
         """Must state that hand-editing the manifest does not bind schemas."""
         content = _read_skill(self.SKILL)
-        schema_section_start = content.find("Function I/O Schemas")
+        schema_section_start = content.find("## Function I/O Schemas")
         assert schema_section_start != -1
         schema_section = content[schema_section_start:schema_section_start + 3000]
         assert "does NOT bind" in schema_section or "does not bind" in schema_section.lower()

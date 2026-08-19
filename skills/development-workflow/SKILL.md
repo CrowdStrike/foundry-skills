@@ -54,6 +54,19 @@ Add a capability to an existing app
 ├── Collection            → collections-development
 └── Falcon API from funcs → functions-falcon-api
 
+Execute / test a deployed function
+├── "run my function", "execute function"     → functions-development
+├── "check execution status", "exec status"   → functions-development
+├── "get function logs", "show logs"          → functions-development
+├── "list executions"                         → functions-development
+├── "test my function" (function tests.yml)   → functions-development
+└── "run tests", "test cases"                 → functions-development
+
+Debug a function failure
+├── "debug my function", "why did it fail"    → debugging-workflows
+├── "function returning errors"               → debugging-workflows
+└── "no logs available"                       → debugging-workflows
+
 Implement a known pattern (pagination, enrichment, ingestion, etc.)
 └── Search use-cases/*.md for matching pattern → load for context
 
@@ -89,6 +102,11 @@ Map user requests to Foundry capabilities:
 | "extension", "sidebar", "widget" | UI Extension | `foundry ui extensions create` |
 | "function", "serverless", "backend" | Function | `foundry functions create` |
 | "store data", "collection", "database" | Collection | `foundry collections create` |
+| "run function", "execute", "test handler" | Function Execution | `foundry functions exec` |
+| "get logs", "show execution logs" | Log Retrieval | `foundry functions logs` |
+| "check status", "execution result" | Execution Status | `foundry functions exec status` |
+| "test function", "run tests", "test cases" | Function Testing | `foundry functions test` |
+| "debug function", "why did it fail" | Function Debugging | → debugging-workflows skill |
 
 > **⚠️ "Summarize/list alerts, detections, or incidents" (a population the workflow doesn't already have) implies a source-of-truth fetch.** A request like "a workflow that emails a summary of high-severity alerts" needs the *set* of alerts, which is not reliably in NG-SIEM (Event Query can silently return nothing — repo contents are connector-dependent). Fetch it from the source of truth: a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — so the app needs BOTH that capability (plan the `alerts:read` scope) AND a workflow to schedule it and send email. **Exception:** *enriching* a detection the workflow was already triggered on (query by its ID) stays an Event Query and needs no function. See [functions-falcon-api](../functions-falcon-api/SKILL.md) and [workflows-development event-query-vs-api](../workflows-development/references/event-query-vs-api.md).
 
