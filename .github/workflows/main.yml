@@ -206,7 +206,7 @@ jobs:
                   continue
               for lineno, line in enumerate(path.read_text(errors='ignore').splitlines(), 1):
                   for match in pattern.finditer(line):
-                      target = match.group(1).split('#')[0].strip()
+                      target = match.group(1).split('#')[0].split('?')[0].strip()
                       if not target or target.startswith(('http', 'mailto:', '/')):
                           continue
                       if not (path.parent / target).exists():
