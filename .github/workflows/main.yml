@@ -195,6 +195,27 @@ jobs:
           node-version: 22
       - name: Run markdownlint
         run: npx markdownlint-cli2 "**/*.md"
+      - name: Check relative links resolve
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, sys
+          pattern = re.compile(r'\[[^\]]*\]\(([^)#][^)]*)\)')
+          broken = []
+          for path in pathlib.Path('.').rglob('*.md'):
+              if 'node_modules' in path.parts or '.git' in path.parts:
+                  continue
+              for lineno, line in enumerate(path.read_text(errors='ignore').splitlines(), 1):
+                  for match in pattern.finditer(line):
+                      target = match.group(1).split('#')[0].strip()
+                      if not target or target.startswith(('http', 'mailto:', '/')):
+                          continue
+                      if not (path.parent / target).exists():
+                          broken.append(f"{path}:{lineno} -> {target}")
+          for entry in broken:
+              print(f"FAIL: {entry}")
+          print(f"{len(broken)} broken relative link(s)")
+          sys.exit(1 if broken else 0)
+          PY
 
   pylint:
     runs-on: ubuntu-latest
