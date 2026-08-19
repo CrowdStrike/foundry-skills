@@ -159,7 +159,7 @@ When using Claude Code, ask "debug my last function execution" or "why did this 
 
 ### Run Function Test Cases (Integration Tests)
 
-> **Not to be confused with unit tests.** Unit tests (`pytest`, Go `httptest`) run locally against mocked dependencies — see [references/testing-patterns.md](references/testing-patterns.md). Function test cases are **integration tests** that execute against the real deployed Lambda with real API calls, real collections, and real credentials.
+> **Not to be confused with unit tests.** Unit tests (`pytest`, Go `httptest`) run locally against mocked dependencies — see [testing-patterns.md](testing-patterns.md). Function test cases are **integration tests** that execute against the real deployed Lambda with real API calls, real collections, and real credentials.
 
 Define test cases in a `tests.yml` file inside each function's directory and run them against the deployed function:
 
@@ -261,12 +261,12 @@ For async (202) handlers, the test command automatically polls for the actual re
 
 When a user asks to "write tests for my function" or "add test cases", **first clarify which type of test they want:**
 
-- **Unit tests** — run locally with mocked dependencies (`pytest`/`httptest`). Fast, no deployment needed. See [references/testing-patterns.md](references/testing-patterns.md).
+- **Unit tests** — run locally with mocked dependencies (`pytest`/`httptest`). Fast, no deployment needed. See [testing-patterns.md](testing-patterns.md).
 - **Integration tests** — run against the real deployed Lambda via `foundry functions test`. Tests the full execution path including real API calls, collections, and credentials.
 
 Ask: "Would you like unit tests (local, with mocks) or integration tests (against the deployed function)?"
 
-If the answer is integration tests, generate **function integration test cases** as described below. If unit tests, follow the patterns in [references/testing-patterns.md](references/testing-patterns.md).
+If the answer is integration tests, generate **function integration test cases** as described below. If unit tests, follow the patterns in [testing-patterns.md](testing-patterns.md).
 
 Generate integration test cases by:
 
