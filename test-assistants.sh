@@ -566,6 +566,10 @@ blocker_category() {
   # loser looks broken. Categorised separately so it cannot be read as an assistant
   # problem.
   grep -qiE 'name already exists|already in use|duplicate app'  <<< "$t" && { echo dupname;    return; }
+  # A server-side 5xx from the deploy/API (Internal Server Error, trace-id for
+  # support). The app validated locally; the tenant API failed the deploy itself.
+  # Categorised separately from a skills fault so a run of API 500s is legible.
+  grep -qiE 'internal server error|HTTP 50[0-9]\b|\b50[0-9] (internal server|bad gateway|service unavailable)|(deploy|import) failed.*(internal server|50[0-9])' <<< "$t" && { echo api500; return; }
   echo other
 }
 
