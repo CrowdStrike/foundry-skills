@@ -1079,6 +1079,68 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.20 apps validate with --no-prompt → pass"
 
+# 6.21 — foundry functions exec without --no-prompt → advisory
+cleanup
+JSON=$(jq -n --arg cmd "foundry functions exec --handler my_handler '{\"key\": \"value\"}'" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.21 functions exec without --no-prompt → advisory"
+
+# 6.22 — foundry functions exec with --no-prompt → pass
+cleanup
+JSON=$(jq -n --arg cmd "foundry functions exec --handler my_handler '{\"key\": \"value\"}' --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.22 functions exec with --no-prompt → pass"
+
+# 6.23 — foundry functions test without --no-prompt → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions test"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.23 functions test without --no-prompt → advisory"
+
+# 6.24 — foundry functions test with --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions test --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.24 functions test with --no-prompt → pass"
+
+# 6.25 — foundry functions logs without --no-prompt → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions logs exec-abc123"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.25 functions logs without --no-prompt → advisory"
+
+# 6.26 — foundry functions logs with --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions logs exec-abc123 --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.26 functions logs with --no-prompt → pass"
+
+# 6.27 — foundry functions exec list without --no-prompt → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions exec list"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.27 functions exec list without --no-prompt → advisory"
+
+# 6.28 — foundry functions exec status without --no-prompt → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions exec status exec-abc123"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.28 functions exec status without --no-prompt → advisory"
+
+# 6.29 — foundry functions exec status with --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions exec status exec-abc123 --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.29 functions exec status with --no-prompt → pass"
+
+# 6.30 — foundry functions create with --no-prompt still passes (regression)
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions create --name myfunc --language python --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.30 functions create with --no-prompt → pass (regression)"
+
 # =============================================
 # Section 7: Skill Description Validation
 # =============================================

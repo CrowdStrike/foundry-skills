@@ -41,18 +41,19 @@ fi
 
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-# Check for Foundry CLI create commands that need --no-prompt
+# Check for Foundry CLI commands that need --no-prompt
 # Nearly all Foundry CLI commands support --no-prompt:
 #   apps create/validate/release/delete, functions create, collections create,
 #   workflows create, api-integrations create,
 #   ui pages create, ui extensions create, rtr-scripts create, profile create/delete
-if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
+#   functions exec (incl. exec list / exec status), functions logs, functions test
+if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
   # Check if --no-prompt is missing
   if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --no-prompt. Foundry CLI create/release commands run non-interactively in Claude Code and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
+        additionalContext: "The command is missing --no-prompt. Foundry CLI commands (create/validate/release, functions exec/logs/test) run non-interactively in Claude Code and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
       }
     }'
     exit 0

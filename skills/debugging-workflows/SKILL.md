@@ -1,9 +1,9 @@
 ---
 name: debugging-workflows
-description: Systematic troubleshooting for Falcon Foundry CLI errors, manifest validation failures, deploy failures, and development server issues. TRIGGER when user encounters CLI errors, `foundry ui run` not working, deploy failures, authentication issues, or any unexpected behavior during Foundry app development. Also trigger for headless/CI environment setup failures.
+description: Systematic troubleshooting for Falcon Foundry CLI errors, manifest validation failures, deploy failures, artifact runtime errors, and development server issues. TRIGGER when user encounters CLI errors, `foundry ui run` not working, deploy failures, authentication issues, function execution failures, "debug my function", "why did this fail", or any unexpected behavior during Foundry app development. Also trigger for headless/CI environment setup failures.
 version: 1.4.1
-updated: 2026-08-07
-tags: [foundry, debugging, cli, deployment]
+updated: 2026-08-17
+tags: [foundry, debugging, cli, deployment, artifacts, functions, logs, execution]
 author: CrowdStrike
 license: MIT
 compatibility: Claude Code >=1.0
@@ -36,6 +36,14 @@ foundry ui run fails
 ├── Permission errors       → Check manifest OAuth scopes, restart server, verify auth
 └── Blank page / CORS error → noAttr() or base path removed from vite.config.js (see ui-development)
 
+Function execution fails
+├── Status 500 + "Server Error"  → Check function logs: foundry functions logs <exec_id>
+├── Status 202 + no result       → Async execution: foundry functions exec status <exec_id>
+├── "authorization failed"       → Missing custom-apps:write scope on API client
+├── "artifact is not deployed"   → Deploy first: foundry apps deploy --no-prompt
+├── No logs available            → Wait ~5 min, then: foundry functions logs <exec_id> --refresh
+└── Unexpected response          → Read logs + source, correlate timestamps against handler code
+
 Auth fails
 ├── 401/403 from API   → Check OAuth scopes in manifest
 ├── Login hangs        → Headless environment, no browser — use env vars or profile create --no-prompt
@@ -59,6 +67,82 @@ curl -X POST http://localhost:8081/api/process -d '{"key":"value"}'
 
 # With configuration file (local only)
 CS_FN_CONFIG_PATH=./config.json python3 main.py
+```
+
+### Function Execution & Log Retrieval (Deployed Functions)
+
+> **Requires Foundry CLI 2.1.0+.** These commands do not exist in CLI 2.0.x.
+
+For testing against the deployed Lambda (not local Docker), use the execution commands:
+
+```bash
+# Execute a deployed function handler
+foundry functions exec --handler my_handler '{"key": "value"}' --no-prompt
+
+# Execute and wait for logs
+foundry functions exec --handler my_handler --logs '{"payload": "data"}' --no-prompt
+
+# Check status of an async (202) execution
+foundry functions exec status <exec_id>
+
+# Retrieve logs for a past execution
+foundry functions logs <exec_id>
+
+# List recent executions to find one to debug
+foundry functions exec list --function my-fn --no-prompt
+```
+
+### Function Runtime Debugging
+
+When a deployed function returns unexpected results or errors:
+
+**Step 1: Execute and observe**
+```bash
+foundry functions exec --handler <handler> --logs '{"test": "input"}' --no-prompt
+```
+
+Note the exec_id and status code from the output.
+
+**Step 2: Retrieve logs if not already displayed**
+```bash
+foundry functions logs <exec_id>
+```
+
+Logs arrive ~5 minutes after execution via the Firehose pipeline. The CLI polls automatically with a countdown.
+
+**Step 3: Correlate logs against source**
+
+The function source lives at the path in `manifest.yml`:
+```yaml
+functions:
+  - name: my-function
+    path: functions/my-function
+    handlers:
+      - name: my_handler
+        method: POST
+        api_path: /api/process
+```
+
+Read the handler source and compare against log timestamps and error messages.
+
+**Step 4: Common runtime failures**
+
+| Log Pattern | Likely Cause | Fix |
+|-------------|-------------|-----|
+| `ImportError: No module named X` | Missing from `requirements.txt` | Add dependency, redeploy |
+| `KeyError: 'field'` | Missing field in request body | Add input validation |
+| `401 Unauthorized` from FalconPy | Missing OAuth scope in manifest | Add scope, redeploy |
+| `Timeout` / no logs appear | Function exceeded `max_exec_duration_seconds` | Increase timeout or optimize |
+| Status 202, no result | Async execution | Poll: `foundry functions exec status <exec_id>` |
+| Logs say "available" but empty | Logs not yet in pipeline | Wait 5 min or use `--refresh` |
+
+**Step 5: Fix, redeploy, verify**
+```bash
+# After fixing the code:
+foundry apps deploy --change-type Patch --change-log "fix handler error" --no-prompt
+
+# Re-execute to verify
+foundry functions exec --handler <handler> --logs '{"test": "input"}' --no-prompt
 ```
 
 ### RTR Script Testing

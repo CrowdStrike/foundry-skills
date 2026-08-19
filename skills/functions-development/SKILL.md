@@ -1,9 +1,9 @@
 ---
 name: functions-development
-description: Build serverless Go or Python functions for Falcon Foundry apps. TRIGGER when user asks to "create a function", "write a serverless function", "build backend logic", runs `foundry functions create`, or needs help with FDK handler patterns, function testing, or collection integration from functions. DO NOT TRIGGER for calling Falcon platform APIs from functions — use functions-falcon-api instead. DO NOT TRIGGER for workflow YAML or UI components.
+description: Build serverless Go or Python functions for Falcon Foundry apps. TRIGGER when user asks to "create a function", "write a serverless function", "build backend logic", runs `foundry functions create`, or needs help with FDK handler patterns, function testing, or collection integration from functions. Also TRIGGER when user asks to "execute a function", "run my function", "debug this function", "get function logs", "check execution status", "write function tests", "test my function handler", or "add test cases for my function". DO NOT TRIGGER for generic "write integration tests" or "write tests" without function context — ask which capability they want to test first. DO NOT TRIGGER for calling Falcon platform APIs from functions — use functions-falcon-api instead. DO NOT TRIGGER for workflow YAML or UI components. DO NOT TRIGGER for Playwright/e2e/browser tests — use e2e-testing instead.
 version: 1.4.1
-updated: 2026-08-07
-tags: [foundry, functions, serverless, python, go]
+updated: 2026-08-17
+tags: [foundry, functions, serverless, python, go, execution, debugging, logs, testing]
 author: CrowdStrike
 license: MIT
 compatibility: Claude Code >=1.0
@@ -17,14 +17,12 @@ metadata:
 >
 > If you are loading this skill, your role is **Foundry serverless functions specialist**.
 >
-> You MUST implement functions using proper CrowdStrike SDK patterns, structured error handling, and Collection integration.
+> **Loading this skill is NOT a command to do anything.** It only equips you with function-development knowledge. Do NOT run any `foundry functions` command (especially `exec`, `test`, or a deploy) just because the skill loaded — wait for the user's actual request, and if their intent isn't clear yet, ask what they'd like to do. Never execute, test, or deploy a function unprompted.
 >
-> **IMMEDIATE ACTIONS REQUIRED:**
+> When you DO implement or modify functions, you MUST use proper CrowdStrike SDK patterns, structured error handling, and Collection integration:
 > 1. Use CrowdStrike SDKs (gofalcon/falconpy) for ALL API interactions
 > 2. Implement structured JSON responses with proper status codes
 > 3. Apply input validation before processing any request
-
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Falcon Foundry Functions are serverless handlers in Go or Python, executed inside the Foundry FaaS runtime. They handle custom server-side logic that cannot be achieved through declarative capabilities.
 
@@ -88,6 +86,27 @@ foundry functions create \
   --handler-path /api/process \
   --no-prompt
 ```
+
+## Function Execution & Debugging
+
+> **Requires Foundry CLI 2.1.0+.** The commands below (`foundry functions exec`, `test`, `logs`) do not exist in CLI 2.0.x. If the user's CLI is below 2.1.0, inform them and offer to upgrade: `brew upgrade crowdstrike/foundry-cli/foundry`.
+
+> **⚠️ DEPLOY FIRST — `exec` and `test` run against the deployed Lambda, not local code.** Never deploy automatically; ask the user first.
+
+For the full command reference, request-data confirmation workflow, tests.yml schema, and debugging steps, see [references/execution-and-testing.md](references/execution-and-testing.md).
+
+Key commands:
+
+```bash
+foundry functions exec --handler <handler> '<json>' --no-prompt
+foundry functions exec status <exec_id>
+foundry functions logs <exec_id>
+foundry functions test --no-prompt
+```
+
+## Reviewing Function Code
+
+Before recommending a deploy, review the handler for logging adequacy, sensitive data, and schema coverage. See [references/code-review-checklist.md](references/code-review-checklist.md) for the full checklist.
 
 ## Function I/O Schemas — Required at Creation Time
 
