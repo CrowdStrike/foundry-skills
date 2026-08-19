@@ -19,7 +19,7 @@ metadata:
 >
 > You MUST design Collections with proper JSON Schemas, validation rules, and access patterns.
 
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Falcon Foundry Collections are NoSQL document stores with JSON Schema validation. They provide persistent storage for app data with CRUD operations, FQL queries, and schema enforcement.
 
@@ -242,7 +242,7 @@ export class IncidentCollection {
 
 ## CRUD Operations (Python — from Functions)
 
-Use `CustomStorage` (Service Class) to access collections from Python functions. Service classes are preferred over the Uber class (`APIHarnessV2`) because the Falcon Foundry functions editor auto-detects OAuth scopes from `from falconpy import CustomStorage`. See [functions-development/references/python-patterns.md](../functions-development/references/python-patterns.md) for a complete handler example with Uber class alternative.
+Use `CustomStorage` (Service Class) to access collections from Python functions. Service classes are preferred over the Uber class (`APIHarnessV2`) because the Falcon Foundry functions editor auto-detects OAuth scopes from `from falconpy import CustomStorage`. See the `functions-development` skill's `references/python-patterns.md` for a complete handler example with Uber class alternative.
 
 ```python
 import json
@@ -345,8 +345,8 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 ## Use Cases
 
 For real-world implementation patterns, see:
-- [collections.md](../../use-cases/collections.md) — CRUD operations, search, field types
-- [lookup-table-enrichment.md](../../use-cases/lookup-table-enrichment.md) — 3rd-party data for automated enrichment
+- `use-cases/collections.md` — CRUD operations, search, field types
+- `use-cases/lookup-table-enrichment.md` — 3rd-party data for automated enrichment
 
 ## Reference Implementations
 

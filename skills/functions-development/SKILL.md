@@ -169,7 +169,7 @@ Adding `request_schema`/`response_schema` to the manifest by hand and redeployin
 3. Update any workflow YAML referencing it — the `workflow_integration.id` changes
 4. Redeploy
 
-**Warning:** Step 3 matters. Recreating the function gives it a new workflow integration ID, so existing workflow YAML points at nothing. Edit the workflow YAML in place to reference the new ID — do NOT delete and recreate the *workflows* to force a refresh, which triggers `409 name must be unique for an app` and can corrupt the app's dependency graph. See [workflows-development](../workflows-development/SKILL.md) for details.
+**Warning:** Step 3 matters. Recreating the function gives it a new workflow integration ID, so existing workflow YAML points at nothing. Edit the workflow YAML in place to reference the new ID — do NOT delete and recreate the *workflows* to force a refresh, which triggers `409 name must be unique for an app` and can corrupt the app's dependency graph. See the `workflows-development` skill for details.
 
 ## Language Comparison
 
@@ -393,9 +393,9 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 ## Use Cases
 
 For real-world implementation patterns, see:
-- [python-functions.md](../../use-cases/python-functions.md) — Python handler patterns, SDK usage, testing
-- [logscale-ingestion.md](../../use-cases/logscale-ingestion.md) — Ingesting custom data into Falcon LogScale
-- [api-pagination.md](../../use-cases/api-pagination.md) — Pagination strategies in functions and workflows
+- `use-cases/python-functions.md` — Python handler patterns, SDK usage, testing
+- `use-cases/logscale-ingestion.md` — Ingesting custom data into Falcon LogScale
+- `use-cases/api-pagination.md` — Pagination strategies in functions and workflows
 
 ## Reference Implementations
 

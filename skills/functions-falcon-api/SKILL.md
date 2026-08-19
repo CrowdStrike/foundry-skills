@@ -21,7 +21,7 @@ metadata:
 >
 > The FalconPy `Detects` class is **removed**. Do not import it. Use `Alerts` for detection queries.
 
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 This skill covers calling CrowdStrike Falcon APIs from within Foundry functions (serverless Go or Python code). Authentication is completely automatic when code runs inside Foundry function handlers — the platform handles all OAuth flows, token management, and credential injection.
 
@@ -425,7 +425,7 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 ## Use Cases
 
 For real-world implementation patterns, see:
-- [python-functions.md](../../use-cases/python-functions.md) — Python handler patterns, SDK usage, testing
+- `use-cases/python-functions.md` — Python handler patterns, SDK usage, testing
 
 ## Reference Implementations
 
