@@ -591,6 +591,12 @@ classify() {
   body=$(sed -e 's/\\n/\
 /g' -e 's/"[]}].*$//' "$log" 2>/dev/null | grep -v '^[[:space:]]*>')
 
+  # Environment conditions that are not a skills or harness fault and cannot be
+  # fixed by re-running the skill — an SKIP, not a failure. Anchored on assistant
+  # billing/backend phrasing so neither can match a skill doc's own guidance.
+  grep -qiE "quota reached|quota exceeded|upgrade your subscription|subscription (required|expired|to increase)|insufficient (credits|quota)|out of (credits|quota)" <<< "$body" && { echo "SKIP|account|account quota/subscription limit reached||"; return; }
+  grep -qiE "experiencing high traffic|our servers are (experiencing|busy|overloaded)|temporarily (unavailable|overloaded)|(server|service) is (busy|overloaded)|please try again in a (minute|moment|few)|overloaded_error" <<< "$body" && { echo "SKIP|transient|assistant backend busy — retryable||"; return; }
+
   grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error: unknown (flag|command)" <<< "$body" && { echo "FAIL|flag|rejected a CLI flag||"; return; }
   grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error:.*connection issue|^[[:space:]]*\* connection issue" <<< "$body" && { echo "FAIL|connection|connection issue (denied token-cache write?)||"; return; }
   grep -qiE "^[[:space:]]*(❌[[:space:]]*)?Error: no TTY available|^[[:space:]]*(❌[[:space:]]*)?could not open a new TTY|/dev/tty: device not configured" <<< "$body" && { echo "FAIL|tty|CLI demanded a TTY||"; return; }
