@@ -148,6 +148,20 @@ jobs:
             fail=1
           fi
 
+          # Codex manifest must match plugin.json
+          codex_plugin_version=$(jq -r '.version' .codex-plugin/plugin.json)
+          if [ "$codex_plugin_version" != "$plugin_version" ]; then
+            echo "FAIL: .codex-plugin/plugin.json version '$codex_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
+            fail=1
+          fi
+
+          # Codex marketplace catalog pins a release tag, so its ref must match too
+          agents_ref=$(jq -r '.plugins[0].source.ref' .agents/plugins/marketplace.json)
+          if [ "${agents_ref#v}" != "$plugin_version" ]; then
+            echo "FAIL: .agents/plugins/marketplace.json ref '$agents_ref' != v$plugin_version"
+            fail=1
+          fi
+
           # All SKILL.md versions must match plugin.json
           for skill in skills/*/SKILL.md; do
             skill_version=$(sed -n 's/^version: *//p' "$skill")

@@ -1,8 +1,8 @@
 ---
 name: fusion-redirect
 description: TRIGGER when user asks for a "standalone Falcon Fusion workflow" that needs NO Foundry app — just a trigger plus actions that already exist in their CID, with no UI, function, collection, or custom API integration to build. DO NOT TRIGGER when the request needs anything built (a custom action, a UI page, a function, a collection) — that is a Foundry app and development-workflow owns it. This skill exists so the redirect works without hooks and yields to the real Falcon Fusion plugin when both are loaded.
-version: 1.4.1
-updated: 2026-08-16
+version: 1.5.0
+updated: 2026-08-19
 tags: [foundry, fusion, redirect]
 author: CrowdStrike
 license: MIT

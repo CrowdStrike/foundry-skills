@@ -1,8 +1,8 @@
 ---
 name: functions-development
 description: Build serverless Go or Python functions for Falcon Foundry apps. TRIGGER when user asks to "create a function", "write a serverless function", "build backend logic", runs `foundry functions create`, or needs help with FDK handler patterns, function testing, or collection integration from functions. Also TRIGGER when user asks to "execute a function", "run my function", "debug this function", "get function logs", "check execution status", "write function tests", "test my function handler", or "add test cases for my function". DO NOT TRIGGER for generic "write integration tests" or "write tests" without function context — ask which capability they want to test first. DO NOT TRIGGER for calling Falcon platform APIs from functions — use functions-falcon-api instead. DO NOT TRIGGER for workflow YAML or UI components. DO NOT TRIGGER for Playwright/e2e/browser tests — use e2e-testing instead.
-version: 1.4.1
-updated: 2026-08-17
+version: 1.5.0
+updated: 2026-08-19
 tags: [foundry, functions, serverless, python, go, execution, debugging, logs, testing]
 author: CrowdStrike
 license: MIT
