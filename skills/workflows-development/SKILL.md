@@ -24,7 +24,7 @@ metadata:
 > 2. Validate step dependencies before workflow execution
 > 3. Implement onError blocks for every multi-step workflow
 
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Falcon Foundry Workflows are YAML-defined automation units executed by the Falcon Fusion engine. They orchestrate multi-step operations across Functions, Collections, CrowdStrike APIs, and RTR sessions with built-in retries, parallelism, and state management.
 
@@ -389,9 +389,9 @@ See [references/advanced-patterns.md](references/advanced-patterns.md) for workf
 ## Use Cases
 
 For real-world implementation patterns, see:
-- [schemaless-queries.md](../../use-cases/schemaless-queries.md) — CEL expressions, dynamic data, Event Query configuration
-- [api-pagination.md](../../use-cases/api-pagination.md) — Pagination strategies in functions and workflows
-- [custom-soar-actions.md](../../use-cases/custom-soar-actions.md) — Custom Falcon Fusion SOAR actions
+- `use-cases/schemaless-queries.md` — CEL expressions, dynamic data, Event Query configuration
+- `use-cases/api-pagination.md` — Pagination strategies in functions and workflows
+- `use-cases/custom-soar-actions.md` — Custom Falcon Fusion SOAR actions
 
 ## Reference Implementations
 

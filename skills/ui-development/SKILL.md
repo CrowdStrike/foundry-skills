@@ -25,7 +25,7 @@ metadata:
 > 3. Coordinate with `foundry ui run` for live development
 > 4. Apply iframe security patterns for all extensions
 
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Falcon Foundry UI pages and extensions use React or Vue with the Shoelace design system (Falcon-themed) and Foundry-JS for platform integration.
 
@@ -360,8 +360,8 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 ## Use Cases
 
 For real-world implementation patterns, see:
-- [detection-enrichment.md](../../use-cases/detection-enrichment.md) — UI extensions for detection enrichment
-- [first-app.md](../../use-cases/first-app.md) — Getting started with Foundry apps
+- `use-cases/detection-enrichment.md` — UI extensions for detection enrichment
+- `use-cases/first-app.md` — Getting started with Foundry apps
 
 ## Reference Implementations
 

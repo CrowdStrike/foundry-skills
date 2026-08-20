@@ -15,7 +15,7 @@ metadata:
 
 Systematic procedures for diagnosing and resolving common CrowdStrike Falcon Foundry development issues.
 
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 ## Quick Diagnosis
 

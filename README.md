@@ -283,6 +283,16 @@ This generates release notes from merged PRs and saves them as a draft. Review a
 
 After publishing the release, notify Anthropic of the new tag and SHA so they can update the marketplace pin. Do not open PRs to `anthropics/claude-plugins-official` or re-submit through the plugin submission form.
 
+## Cross-Plugin: Fusion Workflows
+
+`foundry-skills` builds **Falcon Foundry apps** with the full lifecycle: API integrations, UI pages, serverless functions, collections, and workflows wrapped in a `manifest.yml`. When a request is a standalone Fusion workflow (a trigger plus actions that already exist, with no app to build), use the sibling plugin ([fusion-skills](https://github.com/CrowdStrike/fusion-skills)):
+
+```
+/plugin install crowdstrike-falcon-fusion
+```
+
+The two plugins detect each other and advise the right path. Use `foundry-skills` for the full app lifecycle; use `fusion-skills` for standalone workflows with live action discovery. Neither requires the other to function.
+
 ## License
 
 See [LICENSE](LICENSE) for details.

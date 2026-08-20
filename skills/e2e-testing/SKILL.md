@@ -17,7 +17,7 @@ End-to-end testing for Falcon Foundry apps using [Playwright](https://playwright
 
 The library provides authentication, app install/uninstall, page objects, and configuration so each app only writes its app-specific tests.
 
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 ## Quick Start
 

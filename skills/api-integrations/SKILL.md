@@ -21,7 +21,7 @@ metadata:
 >
 > **Note:** For `api-integrations create`, always include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
 
-> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load [development-workflow](../development-workflow/SKILL.md) first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
+> **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 This skill covers exposing external APIs (third-party services or CrowdStrike Falcon APIs) to the Falcon Foundry platform via OpenAPI/Swagger specifications. These integrations make API operations available to Falcon Fusion SOAR workflows, Foundry UI extensions, Foundry Functions, and other Foundry capabilities.
 
@@ -247,9 +247,9 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 ## Use Cases
 
 For real-world implementation patterns, see:
-- [http-actions.md](../../use-cases/http-actions.md) — HTTP Request actions vs API integrations
-- [greynoise-deep-dive.md](../../use-cases/greynoise-deep-dive.md) — End-to-end third-party API app
-- [custom-soar-actions.md](../../use-cases/custom-soar-actions.md) — Custom Falcon Fusion SOAR actions
+- `use-cases/http-actions.md` — HTTP Request actions vs API integrations
+- `use-cases/greynoise-deep-dive.md` — End-to-end third-party API app
+- `use-cases/custom-soar-actions.md` — Custom Falcon Fusion SOAR actions
 
 ## Reference Implementations
 
