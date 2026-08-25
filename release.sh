@@ -108,13 +108,18 @@ build_bundle() {
   local zip="$SCRIPT_DIR/crowdstrike-falcon-foundry-${version}.zip"
   printf "\n${BLUE}Building skills-only bundle from %s${RESET}\n" "$ref"
 
-  git -C "$SCRIPT_DIR" archive --format=zip --output="$zip" "$ref" "${BUNDLE_PATHS[@]}" \
-    || { printf "${RED}✗${RESET} git archive failed\n" >&2; return 1; }
+  # Build to a temp file and only move it into place after every check passes.
+  # git archive truncates its --output before it runs, so writing straight to
+  # "$zip" would leave a 0-byte file if the archive (or a later check) fails, and
+  # a 0-byte zip looks fine locally until the portal or Slack rejects it.
+  local tmpzip="${zip}.partial"
+  git -C "$SCRIPT_DIR" archive --format=zip --output="$tmpzip" "$ref" "${BUNDLE_PATHS[@]}" \
+    || { printf "${RED}✗${RESET} git archive failed\n" >&2; rm -f "$tmpzip"; return 1; }
 
   local work; work=$(mktemp -d)
   # shellcheck disable=SC2064
-  trap "rm -rf '$work'" RETURN
-  unzip -q "$zip" -d "$work" || { printf "${RED}✗${RESET} Archive is not readable\n" >&2; return 1; }
+  trap "rm -rf '$work' '$tmpzip'" RETURN
+  unzip -q "$tmpzip" -d "$work" || { printf "${RED}✗${RESET} Archive is not readable\n" >&2; return 1; }
 
   local fail=0
 
@@ -225,13 +230,20 @@ PY
 
   local count size
   count=$(find "$work" -type f | wc -l | tr -d ' ')
-  size=$(du -h "$zip" | cut -f1 | tr -d ' ')
-  printf "\n  %s files, %s: %s\n" "$count" "$size" "$zip"
+  local count size
+  count=$(find "$work" -type f | wc -l | tr -d ' ')
+  size=$(du -h "$tmpzip" | cut -f1 | tr -d ' ')
+  printf "\n  %s files, %s\n" "$count" "$size"
 
   if [[ "$fail" != "0" ]]; then
     printf "\n${RED}Bundle failed validation. Do not upload it.${RESET}\n" >&2
     return 1
   fi
+  # Every check passed — publish the archive under its final name. On any failure
+  # above we return early and the RETURN trap deletes the partial file, so a
+  # broken build never leaves a zip (0-byte or otherwise) to upload by mistake.
+  mv -f "$tmpzip" "$zip"
+  printf "\n  %s\n" "$zip"
   printf "\n${GREEN}Bundle is ready to upload at https://platform.openai.com/plugins${RESET}\n"
 }
 
