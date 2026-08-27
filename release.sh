@@ -37,10 +37,13 @@ BUNDLE_REF=""
 # a skill that starts referencing a new top-level path needs adding here, and
 # build_bundle fails loudly if a referenced path is missing from the archive.
 #
+# assets/ holds the interface icons (composerIcon/logo) referenced by
+# .codex-plugin/plugin.json; the portal rejects the upload if they are absent.
+#
 # Deliberately excluded: hooks/ (Codex discovers hooks/hooks.json and would run
 # Claude-contract hooks unvalidated), .claude-plugin/ and the root plugin.json
 # (one plugin root per archive, and only the Codex manifest is needed here).
-BUNDLE_PATHS=(.codex-plugin skills use-cases requirements.txt LICENSE README.md)
+BUNDLE_PATHS=(.codex-plugin assets skills use-cases requirements.txt LICENSE README.md)
 
 # Argument parsing
 while [[ $# -gt 0 ]]; do
@@ -105,13 +108,18 @@ build_bundle() {
   local zip="$SCRIPT_DIR/crowdstrike-falcon-foundry-${version}.zip"
   printf "\n${BLUE}Building skills-only bundle from %s${RESET}\n" "$ref"
 
-  git -C "$SCRIPT_DIR" archive --format=zip --output="$zip" "$ref" "${BUNDLE_PATHS[@]}" \
-    || { printf "${RED}✗${RESET} git archive failed\n" >&2; return 1; }
+  # Build to a temp file and only move it into place after every check passes.
+  # git archive truncates its --output before it runs, so writing straight to
+  # "$zip" would leave a 0-byte file if the archive (or a later check) fails, and
+  # a 0-byte zip looks fine locally until the portal or Slack rejects it.
+  local tmpzip="${zip}.partial"
+  git -C "$SCRIPT_DIR" archive --format=zip --output="$tmpzip" "$ref" "${BUNDLE_PATHS[@]}" \
+    || { printf "${RED}✗${RESET} git archive failed\n" >&2; rm -f "$tmpzip"; return 1; }
 
   local work; work=$(mktemp -d)
   # shellcheck disable=SC2064
-  trap "rm -rf '$work'" RETURN
-  unzip -q "$zip" -d "$work" || { printf "${RED}✗${RESET} Archive is not readable\n" >&2; return 1; }
+  trap "rm -rf '$work' '$tmpzip'" RETURN
+  unzip -q "$tmpzip" -d "$work" || { printf "${RED}✗${RESET} Archive is not readable\n" >&2; return 1; }
 
   local fail=0
 
@@ -128,6 +136,43 @@ build_bundle() {
   else
     printf "${RED}✗${RESET} Found %s plugin manifests; the portal requires exactly one\n" "$roots"; fail=1
   fi
+
+  # Interface icons. The portal requires interface.composerIcon and interface.logo,
+  # each pointing at a square image that ships inside the archive. A bundle missing
+  # them imports through the CLI fine but is rejected at upload ("Missing plugin
+  # composer icon" / "Missing plugin logo"), so catch it here where fixing is cheap.
+  local manifest="$work/.codex-plugin/plugin.json"
+  local icon_field icon_path resolved
+  for icon_field in composerIcon logo; do
+    icon_path=$(jq -r ".interface.${icon_field} // empty" "$manifest" 2>/dev/null)
+    if [[ -z "$icon_path" ]]; then
+      printf "${RED}✗${RESET} interface.%s missing from .codex-plugin/plugin.json; the portal rejects the upload\n" "$icon_field"; fail=1
+      continue
+    fi
+    # Paths are relative to the plugin root (the archive root), e.g. ./assets/logo.png.
+    resolved="$work/${icon_path#./}"
+    if [[ ! -f "$resolved" ]]; then
+      printf "${RED}✗${RESET} interface.%s -> %s is not in the archive; add its directory to BUNDLE_PATHS\n" "$icon_field" "$icon_path"; fail=1
+      continue
+    fi
+    # The portal requires a square image. For PNGs, read width/height from the IHDR
+    # chunk with the standard library so this works on CI without Pillow.
+    if [[ "$icon_path" == *.png ]] && ! python3 - "$resolved" <<'PY'
+import struct, sys
+with open(sys.argv[1], "rb") as fh:
+    head = fh.read(24)
+# PNG signature (8 bytes) + IHDR: width/height are big-endian uint32 at bytes 16-24.
+if head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+    sys.exit(2)
+width, height = struct.unpack(">II", head[16:24])
+sys.exit(0 if width == height else 1)
+PY
+    then
+      printf "${RED}✗${RESET} interface.%s -> %s is not a square PNG; the portal requires a square image\n" "$icon_field" "$icon_path"; fail=1
+      continue
+    fi
+    printf "${GREEN}✓${RESET} interface.%s resolves to %s inside the archive\n" "$icon_field" "$icon_path"
+  done
 
   # At least one skill.
   local skills
@@ -185,13 +230,20 @@ build_bundle() {
 
   local count size
   count=$(find "$work" -type f | wc -l | tr -d ' ')
-  size=$(du -h "$zip" | cut -f1 | tr -d ' ')
-  printf "\n  %s files, %s: %s\n" "$count" "$size" "$zip"
+  local count size
+  count=$(find "$work" -type f | wc -l | tr -d ' ')
+  size=$(du -h "$tmpzip" | cut -f1 | tr -d ' ')
+  printf "\n  %s files, %s\n" "$count" "$size"
 
   if [[ "$fail" != "0" ]]; then
     printf "\n${RED}Bundle failed validation. Do not upload it.${RESET}\n" >&2
     return 1
   fi
+  # Every check passed — publish the archive under its final name. On any failure
+  # above we return early and the RETURN trap deletes the partial file, so a
+  # broken build never leaves a zip (0-byte or otherwise) to upload by mistake.
+  mv -f "$tmpzip" "$zip"
+  printf "\n  %s\n" "$zip"
   printf "\n${GREEN}Bundle is ready to upload at https://platform.openai.com/plugins${RESET}\n"
 }
 
