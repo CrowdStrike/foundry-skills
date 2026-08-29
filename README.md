@@ -27,10 +27,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 | Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | [Google](https://antigravity.google/docs/plugins) |
 
 > [!NOTE]
-> **Codex** uses a different marketplace depending on how you signed in, so no single command works across both today:
->
-> - **API-key / Amazon Bedrock** — the command above (`crowdstrike-falcon-foundry@openai-api-curated`).
-> - **ChatGPT-authenticated** — run `/plugins` and search for `crowdstrike`.
+> **Codex** has two install paths depending on how you signed in. The command above installs from the curated CLI marketplace, which **API-key and Amazon Bedrock** sessions load. If you authenticated Codex with a **ChatGPT** account, that marketplace isn't loaded — instead run `/plugins` inside Codex, search for `crowdstrike`, and install from the results.
 
 All five assistants have been verified end to end: the skills were loaded from a local clone, then used to build and deploy an app to a live Falcon Foundry tenant from the example prompt below.
 
