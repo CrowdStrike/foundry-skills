@@ -21,7 +21,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 | Assistant | Command | Marketplace |
 |-----------|---------|-------------|
 | Claude Code | `/plugin install crowdstrike-falcon-foundry` | [Anthropic](https://claude.com/plugins/crowdstrike-falcon-foundry) |
-| Codex | `codex plugin add crowdstrike-falcon-foundry@openai-api-curated` | [OpenAI](https://chatgpt.com/plugins) |
+| Codex | `codex plugin add crowdstrike-falcon-foundry@openai-api-curated` | [OpenAI](https://chatgpt.com/plugins/plugins_6a8f6d7f7fac819191e3eba5a7a2e0df) |
 | Copilot CLI | `copilot plugin install CrowdStrike/foundry-skills` | [GitHub](https://awesome-copilot.github.com/plugin/crowdstrike-falcon-foundry/) |
 | Cursor | `/plugins` (CLI) or `/add-plugin crowdstrike-falcon-foundry` (IDE) | [Cursor](https://cursor.com/marketplace/crowdstrike/crowdstrike-falcon-foundry) |
 | Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | [Google](https://antigravity.google/docs/plugins) |
