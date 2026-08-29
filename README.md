@@ -30,7 +30,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 > **Codex** uses a different marketplace depending on how you signed in, so no single command works across both today:
 >
 > - **API-key / Amazon Bedrock** — the command above (`crowdstrike-falcon-foundry@openai-api-curated`).
-> - **ChatGPT-authenticated** — run `/plugins` and search for `crowdstrike` (the `openai-curated` CLI marketplace does not list these plugins yet).
+> - **ChatGPT-authenticated** — run `/plugins` and search for `crowdstrike`.
 
 All five assistants have been verified end to end: the skills were loaded from a local clone, then used to build and deploy an app to a live Falcon Foundry tenant from the example prompt below.
 
