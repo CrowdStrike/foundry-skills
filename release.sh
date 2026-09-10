@@ -389,7 +389,14 @@ main() {
 
   printf "\n${BLUE}Step 6: Push branch and create PR${RESET}\n"
   git push -u "$remote" "$release_branch"
-  gh pr create --title "Release v${NEXT_VERSION}" --body "Version bump to v${NEXT_VERSION}."
+  # Target the upstream repo explicitly. Without --repo, `gh pr create` aborts
+  # ("No default remote repository has been set") whenever more than one remote
+  # exists (e.g. a personal fork alongside origin). Derive the slug from the same
+  # remote we just pushed to, parsing both SSH and HTTPS URL forms.
+  local repo_slug
+  repo_slug=$(git remote get-url "$remote" | sed -E 's#^(git@github.com:|https://github.com/)##; s#\.git$##')
+  gh pr create --repo "$repo_slug" --base main --head "$release_branch" \
+    --title "Release v${NEXT_VERSION}" --body "Version bump to v${NEXT_VERSION}."
   printf "${GREEN}✓${RESET} PR created\n"
   git checkout main
 
