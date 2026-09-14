@@ -12,8 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
-- **Minimum CLI version bumped to 2.1.0** — The session-start hook now warns users on CLI 2.0.x and offers to upgrade. CLI 2.1.0 added `foundry functions exec`, `test`, and `logs`, and fixed non-interactive output for `actions view` and `triggers view` when multiple actions match a fuzzy name filter (FOUNDRY-3049).
-- **`action_search.py` is now a convenience, not a workaround** — With CLI 2.1.0, `foundry workflows actions view --name "..." --no-prompt` lists multiple matches non-interactively instead of dropping into a picker. The bundled `action_search.py` remains useful for working without a manifest directory, but the warning framing it as a required fallback is removed.
+- **Minimum CLI version bumped to 2.1.0** — The session-start hook now warns users on CLI 2.0.x and offers to upgrade. CLI 2.1.0 added `foundry functions exec`, `test`, and `logs`.
+- **`action_search.py` framing updated** — The bundled `action_search.py` is still the recommended path for action discovery, since `foundry workflows actions view` still drops into an interactive picker on multi-match results even with `--no-prompt`. The warning now notes that `action_search.py` also works without a manifest directory, rather than framing it purely as a headless workaround.
 
 ## [1.5.0] - 2026-08-19
 

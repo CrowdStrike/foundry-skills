@@ -36,7 +36,7 @@ IMPORTANT: Foundry CLI $CLI_VERSION is below the minimum required $MINIMUM_VERSI
   - macOS/Linux: brew upgrade crowdstrike/foundry-cli/foundry
   - Windows: Download https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip
 
-Feature unavailable below $MINIMUM_VERSION: function execution and debugging (foundry functions exec, test, logs), non-interactive output for actions view and triggers view with multiple matches, and automatic headless mode detection.
+Feature unavailable below $MINIMUM_VERSION: function execution and debugging (foundry functions exec, test, logs) and automatic headless mode detection.
 
 Use AskUserQuestion to ask whether to upgrade now. If the user declines, Foundry commands may fail or behave unexpectedly.
 UPGRADE_EOF

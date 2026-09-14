@@ -52,7 +52,7 @@ foundry workflows actions view --name "send email" --no-prompt --mock       # Mo
 foundry workflows triggers view --no-prompt                                 # List triggers
 ```
 
-> **Always use `--no-prompt` on `actions view` and `triggers view`.** As of CLI 2.1.0, multiple matches are listed non-interactively. On older CLIs, partial matches trigger an interactive prompt that fails in headless environments (`Error: no TTY available`). The bundled `action_search.py` is an alternative that works without a manifest directory — see [references/action-discovery.md](references/action-discovery.md).
+> **Always use `--no-prompt` on `actions view` and `triggers view`.** The `--name` filter is fuzzy and multiple matches still trigger an interactive prompt that fails in headless environments (`Error: no TTY available`). Use the bundled `action_search.py` instead, which queries the API directly and works without a manifest directory — see [references/action-discovery.md](references/action-discovery.md).
 
 ## Workflow Structure
 
