@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **Installable from the OpenAI/Codex, Cursor, and GitHub Copilot marketplaces.** Beyond the Anthropic marketplace, the plugin is now published to the OpenAI/Codex curated CLI marketplace (`codex plugin add crowdstrike-falcon-foundry@openai-api-curated`; ChatGPT-authenticated Codex installs via `/plugins`), the Cursor marketplace, and the GitHub Copilot (awesome-copilot) directory. The skills-only bundle now ships the square interface icon the OpenAI directory requires, and the README install table links each live listing.
 
+### Changed
+
+- **Minimum CLI version bumped to 2.1.0** — The session-start hook now warns users on CLI 2.0.x and offers to upgrade. CLI 2.1.0 added `foundry functions exec`, `test`, and `logs`.
+- **`action_search.py` framing updated** — The bundled `action_search.py` is still the recommended path for action discovery, since `foundry workflows actions view` still drops into an interactive picker on multi-match results even with `--no-prompt`. The warning now notes that `action_search.py` also works without a manifest directory, rather than framing it purely as a headless workaround.
+
 ## [1.5.0] - 2026-08-19
 
 ### Added

@@ -1341,22 +1341,10 @@ echo "foundry 1.9.3 (git: abc123) build_date: 2026-01-01T00:00:00Z"
 FEOF
 chmod +x "$FAKE_BIN/foundry"
 OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
-assert_contains "$OUTPUT" "IMPORTANT" "9.1  warns when CLI version is below minimum (1.9.3 < 2.0.1)"
+assert_contains "$OUTPUT" "IMPORTANT" "9.1  warns when CLI version is below minimum (1.9.3 < 2.1.0)"
 rm -rf "$FAKE_BIN"
 
 # 9.2 — No warning when CLI version meets minimum
-cleanup
-FAKE_BIN=$(mktemp -d)
-cat > "$FAKE_BIN/foundry" << 'FEOF'
-#!/usr/bin/env bash
-echo "foundry 2.0.1 (git: abc123) build_date: 2026-04-14T00:00:00Z"
-FEOF
-chmod +x "$FAKE_BIN/foundry"
-OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
-assert_empty "$OUTPUT" "9.2  no warning when CLI version meets minimum (2.0.1 = 2.0.1)"
-rm -rf "$FAKE_BIN"
-
-# 9.3 — No warning when CLI version exceeds minimum
 cleanup
 FAKE_BIN=$(mktemp -d)
 cat > "$FAKE_BIN/foundry" << 'FEOF'
@@ -1365,7 +1353,19 @@ echo "foundry 2.1.0 (git: abc123) build_date: 2026-06-01T00:00:00Z"
 FEOF
 chmod +x "$FAKE_BIN/foundry"
 OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
-assert_empty "$OUTPUT" "9.3  no warning when CLI version exceeds minimum (2.1.0 > 2.0.1)"
+assert_empty "$OUTPUT" "9.2  no warning when CLI version meets minimum (2.1.0 = 2.1.0)"
+rm -rf "$FAKE_BIN"
+
+# 9.3 — No warning when CLI version exceeds minimum
+cleanup
+FAKE_BIN=$(mktemp -d)
+cat > "$FAKE_BIN/foundry" << 'FEOF'
+#!/usr/bin/env bash
+echo "foundry 2.2.0 (git: abc123) build_date: 2026-09-01T00:00:00Z"
+FEOF
+chmod +x "$FAKE_BIN/foundry"
+OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
+assert_empty "$OUTPUT" "9.3  no warning when CLI version exceeds minimum (2.2.0 > 2.1.0)"
 rm -rf "$FAKE_BIN"
 
 # 9.4 — Warning includes upgrade instructions
@@ -1433,7 +1433,7 @@ echo "foundry 2.0.0 (git: abc123) build_date: 2026-04-14T00:00:00Z"
 FEOF
 chmod +x "$FAKE_BIN/foundry"
 OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
-assert_contains "$OUTPUT" "IMPORTANT" "9.8  warns for 2.0.0 (below 2.0.1 minimum)"
+assert_contains "$OUTPUT" "IMPORTANT" "9.8  warns for 2.0.0 (below 2.1.0 minimum)"
 rm -rf "$FAKE_BIN"
 
 # 9.9 — Sets FOUNDRY_UI_HEADLESS_MODE for older CLIs
@@ -1456,12 +1456,12 @@ FAKE_BIN=$(mktemp -d)
 ENV_TMP=$(mktemp)
 cat > "$FAKE_BIN/foundry" << 'FEOF'
 #!/usr/bin/env bash
-echo "foundry 2.0.1 (git: abc123) build_date: 2026-04-14T00:00:00Z"
+echo "foundry 2.1.0 (git: abc123) build_date: 2026-06-01T00:00:00Z"
 FEOF
 chmod +x "$FAKE_BIN/foundry"
 PATH="$FAKE_BIN:$PATH" CLAUDE_ENV_FILE="$ENV_TMP" bash "$ENV_HOOK" 2>/dev/null
 OUTPUT=$(cat "$ENV_TMP")
-assert_empty "$OUTPUT" "9.10 does NOT set FOUNDRY_UI_HEADLESS_MODE for 2.0.1+"
+assert_empty "$OUTPUT" "9.10 does NOT set FOUNDRY_UI_HEADLESS_MODE for 2.1.0+"
 rm -rf "$FAKE_BIN" "$ENV_TMP"
 
 # ---------- 10. Fusion redirect wiring (UserPromptSubmit) ----------

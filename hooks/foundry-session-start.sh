@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # --- Version check ---
-MINIMUM_VERSION="2.0.1"
+MINIMUM_VERSION="2.1.0"
 NEEDS_UPGRADE=0
 
 if CLI_OUTPUT=$(foundry version 2>/dev/null); then
@@ -36,7 +36,7 @@ IMPORTANT: Foundry CLI $CLI_VERSION is below the minimum required $MINIMUM_VERSI
   - macOS/Linux: brew upgrade crowdstrike/foundry-cli/foundry
   - Windows: Download https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip
 
-Feature unavailable below $MINIMUM_VERSION: automatic headless mode detection (2.0.1+). foundry apps validate works on 2.0.0+.
+Feature unavailable below $MINIMUM_VERSION: function execution and debugging (foundry functions exec, test, logs) and automatic headless mode detection.
 
 Use AskUserQuestion to ask whether to upgrade now. If the user declines, Foundry commands may fail or behave unexpectedly.
 UPGRADE_EOF
