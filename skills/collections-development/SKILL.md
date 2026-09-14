@@ -1,8 +1,8 @@
 ---
 name: collections-development
 description: Design JSON Schema collections and CRUD patterns for Falcon Foundry apps. TRIGGER when user asks to "create a collection", "define a JSON schema", "store data in Foundry", runs `foundry collections create`, or needs help with indexable fields, FQL queries, or collection access patterns. DO NOT TRIGGER for workflow YAML, function handlers, or UI components — use the appropriate sub-skill.
-version: 1.5.0
-updated: 2026-08-19
+version: 1.6.0
+updated: 2026-08-24
 tags: [foundry, collections, json-schema, nosql]
 author: CrowdStrike
 license: MIT
@@ -74,6 +74,41 @@ foundry collections create \
 ```
 
 This creates the collection directory, copies the schema, and updates `manifest.yml`. Edit the project copy at `collections/my_collection.json` afterward to refine.
+
+## Exposing a Collection as an Agent Tool
+
+Add `--agent-tools-expose` to let a Foundry AI agent read and write the collection:
+
+```bash
+foundry collections create --name "triage_notes" --schema /tmp/schema.json \
+  --description "Agent triage notes" --agent-tools-expose --no-prompt
+```
+
+That writes one block onto the collection's manifest entry:
+
+```yaml
+collections:
+    - name: triage_notes
+      agent_tools_integration:
+        exposed: true
+```
+
+Exposure is only half the wiring. The agent must also name each operation it may call in its own `tools` list, using `collections.<collection_name>.<Operation>`:
+
+```yaml
+ai:
+    agents:
+        - name: Detection Triage Agent
+          tools:
+            - collections.triage_notes.CreateObject
+            - collections.triage_notes.SearchObjects
+```
+
+Valid operations, exact casing required: `CreateObject`, `GetObject`, `DeleteObject`, `ListObjects`, `SearchObjects`.
+
+A collection exposed but not listed in `tools` is unreachable by the agent, and vice versa — neither case produces an error, just an agent that silently cannot use the data. `agent_tools_integration` is independent of `workflow_integration`; a collection can be exposed to agents, to Fusion, to both, or to neither.
+
+Agents can also use `collections.generic.<Operation>` — a scratch collection the platform creates per agent at runtime, needing no collection of your own. Use a named app collection when the data must outlive the agent or be readable by other capabilities. See `ai-agents-development`.
 
 ## Collection API Access
 

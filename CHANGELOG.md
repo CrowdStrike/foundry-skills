@@ -4,11 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] - TBD
+
+### Added
+
+- **`ai-agents-development` skill** — Covers the two new Foundry AI capabilities, `foundry agents` and `foundry knowledge-bases` (alias `kb`), which land under a single top-level `ai:` block as `ai.agents` and `ai.knowledge_bases`. Both support `create` and `delete`; there is no `list` or `edit`. Documents the full manifest schema, every validation error string, the input/output format matrix, and the agent tool reference formats. Two references carry the detail: [knowledge-bases.md](skills/ai-agents-development/references/knowledge-bases.md) for file sourcing, encryption, and deploy packaging, and [manifest-schema.md](skills/ai-agents-development/references/manifest-schema.md) for the field-by-field reference.
+- **Agent exposure flags** — `agents create` takes `--expose-charlotte-chat`, `--expose-agent-as-tool`, and `--expose-workflow-system-action`. The `exposure` block is a pointer with `omitempty`, so it is omitted from the manifest entirely when nothing is exposed — an absent block is correct, not a missing default, and means the same as all three `false`. `--expose-agent-as-tool` requires `--input-schema`, since a calling agent needs the callee's signature; the rule is enforced both pre-flight (`--input-schema is required when --expose-agent-as-tool is set`) and on every manifest load (`input_schema is required when exposure.agent_as_tool is true`), so hand-adding the switch without a schema breaks every subsequent CLI command in that app.
+- **Agent and knowledge base deletion** — `agents delete` and `knowledge-bases delete` remove the manifest entry and the artifact directory, taking `--name` plus the standard `--no-prompt` like every other Foundry command. A knowledge base still referenced by an agent is protected: `cannot delete knowledge base "X": still referenced by agent(s): Y`. The manifest is saved before the directory is removed, so a failed removal reports an orphaned directory by path rather than losing the manifest edit. The CLI guard adds a confirmation step before an irreversible delete, matching the existing create-time name confirmation.
+- **Agent tool exposure for collections** — `collections-development` now documents `--agent-tools-expose` and the `agent_tools_integration: {exposed: true}` block it writes. Exposure is only half the wiring: the agent must also name each operation in its own `tools` list as `collections.<name>.<Operation>`, using one of `CreateObject`, `GetObject`, `DeleteObject`, `ListObjects`, `SearchObjects`. Neither half alone errors — it just yields an agent that silently cannot reach the data.
+- **Agent tool exposure for API integrations** — `api-integrations` now documents `x-cs-operation-config.agent_tools`, a sibling of the existing `workflow` block, with `name`, `description`, and `expose_to_agent`. The agent references the operation as `api_integrations.<integration>.<agent_tools.name>` — not the `operationId` and not the URL path. `adapt_spec_for_foundry.py` now flags a misplaced `expose_to_agent` the same way it already flagged `expose_to_workflow`, and the skill router blocks on either.
+- **Build-order, `--files`, and exposure enforcement in the CLI guard** — `foundry agents create --knowledge-bases X` fails outright when `X` is not already in the manifest, so the guard warns before the round trip is wasted. `foundry knowledge-bases create` without `--files` is rejected by the CLI under `--no-prompt`, and `--expose-agent-as-tool` without `--input-schema` is rejected before any files are written; the guard catches both. `mkdir agents/` and `mkdir knowledge-bases/` are blocked alongside the other app directories.
+
+### Changed
+
+- **`development-workflow` dependency order** is now Collections → Functions → Knowledge bases → Agents → Workflows → UI, with scaffolding commands for both new capabilities in Step 5.
+- **A narrow carve-out to the "never edit manifest.yml" rule.** `ai.agents[].model` and `.tools` have no CLI flags — `agents create` always writes `model: ""` and omits `tools`. Editing the manifest is the only way to set them. Both the orchestrator and the new skill scope the exception to those two keys so it does not erode the rule that protects `id`, `path`, and `entrypoint`. Agent `exposure` is explicitly *not* part of the carve-out; it has flags.
+- **Knowledge base name and description validation is asymmetric.** The manifest validator now accepts a one-character KB name and no longer checks the description at all — the AI platform imposes no restriction, so the CLI stopped adding one. The `kb create` flag validators still enforce name 5–100 and description 3–500, so the looser rules only surface for a manifest you inherit or hand-write.
+- **Corrected the skill count in AGENTS.md** — it claimed 9 and had been stale for several releases; the repo now ships 12.
+
 ## [1.6.0] - TBD
 
 ### Added
 
 - **Installable from the OpenAI/Codex, Cursor, and GitHub Copilot marketplaces.** Beyond the Anthropic marketplace, the plugin is now published to the OpenAI/Codex curated CLI marketplace (`codex plugin add crowdstrike-falcon-foundry@openai-api-curated`; ChatGPT-authenticated Codex installs via `/plugins`), the Cursor marketplace, and the GitHub Copilot (awesome-copilot) directory. The skills-only bundle now ships the square interface icon the OpenAI directory requires, and the README install table links each live listing.
+
+### Fixed
+
+- **`--system-prompt` silently accepts a bad path.** The CLI tries the value as a file path or URL and falls back to treating it as inline prompt text, so a typo becomes the agent's entire instruction set with no error. The skill tells you to read back `agents/<path>/system_prompt.txt` after every create, and the CLI guard repeats it.
+- **`.svg` files in a knowledge base are silently dropped at deploy.** The packager unconditionally ignores SVGs, so the file passes `foundry apps validate` and then is absent from the bundle — the agent behaves as if it were never added. Documented alongside the shared 25 MB package cap, which a large PDF corpus can exhaust on its own.
 
 ## [1.5.0] - 2026-08-19
 

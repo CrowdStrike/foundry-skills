@@ -366,11 +366,21 @@ def dedup_parameters(spec):  # pylint: disable=too-many-branches
 
 
 def validate_operation_config(spec):
-    """Validate x-cs-operation-config structure (expose_to_workflow must be under workflow: key).
+    """Validate x-cs-operation-config structure.
 
-    Does not fix — this requires prompt-driven decisions about operation names and descriptions.
-    Returns warnings for the agent to act on.
+    Both exposure flags must be nested: expose_to_workflow under a 'workflow'
+    key, expose_to_agent under an 'agent_tools' key. A flat flag is silently
+    ignored by the platform.
+
+    Does not fix — this requires prompt-driven decisions about operation names
+    and descriptions. Returns warnings for the agent to act on.
     """
+    misplaced = (
+        ('expose_to_workflow', 'workflow',
+         "the endpoint won't appear in Falcon Fusion SOAR"),
+        ('expose_to_agent', 'agent_tools',
+         "AI agents won't be able to call the operation"),
+    )
     warnings = []
     for path, path_item in spec.get('paths', {}).items():
         if not isinstance(path_item, dict):
@@ -382,13 +392,14 @@ def validate_operation_config(spec):
             cfg = op.get('x-cs-operation-config')
             if not isinstance(cfg, dict):
                 continue
-            if cfg.get('expose_to_workflow') is True and 'workflow' not in cfg:
-                op_id = op.get('operationId', f'{method} {path}')
-                warnings.append(
-                    f"  {op_id}: expose_to_workflow is directly under "
-                    f"x-cs-operation-config. Must be nested under a 'workflow' "
-                    f"key or the endpoint won't appear in Falcon Fusion SOAR."
-                )
+            for flag, parent, consequence in misplaced:
+                if cfg.get(flag) is True and parent not in cfg:
+                    op_id = op.get('operationId', f'{method} {path}')
+                    warnings.append(
+                        f"  {op_id}: {flag} is directly under "
+                        f"x-cs-operation-config. Must be nested under a "
+                        f"'{parent}' key or {consequence}."
+                    )
     return warnings
 
 
