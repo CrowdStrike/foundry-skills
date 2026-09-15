@@ -219,7 +219,7 @@ Each `tools` entry is a dotted string. The artifact must be exposed on its own s
 | Target | Format | Example |
 |--------|--------|---------|
 | App collection | `collections.<collection_name>.<Operation>` | `collections.triage_notes.CreateObject` |
-| Agent runtime collection | `collections.generic.<Operation>` | `collections.generic.ListObjects` |
+| API integration | `api_integrations.<name>.<agent_tools.name>` | `api_integrations.VirusTotal.Get_a_file_report` |
 | API integration | `api_integrations.<name>.<operationId>` | `api_integrations.VirusTotal.Get_a_file_report` |
 
 Valid collection operations — exact casing required:
