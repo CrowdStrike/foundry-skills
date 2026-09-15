@@ -20,7 +20,7 @@ The entire `ai:` block is omitted from the manifest when both lists are empty. T
 | Name | `name` | string | **yes** | `--name` | 5–100 chars, alphanumeric + `space ' [ ] ( ) . _ -`, starts alphanumeric. Unique among agents. |
 | Description | `description` | string | no | `--description` | 3–500 chars when present. Omitted from YAML when empty. |
 | Path | `path` | string | auto | no | Sanitized name; the on-disk directory under `agents/`. |
-| Model | `model` | string | no | **no** | Always written `""`. No client-side valid-value list. Leave empty for the platform default. |
+| Model | `model` | string | no | **no** | Written `""` on create. No client-side valid-value list, so a pinned ID validates locally and fails server-side. Leave empty for the platform default; write a user-supplied ID verbatim; never invent one. |
 | Tools | `tools` | list of string | no | **no** | Dotted references; see below. Omitted when empty. |
 | System prompt | `system_prompt` | string | **yes** | `--system-prompt` | Always the literal `system_prompt.txt`; the flag value supplies the file's *content* (path/URL read, else inline text). |
 | Input format | `input_format` | string | **yes** | `--input-format` | `text` or `json`. Defaults to `text`. |

@@ -136,7 +136,7 @@ ai:
           name: Detection Triage Agent
           description: Triages detections against the runbooks
           path: Detection_Triage_Agent           # sanitized name
-          model: ""                              # leave empty — platform default
+          model: ""                              # empty unless the user named one
           tools:                                 # hand-edited, see below
             - collections.triage_notes.CreateObject
             - api_integrations.VirusTotal.Get_a_file_report
@@ -177,7 +177,10 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
 
 > **This is a narrow, explicit exception to the plugin-wide rule against editing `manifest.yml`.** That rule exists because the CLI owns `id`, `path`, `entrypoint`, and scopes — hand-editing those causes doubled paths and broken deploys. It does not apply here, because there is no CLI path to these two fields at all. Edit **only** these keys under `ai.agents[]`; leave `id`, `path`, `system_prompt`, and every other artifact's entries alone.
 
-- **`model`** — leave as `""`. The platform selects its default. There is no client-side list of valid model IDs; inventing one produces a manifest that validates locally and fails server-side.
+- **`model`** — **never invent a model ID.** There is no client-side list of valid IDs, so anything you make up produces a manifest that validates locally and fails server-side at deploy. Three cases:
+  - **Nothing supplied** — leave `""`. The platform selects its default.
+  - **User named a specific model** — write exactly what they gave you, and tell them it is only checked server-side at deploy. Honoring their choice is correct even if it later fails; guessing a "close enough" ID on their behalf is not.
+  - **A value is already there** — leave it alone. Do not blank it out or substitute your own.
 - **`tools`** — a flat list of dotted reference strings, not validated client-side. See below.
 
 ## Agent Exposure
