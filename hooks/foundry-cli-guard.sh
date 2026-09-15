@@ -125,7 +125,6 @@ if echo "$COMMAND" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
         additionalContext: "Build order reminder: every name passed to --knowledge-bases must ALREADY exist in manifest.yml under ai.knowledge_bases, and must be the knowledge base name (not its id or path). Otherwise this fails with: agent \"X\" references knowledge base \"K\" which is not defined in the manifest. Run foundry knowledge-bases create first. Also note --system-prompt falls back to treating its value as inline prompt text when the path cannot be read, so verify agents/<path>/system_prompt.txt after creating."
       }
     }'
-    exit 0
   fi
 fi
 
@@ -220,7 +219,7 @@ fi
 
 # Check for forbidden manual directory/file creation
 FORBIDDEN_PATTERNS=(
-  'mkdir.*\b(api-integrations|workflows|functions|collections|ui|agents|knowledge-bases)\b'
+  'mkdir.*\b(api-integrations|workflows|functions|collections|ui|agents|knowledge-bases|knowledge_bases)\b'
   'touch.*manifest\.yml'
   'mkdir.*\bapp\b.*&&.*touch.*manifest'
   'echo.*>.*manifest\.yml'
