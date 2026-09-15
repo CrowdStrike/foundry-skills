@@ -30,7 +30,7 @@ case "$HOOK_EVENT" in
     # Require an action verb + Foundry noun to detect real development intent.
     # "create a foundry app" triggers; "if we were in a foundry app" does not.
     VERBS="create|build|deploy|release|scaffold|add|update|fix|debug|configure"
-    NOUNS="foundry app|foundry function|foundry collection|foundry workflow|foundry ui|foundry page|foundry api|falcon foundry|falcon app|crowdstrike app|foundry extension|foundry agent|foundry knowledge base|ai agent|knowledge base"
+    NOUNS="foundry app|foundry function|foundry collection|foundry workflow|foundry ui|foundry page|foundry api|falcon foundry|falcon app|crowdstrike app|foundry extension|foundry agent|foundry knowledge base"
 
     if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b.*(${NOUNS})"; then
       FOUNDRY_MATCH=true
