@@ -283,7 +283,9 @@ class TestAIAgentsSkill:
 
         An earlier CLI build registered these two commands without the flag, so
         passing it failed with 'unknown flag'. That was reverted for consistency
-        (FOUNDRY-3829). Carrying the exception in the docs would send readers to
+        An earlier CLI build registered these two commands without the flag, so
+        passing it failed with 'unknown flag'. That was reverted for consistency.
+        Carrying the exception in the docs would send readers to
         strip a flag the CLI now needs.
         """
         for path in (self.SKILL, self.SCHEMA, self.KB):
