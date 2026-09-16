@@ -42,6 +42,10 @@ fi
 
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
+# Set by reminders that must not short-circuit a later, more important advisory.
+# Whichever advisory fires next prepends it; if none does, it is flushed at the end.
+PENDING_REMINDER=""
+
 # Check for Foundry CLI commands that need --no-prompt
 # Nearly all Foundry CLI commands support --no-prompt:
 #   apps create/validate/release/delete, functions create, collections create,
@@ -118,13 +122,12 @@ if echo "$COMMAND" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
       exit 0
     fi
   fi
+  # A reminder, not a rejection — the command still runs. Advisories are read as
+  # a single JSON object, so printing this one here and letting the block below
+  # print too yields two objects and a parse error, while returning early
+  # swallows the name-confirmation STOP. Park it and let that block carry it.
   if echo "$COMMAND" | grep -qF -- '--knowledge-bases'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "Build order reminder: every name passed to --knowledge-bases must ALREADY exist in manifest.yml under ai.knowledge_bases, and must be the knowledge base name (not its id or path). Otherwise this fails with: agent \"X\" references knowledge base \"K\" which is not defined in the manifest. Run foundry knowledge-bases create first. Also note --system-prompt falls back to treating its value as inline prompt text when the path cannot be read, so verify agents/<path>/system_prompt.txt after creating."
-      }
-    }'
+    PENDING_REMINDER="Build order reminder: every name passed to --knowledge-bases must ALREADY exist in manifest.yml under ai.knowledge_bases, and must be the knowledge base name (not its id or path). Otherwise this fails with: agent \"X\" references knowledge base \"K\" which is not defined in the manifest. Run foundry knowledge-bases create first. Also note --system-prompt falls back to treating its value as inline prompt text when the path cannot be read, so verify agents/<path>/system_prompt.txt after creating."
   fi
 fi
 
@@ -198,17 +201,17 @@ if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
     # Only fire if we extracted a real name (not empty, not a flag)
     if [ -n "$RESOURCE_NAME" ] && ! echo "$RESOURCE_NAME" | grep -qE '^-'; then
       if echo "$COMMAND" | grep -qE "$RESOURCE_DELETE_RE"; then
-        jq -n --arg name "$RESOURCE_NAME" '{
+        jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
           hookSpecificOutput: {
             hookEventName: "PreToolUse",
-            additionalContext: ("STOP — Confirm the deletion with the user before running this. You are about to delete the Foundry AI artifact \"\($name)\", which removes its manifest entry AND its entire directory from disk. There is no undo and no `edit` command to fall back on. Use AskUserQuestion to confirm first, unless the user has already explicitly asked to delete this exact artifact.")
+            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the deletion with the user before running this. You are about to delete the Foundry AI artifact \"\($name)\", which removes its manifest entry AND its entire directory from disk. There is no undo and no `edit` command to fall back on. Use AskUserQuestion to confirm first, unless the user has already explicitly asked to delete this exact artifact.")
           }
         }'
       else
-        jq -n --arg name "$RESOURCE_NAME" '{
+        jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
           hookSpecificOutput: {
             hookEventName: "PreToolUse",
-            additionalContext: ("STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"\($name)\". Use AskUserQuestion to confirm the name and description are what the user wants BEFORE running this command. If the user has already explicitly confirmed this exact name in this conversation, proceed.")
+            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"\($name)\". Use AskUserQuestion to confirm the name and description are what the user wants BEFORE running this command. If the user has already explicitly confirmed this exact name in this conversation, proceed.")
           }
         }'
       fi
@@ -237,6 +240,17 @@ for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
     exit 0
   fi
 done
+
+# Nothing else fired — emit a parked reminder on its own, if there is one.
+if [ -n "$PENDING_REMINDER" ]; then
+  jq -n --arg ctx "$PENDING_REMINDER" '{
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      additionalContext: $ctx
+    }
+  }'
+  exit 0
+fi
 
 # Command is valid
 exit 0

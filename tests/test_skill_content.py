@@ -317,7 +317,10 @@ class TestAIAgentsSkill:
         content = _read_skill(self.SKILL)
         assert "collections.<collection_name>.<Operation>" in content
         assert "collections.generic.<Operation>" in content
-        assert "api_integrations.<name>.<operationId>" in content
+        # Final segment is agent_tools.name, NOT the operationId — sending a
+        # reader to the operationId yields a silent tool-reference failure.
+        assert "api_integrations.<name>.<agent_tools.name>" in content
+        assert "api_integrations.<name>.<operationId>" not in content
         for op in ("CreateObject", "GetObject", "DeleteObject",
                    "ListObjects", "SearchObjects"):
             assert op in content, f"missing collection operation {op}"

@@ -178,7 +178,7 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
 > **This is a narrow, explicit exception to the plugin-wide rule against editing `manifest.yml`.** That rule exists because the CLI owns `id`, `path`, `entrypoint`, and scopes — hand-editing those causes doubled paths and broken deploys. It does not apply here, because there is no CLI path to these two fields at all. Edit **only** these keys under `ai.agents[]`; leave `id`, `path`, `system_prompt`, and every other artifact's entries alone.
 
 - **`model`** — **never invent a model ID.** There is no client-side list of valid IDs, so anything you make up produces a manifest that validates locally and fails server-side at deploy. Three cases:
-  - **Nothing supplied** — leave `""`. The platform selects its default.
+  - **Nothing supplied** — leave `""`. The platform default applies.
   - **User named a specific model** — write exactly what they gave you, and tell them it is only checked server-side at deploy. Honoring their choice is correct even if it later fails; guessing a "close enough" ID on their behalf is not.
   - **A value is already there** — leave it alone. Do not blank it out or substitute your own.
 - **`tools`** — a flat list of dotted reference strings, not validated client-side. See below.
@@ -219,8 +219,8 @@ Each `tools` entry is a dotted string. The artifact must be exposed on its own s
 | Target | Format | Example |
 |--------|--------|---------|
 | App collection | `collections.<collection_name>.<Operation>` | `collections.triage_notes.CreateObject` |
+| Agent runtime collection | `collections.generic.<Operation>` | `collections.generic.ListObjects` |
 | API integration | `api_integrations.<name>.<agent_tools.name>` | `api_integrations.VirusTotal.Get_a_file_report` |
-| API integration | `api_integrations.<name>.<operationId>` | `api_integrations.VirusTotal.Get_a_file_report` |
 
 Valid collection operations — exact casing required:
 
