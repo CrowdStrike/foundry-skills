@@ -12,6 +12,7 @@
 # 3. Running ui extensions create without --sockets (interactive picker hangs)
 # 4. Using mkdir/touch to create app structure (causes invalid manifests)
 # 5. Creating resources without user confirmation of the name
+# 6. Deleting an AI agent or knowledge base without user confirmation
 #
 # Receives JSON on stdin with hook_event_name and tool-specific fields.
 # Outputs JSON with additionalContext (advisory nudge, not blocking).
@@ -41,19 +42,24 @@ fi
 
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
+# Set by reminders that must not short-circuit a later, more important advisory.
+# Whichever advisory fires next prepends it; if none does, it is flushed at the end.
+PENDING_REMINDER=""
+
 # Check for Foundry CLI commands that need --no-prompt
 # Nearly all Foundry CLI commands support --no-prompt:
 #   apps create/validate/release/delete, functions create, collections create,
-#   workflows create, api-integrations create,
-#   ui pages create, ui extensions create, rtr-scripts create, profile create/delete
+#   workflows create, api-integrations create, agents create/delete,
+#   knowledge-bases create/delete (alias: kb), ui pages create, ui extensions create,
+#   rtr-scripts create, profile create/delete
 #   functions exec (incl. exec list / exec status), functions logs, functions test
-if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
+if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
   # Check if --no-prompt is missing
   if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --no-prompt. Foundry CLI commands (create/validate/release, functions exec/logs/test) run non-interactively in Claude Code and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
+        additionalContext: "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, functions exec/logs/test) run non-interactively in Claude Code and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
       }
     }'
     exit 0
@@ -81,6 +87,47 @@ if echo "$COMMAND" | grep -qE 'foundry\s+apps\s+deploy\b'; then
       }
     }'
     exit 0
+  fi
+fi
+
+# Check for foundry knowledge-bases create without --files
+# A knowledge base must ship at least one file. With --no-prompt the CLI rejects
+# the command outright: "flag --files is required when --no-prompt flag is used".
+if echo "$COMMAND" | grep -qE 'foundry\s+(knowledge-bases|kb)\b.*\bcreate\b'; then
+  if ! echo "$COMMAND" | grep -qF -- '--files'; then
+    jq -n '{
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        additionalContext: "The command is missing --files. A knowledge base must contain at least one file, and the CLI rejects knowledge-bases create with --no-prompt and no --files. Pass local paths or HTTP(S) URLs, comma-separated. Example: foundry knowledge-bases create --name \"Runbook Docs\" --description \"desc\" --files ./runbook.md,./iocs.csv --no-prompt"
+      }
+    }'
+    exit 0
+  fi
+fi
+
+# Check for foundry agents create referencing knowledge bases — order matters.
+# The agent create command validates KB references against the manifest and fails
+# the whole command if the KB does not exist yet.
+if echo "$COMMAND" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
+  # --expose-agent-as-tool requires --input-schema: a calling agent needs the
+  # callee's signature. Rejected before any files are written.
+  if echo "$COMMAND" | grep -qF -- '--expose-agent-as-tool'; then
+    if ! echo "$COMMAND" | grep -qF -- '--input-schema'; then
+      jq -n '{
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          additionalContext: "--expose-agent-as-tool requires --input-schema. An agent callable by other agents must declare its input signature, and the CLI rejects the command outright: --input-schema is required when --expose-agent-as-tool is set. Add --input-format json --input-schema /path/to/schema.json, or drop the exposure flag."
+        }
+      }'
+      exit 0
+    fi
+  fi
+  # A reminder, not a rejection — the command still runs. Advisories are read as
+  # a single JSON object, so printing this one here and letting the block below
+  # print too yields two objects and a parse error, while returning early
+  # swallows the name-confirmation STOP. Park it and let that block carry it.
+  if echo "$COMMAND" | grep -qF -- '--knowledge-bases'; then
+    PENDING_REMINDER="Build order reminder: every name passed to --knowledge-bases must ALREADY exist in manifest.yml under ai.knowledge_bases, and must be the knowledge base name (not its id or path). Otherwise this fails with: agent \"X\" references knowledge base \"K\" which is not defined in the manifest. Run foundry knowledge-bases create first. Also note --system-prompt falls back to treating its value as inline prompt text when the path cannot be read, so verify agents/<path>/system_prompt.txt after creating."
   fi
 fi
 
@@ -136,13 +183,16 @@ if echo "$COMMAND" | grep -qE 'foundry\s+workflows\s+(actions|triggers)\s+view\b
   fi
 fi
 
-# Check for Foundry resource-creation commands — remind Claude to confirm name with user.
+# Check for Foundry resource commands — remind Claude to confirm the target with the user.
+# Covers creation (wrong name means a wasted deploy) and AI artifact deletion (removes
+# the manifest entry and the directory, with no undo and no `edit` to fall back on).
 # Only matches resource types (not profile create, which is local config).
 # Handles: --name "val", --name 'val', --name val, --name=val, --name="val", --name='val'
 # Skips when FOUNDRY_SKIP_NAME_CONFIRM=1 (automated testing).
 if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
-  RESOURCE_CREATE_RE='foundry\s+(apps|functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'
-  if echo "$COMMAND" | grep -qE "$RESOURCE_CREATE_RE"; then
+  RESOURCE_CREATE_RE='foundry\s+(apps|functions|collections|workflows|api-integrations|rtr-scripts|agents|knowledge-bases|kb)\b.*\bcreate\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'
+  RESOURCE_DELETE_RE='foundry\s+(agents|knowledge-bases|kb)\b.*\bdelete\b'
+  if echo "$COMMAND" | grep -qE "$RESOURCE_CREATE_RE|$RESOURCE_DELETE_RE"; then
     # Extract resource name from --name flag (multiple syntax forms)
     RESOURCE_NAME=""
     if echo "$COMMAND" | grep -qE -- '--name[= ]'; then
@@ -150,12 +200,21 @@ if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
     fi
     # Only fire if we extracted a real name (not empty, not a flag)
     if [ -n "$RESOURCE_NAME" ] && ! echo "$RESOURCE_NAME" | grep -qE '^-'; then
-      jq -n --arg name "$RESOURCE_NAME" '{
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          additionalContext: ("STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"\($name)\". Use AskUserQuestion to confirm the name and description are what the user wants BEFORE running this command. If the user has already explicitly confirmed this exact name in this conversation, proceed.")
-        }
-      }'
+      if echo "$COMMAND" | grep -qE "$RESOURCE_DELETE_RE"; then
+        jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the deletion with the user before running this. You are about to delete the Foundry AI artifact \"\($name)\", which removes its manifest entry AND its entire directory from disk. There is no undo and no `edit` command to fall back on. Use AskUserQuestion to confirm first, unless the user has already explicitly asked to delete this exact artifact.")
+          }
+        }'
+      else
+        jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"\($name)\". Use AskUserQuestion to confirm the name and description are what the user wants BEFORE running this command. If the user has already explicitly confirmed this exact name in this conversation, proceed.")
+          }
+        }'
+      fi
       exit 0
     fi
   fi
@@ -163,7 +222,7 @@ fi
 
 # Check for forbidden manual directory/file creation
 FORBIDDEN_PATTERNS=(
-  'mkdir.*\b(api-integrations|workflows|functions|collections|ui)\b'
+  'mkdir.*\b(api-integrations|workflows|functions|collections|ui|agents|knowledge-bases|knowledge_bases)\b'
   'touch.*manifest\.yml'
   'mkdir.*\bapp\b.*&&.*touch.*manifest'
   'echo.*>.*manifest\.yml'
@@ -181,6 +240,17 @@ for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
     exit 0
   fi
 done
+
+# Nothing else fired — emit a parked reminder on its own, if there is one.
+if [ -n "$PENDING_REMINDER" ]; then
+  jq -n --arg ctx "$PENDING_REMINDER" '{
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      additionalContext: $ctx
+    }
+  }'
+  exit 0
+fi
 
 # Command is valid
 exit 0

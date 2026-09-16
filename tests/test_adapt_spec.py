@@ -505,6 +505,88 @@ def test_validate_ok_when_nested_under_workflow():
     assert spec.validate_operation_config(s) == []
 
 
+def test_validate_flags_misplaced_expose_to_agent():
+    """expose_to_agent must be nested under agent_tools, mirroring workflow."""
+    s = make_spec(
+        paths={
+            "/files/{id}": {
+                "get": {
+                    "operationId": "getFileReport",
+                    "x-cs-operation-config": {"expose_to_agent": True},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    warnings = spec.validate_operation_config(s)
+    assert len(warnings) == 1
+    assert "expose_to_agent" in warnings[0]
+    assert "agent_tools" in warnings[0]
+
+
+def test_validate_ok_when_nested_under_agent_tools():
+    s = make_spec(
+        paths={
+            "/files/{id}": {
+                "get": {
+                    "operationId": "getFileReport",
+                    "x-cs-operation-config": {
+                        "agent_tools": {
+                            "name": "Get_a_file_report",
+                            "expose_to_agent": True,
+                        }
+                    },
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    assert spec.validate_operation_config(s) == []
+
+
+def test_validate_flags_both_misplaced_flags_independently():
+    """One operation can be wrong on both counts and must warn twice."""
+    s = make_spec(
+        paths={
+            "/users": {
+                "get": {
+                    "operationId": "listUsers",
+                    "x-cs-operation-config": {
+                        "expose_to_workflow": True,
+                        "expose_to_agent": True,
+                    },
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    warnings = spec.validate_operation_config(s)
+    assert len(warnings) == 2
+    joined = " ".join(warnings)
+    assert "expose_to_workflow" in joined and "expose_to_agent" in joined
+
+
+def test_validate_agent_and_workflow_exposure_are_independent():
+    """agent_tools nested correctly must not mask a flat expose_to_workflow."""
+    s = make_spec(
+        paths={
+            "/users": {
+                "get": {
+                    "operationId": "listUsers",
+                    "x-cs-operation-config": {
+                        "agent_tools": {"name": "listUsers", "expose_to_agent": True},
+                        "expose_to_workflow": True,
+                    },
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    warnings = spec.validate_operation_config(s)
+    assert len(warnings) == 1
+    assert "expose_to_workflow" in warnings[0]
+
+
 # ── convert_swagger_to_openapi ───────────────────────────────────────────────
 
 
