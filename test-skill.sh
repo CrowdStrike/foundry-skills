@@ -146,6 +146,8 @@ check_api_health() {
   return $?
 }
 
+API_DOWN=0
+
 for i in $(seq 1 $RUNS); do
   RUN_DIR="$BASE_DIR/run-$i"
   mkdir -p "$RUN_DIR"
@@ -176,8 +178,12 @@ for i in $(seq 1 $RUNS); do
   if [ "$API_OK" = false ]; then
     echo "  ERROR: API unreachable after 3 attempts. Aborting remaining runs."
     echo "  Check https://status.claude.com for outages."
-    # Write a marker so the scorecard knows this was an API failure
     echo '{"error":"API ConnectionRefused"}' > "$LOG_FILE"
+    # Write empty logs for unattempted runs so the scorecard can distinguish them
+    for j in $(seq $((i + 1)) $RUNS); do
+      echo '{"error":"API ConnectionRefused"}' > "$BASE_DIR/run-$j.log"
+    done
+    API_DOWN=1
     break
   fi
 
@@ -603,9 +609,18 @@ echo "  SCORECARD"
 echo "========================================="
 PASS=0
 TOTAL=0
+API_FAILURES=0
 for i in $(seq 1 $RUNS); do
   RUN_DIR="$BASE_DIR/run-$i"
+  LOG_FILE="$BASE_DIR/run-$i.log"
   TOTAL=$((TOTAL + 1))
+
+  if [ -f "$LOG_FILE" ] && grep -q '"API ConnectionRefused"' "$LOG_FILE" 2>/dev/null; then
+    echo "  Run $i: ⚡ API UNREACHABLE (not attempted)"
+    API_FAILURES=$((API_FAILURES + 1))
+    continue
+  fi
+
   APP_DIR=$(find_app_dir "$RUN_DIR")
   if [ "$APP_DIR" != "NOT FOUND" ] && [ -d "$APP_DIR" ]; then
 
@@ -630,7 +645,12 @@ for i in $(seq 1 $RUNS); do
   fi
 done
 echo ""
-echo "  $PASS/$TOTAL deployed"
+if [ "$API_FAILURES" -gt 0 ]; then
+  ATTEMPTED=$((TOTAL - API_FAILURES))
+  echo "  $PASS/$ATTEMPTED deployed ($API_FAILURES run(s) skipped: API unreachable)"
+else
+  echo "  $PASS/$TOTAL deployed"
+fi
 echo ""
 
 # Token usage summary
@@ -828,4 +848,9 @@ if [ -n "$BASELINE_FILE" ]; then
     fi
   fi
   echo ""
+fi
+
+# Exit 2 on API outage so callers can distinguish it from a skill failure
+if [ "$API_DOWN" -eq 1 ]; then
+  exit 2
 fi

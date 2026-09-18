@@ -293,7 +293,7 @@ elif [ "$NO_SKILL" = "1" ]; then
   TEST_PID=$!
   ( sleep "$BASELINE_TIMEOUT" && kill "$TEST_PID" 2>/dev/null && echo "" && echo "  Baseline timed out after ${BASELINE_TIMEOUT}s" ) &
   TIMER_PID=$!
-  wait "$TEST_PID" 2>/dev/null || true
+  wait "$TEST_PID" 2>/dev/null; RED_EXIT=$?
   kill "$TIMER_PID" 2>/dev/null || true
   wait "$TIMER_PID" 2>/dev/null || true
 
@@ -305,6 +305,7 @@ else
 
   /tmp/test-skill-enhanced.sh --save "$BASELINE_JSON" --runs "$RUNS" --dir "$RED_DIR" \
     --plugin-dir "$MAIN_EXTRACT_DIR" --skip-plugin-manage
+  RED_EXIT=$?
 
   # Save baseline SHA so we can detect staleness later
   git -C "$REPO_ROOT" rev-parse "$BASELINE_REF" > "$BASELINE_SHA_FILE"
@@ -322,6 +323,19 @@ if [ "$SKIP_RED" != "1" ]; then
   cleanup_phase_apps "$RED_DIR"
   echo "  Done."
   echo ""
+fi
+
+# Abort if the API was unreachable during the RED phase
+if [ "${RED_EXIT:-0}" -eq 2 ]; then
+  echo ""
+  echo "========================================="
+  echo "  ABORTING: API unreachable during RED phase"
+  echo "========================================="
+  echo "  The Anthropic API was down. Skipping the GREEN phase"
+  echo "  since the comparison would be meaningless."
+  echo "  Check https://status.claude.com and retry."
+  echo ""
+  exit 2
 fi
 
 # ── GREEN Phase: local branch ────────────────────────────────
