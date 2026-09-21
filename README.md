@@ -93,6 +93,7 @@ Other assistants discover and follow the skills but do not run these Claude Code
 | `ui-development` | React/Vue UI pages with Shoelace components and Falcon theming |
 | `functions-development` | Go/Python serverless functions with CrowdStrike SDK |
 | `collections-development` | JSON Schema data modeling and CRUD operations |
+| `ai-agents-development` | AI agents and knowledge bases, plus exposing collections and API operations as agent tools |
 | `security-patterns` | OAuth scoping, input validation, content security |
 | `debugging-workflows` | Systematic troubleshooting for CLI, manifest, and deployment issues |
 | `e2e-testing` | End-to-end testing with `@crowdstrike/foundry-playwright` |
@@ -112,18 +113,24 @@ graph TD
     O --> WF["Workflows Development"]
     O --> AI["API Integrations"]
     O --> FA["Functions — Falcon API"]
+    O --> AG["AI Agents &<br/>Knowledge Bases"]
 
     UI -.-> SP["Security Patterns"]
     FN -.-> SP
     CO -.-> SP
     WF -.-> SP
     AI -.-> SP
+    AG -.-> SP
 
     UI -.-> DB["Debugging Workflows"]
     FN -.-> DB
     CO -.-> DB
     WF -.-> DB
     AI -.-> DB
+    AG -.-> DB
+
+    CO -.->|"agent tool"| AG
+    AI -.->|"agent tool"| AG
 
     style O fill:#6366f1,stroke:#4f46e5,color:#fff
     style SP fill:#f59e0b,stroke:#d97706,color:#fff

@@ -30,7 +30,7 @@ case "$HOOK_EVENT" in
     # Require an action verb + Foundry noun to detect real development intent.
     # "create a foundry app" triggers; "if we were in a foundry app" does not.
     VERBS="create|build|deploy|release|scaffold|add|update|fix|debug|configure"
-    NOUNS="foundry app|foundry function|foundry collection|foundry workflow|foundry ui|foundry page|foundry api|falcon foundry|falcon app|crowdstrike app|foundry extension"
+    NOUNS="foundry app|foundry function|foundry collection|foundry workflow|foundry ui|foundry page|foundry api|falcon foundry|falcon app|crowdstrike app|foundry extension|foundry agent|foundry knowledge base"
 
     if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b.*(${NOUNS})"; then
       FOUNDRY_MATCH=true
@@ -122,12 +122,12 @@ case "$HOOK_EVENT" in
             fi
             if [ -n "$ADAPT_OUTPUT" ]; then
               # Check for validation-only warnings (block, don't auto-fix)
-              if echo "$ADAPT_OUTPUT" | grep -q 'expose_to_workflow.*directly under'; then
+              if echo "$ADAPT_OUTPUT" | grep -qE 'expose_to_(workflow|agent).*directly under'; then
                 jq -n --arg output "$ADAPT_OUTPUT" '{
                   hookSpecificOutput: {
                     hookEventName: "PreToolUse",
                     decision: "block",
-                    reason: ("BLOCKED: spec has structural issues that require manual fixes:\n" + $output + "\n\nFix x-cs-operation-config: nest expose_to_workflow under a workflow: key:\n\nx-cs-operation-config:\n  workflow:\n    name: operationId\n    description: What this operation does\n    expose_to_workflow: true\n    system: false")
+                    reason: ("BLOCKED: spec has structural issues that require manual fixes:\n" + $output + "\n\nBoth exposure flags must be nested under their own key:\n\nx-cs-operation-config:\n  workflow:\n    name: operationId\n    description: What this operation does\n    expose_to_workflow: true\n    system: false\n  agent_tools:\n    name: operation_name\n    description: What this operation does\n    expose_to_agent: true")
                   }
                 }'
                 exit 0

@@ -15,7 +15,7 @@ The skills are markdown-based and usable by any AI coding assistant. Claude Code
 
 ## Repository Structure
 
-- `skills/` - 9 specialized development skills, each with a `SKILL.md` file
+- `skills/` - 12 specialized development skills, each with a `SKILL.md` file
 - `hooks/` - Hook scripts for Claude Code plugin integration
 - `use-cases/` - Real-world implementation patterns extracted from [CrowdStrike Tech Hub](https://www.crowdstrike.com/tech-hub/ng-siem/?cspage=0&lang=English&type=Article) blog posts
 - `skills/*/scripts/` - Skill-specific helper scripts (OpenAPI adaptation, action search, Fusion redirect detection)
@@ -35,6 +35,7 @@ The `skills/` directory contains specialized skills that provide systematic appr
 - **Data capabilities** → collections-development
 - **Logic capabilities** → functions-development
 - **Automation capabilities** → workflows-development
+- **AI capabilities** → ai-agents-development
 
 **Security-First Design**: Security patterns are integrated throughout all skills, with dedicated security-patterns for specialized security guidance.
 
@@ -60,6 +61,7 @@ The `skills/` directory contains specialized skills that provide systematic appr
 - **workflows-development**: YAML automation workflows and Fusion orchestration
 - **functions-falcon-api**: Calling Falcon APIs from within Functions (OAuth, SDKs)
 - **api-integrations**: Exposing external APIs via OpenAPI specs
+- **ai-agents-development**: AI agents and knowledge bases, plus exposing collections and API operations as agent tools
 
 #### Support Skills
 
@@ -100,6 +102,8 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 - **"Automate workflow"** → workflows-development skill
 - **"Call Falcon API from Function"** → functions-falcon-api skill
 - **"Expose external API to Foundry"** → api-integrations skill
+- **"Create an AI agent"** → ai-agents-development skill
+- **"Add a knowledge base"** → ai-agents-development skill
 - **"Troubleshoot deployment"** → debugging-workflows skill
 - **"Add e2e tests"** → e2e-testing skill
 
@@ -144,8 +148,15 @@ foundry ui extensions list-sockets                                              
 foundry ui navigation add --name "X" --path / --ref pages.xxx  # Add navigation
 foundry functions create --name "X" --language python --no-prompt           # Create function
 foundry collections create --name "X" --schema path.json --no-prompt        # Create collection
+foundry collections create --name "X" --schema path.json --agent-tools-expose --no-prompt  # ...exposed as an agent tool
 foundry workflows create --name "X" --spec path.yaml --no-prompt            # Create workflow
+foundry knowledge-bases create --name "X" --files a.md,b.csv --no-prompt     # Create knowledge base (--files required)
+foundry agents create --name "X" --system-prompt path.md --knowledge-bases "X" --no-prompt  # Create AI agent (KB must exist first)
+foundry agents delete --name "X" --no-prompt                                # Delete AI agent
+foundry knowledge-bases delete --name "X" --no-prompt                       # Delete knowledge base
 ```
+
+> **AI agents and knowledge bases:** subcommands are `create` and `delete` only — there is no `list` or `edit`. Build knowledge bases *before* the agents that reference them; `agents create` validates the references and fails otherwise. Agent exposure is set at create time with `--expose-charlotte-chat`, `--expose-agent-as-tool` (requires `--input-schema`), and `--expose-workflow-system-action`; only `model` and `tools` lack CLI flags and are the one sanctioned reason to hand-edit `manifest.yml`. See the `ai-agents-development` skill.
 
 ## Quality and Thoroughness
 

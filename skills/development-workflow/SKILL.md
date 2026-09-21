@@ -2,7 +2,7 @@
 name: development-workflow
 description: Orchestrates the complete Falcon Foundry app lifecycle from requirements through deployment. TRIGGER when user asks to "create a Foundry app", "build a Foundry app", "plan a Foundry app", runs any `foundry apps` CLI command, or discusses Foundry app architecture. DO NOT TRIGGER when user is working on a specific capability (UI, function, workflow, collection) within an existing app — use the appropriate sub-skill instead. This skill OWNS the entire Foundry development flow. Do not delegate Foundry app creation to superpowers:brainstorming or superpowers:writing-plans — those skills do not know about the Foundry CLI.
 version: 1.5.0
-updated: 2026-08-19
+updated: 2026-08-24
 tags: [foundry, lifecycle, cli, deployment]
 author: CrowdStrike
 license: MIT
@@ -52,6 +52,7 @@ Add a capability to an existing app
 ├── UI page/extension     → ui-development
 ├── Function              → functions-development
 ├── Collection            → collections-development
+├── AI agent / knowledge base → ai-agents-development
 └── Falcon API from funcs → functions-falcon-api
 
 Execute / test a deployed function
@@ -102,6 +103,8 @@ Map user requests to Foundry capabilities:
 | "extension", "sidebar", "widget" | UI Extension | `foundry ui extensions create` |
 | "function", "serverless", "backend" | Function | `foundry functions create` |
 | "store data", "collection", "database" | Collection | `foundry collections create` |
+| "AI agent", "Charlotte agent", "agentic" | AI Agent | `foundry agents create` |
+| "knowledge base", "give the agent docs" | Knowledge Base | `foundry knowledge-bases create` |
 | "run function", "execute", "test handler" | Function Execution | `foundry functions exec` |
 | "get logs", "show execution logs" | Log Retrieval | `foundry functions logs` |
 | "check status", "execution result" | Execution Status | `foundry functions exec status` |
@@ -179,6 +182,17 @@ foundry functions create --name "my-fn" --language python --description "desc" \
 # 5. Workflows — MUST load workflows-development sub-skill before writing the spec file
 foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
 
+# 5b. Knowledge bases BEFORE agents — the agent create command validates KB refs.
+#     --files is required with --no-prompt (accepts local paths or HTTP(S) URLs).
+foundry knowledge-bases create --name "Runbook Docs" --description "desc" \
+  --files /tmp/runbook.md --no-prompt
+
+# 5c. AI agents — reference KBs by NAME. Exposure is set with --expose-* flags;
+#     see ai-agents-development for the model/tools manifest hand-edits.
+foundry agents create --name "My Agent" --description "desc" \
+  --system-prompt /tmp/system_prompt.md \
+  --knowledge-bases "Runbook Docs" --expose-charlotte-chat --no-prompt
+
 # 6. UI pages (standalone full-page views)
 foundry ui pages create --name "my-page" --description "desc" --from-template React --homepage --no-prompt
 foundry ui navigation add --name "My Page" --path / --ref pages.my-page
@@ -199,6 +213,7 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 - **UI components** → ui-development
 - **Function handlers** → functions-development
 - **Collection schemas** → collections-development
+- **AI agents / knowledge bases** → ai-agents-development
 
 > **⚠️ MANDATORY: Load the relevant sub-skill BEFORE writing any domain-specific code.** Without the sub-skill loaded, you WILL hallucinate incorrect formats and nonexistent APIs. Known failure modes:
 >
@@ -208,6 +223,7 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 > | Function code calling Falcon APIs | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` instead of FalconPy SDK classes (`from falconpy import Hosts`) |
 > | Function code calling a third-party API (Slack, Jira, PagerDuty, etc.) | `functions-falcon-api` + check `use-cases/` | Invented `falcon.command("createNotification")` or raw HTTP calls instead of `APIIntegrations().execute_command(definition_id="...", operation_id="...")`. The app MUST have an API integration (OpenAPI spec) for the service, then call it from the function via FalconPy `APIIntegrations` class. See foundry-sample-functions-python for reference. |
 > | Function code accessing collections | `collections-development` | Invented REST endpoints for collection CRUD instead of FalconPy `CustomStorage` service class |
+> | AI agent or knowledge base manifest | `ai-agents-development` | Invented `model` values, wrong `tools` reference format, or agents created before the knowledge bases they reference (fails validation) |
 >
 > ALWAYS load the sub-skill first. This is not optional.
 
@@ -276,9 +292,10 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 
 ## Manifest Coordination
 
-**Dependency order:** Collections → Functions → Workflows → UI (each may depend on the previous)
+**Dependency order:** Collections → Functions → Knowledge bases → Agents → Workflows → UI (each may depend on the previous)
 
 - **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" (rename only). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
+- **Narrow exception:** `ai.agents[].model` and `.tools` have no CLI flags and can only be set by editing `manifest.yml`. Edit those two keys only — see `ai-agents-development`. (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
 - OAuth scopes are auto-managed for CLI-created artifacts — MUST NOT manually add `api-integrations:read`
 - Use `npx @redocly/cli lint` for OpenAPI validation (not Python/Ruby YAML parsers)

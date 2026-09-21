@@ -185,6 +185,211 @@ class TestWorkflowDeletionWarning:
         assert "delete and re-create it with the appropriate flags" not in content
 
 
+# ── AI agents and knowledge bases (ai-agents-development) ───────────────────
+
+
+class TestAIAgentsSkill:
+    """Verify the AI skill keeps the facts that cost a round trip to rediscover.
+
+    Every assertion here maps to something the CLI does NOT tell you clearly:
+    a name length floor that rejects the obvious short names, a build order
+    enforced only at manifest-save time, three fields with no CLI flag at all,
+    and a --system-prompt that turns a typo into the agent's instructions.
+    """
+
+    SKILL = "skills/ai-agents-development/SKILL.md"
+    SCHEMA = "skills/ai-agents-development/references/manifest-schema.md"
+    KB = "skills/ai-agents-development/references/knowledge-bases.md"
+
+    def test_manifest_path_is_nested_under_ai(self):
+        """Agents live at ai.agents, NOT a top-level agents: key.
+
+        The untracked manifest-specification.md in foundrycli documents a
+        top-level `agents:` key, which does not match the Go structs. An early
+        draft sourced from that doc and produced manifests the CLI rejects.
+        """
+        content = _read_skill(self.SKILL)
+        assert "ai:" in content
+        assert "knowledge_bases:" in content, "manifest key is knowledge_bases (underscore)"
+        # The on-disk directory is hyphenated while the manifest key is not —
+        # getting these backwards is the single easiest mistake to make here.
+        assert "knowledge-bases/" in content, "on-disk dir is knowledge-bases (hyphen)"
+
+    def test_build_order_kb_before_agent(self):
+        """Must state knowledge bases come first, and name the error if not."""
+        content = _read_skill(self.SKILL)
+        assert "Build Order Is Mandatory" in content
+        assert "which is not defined in the manifest" in content, \
+            "must quote the actual failure so it is recognizable"
+
+    def test_name_minimum_length_documented(self):
+        """5-char name floor rejects 'kb' and 'agent' — the obvious names."""
+        content = _read_skill(self.SKILL)
+        assert "5–100" in content or "5-100" in content
+        assert "`kb`" in content, "must call out that short names fail"
+
+    def test_kb_validation_asymmetry_documented(self):
+        """kb create enforces 5 chars; the manifest validator only needs 1.
+
+        The manifest validators were deliberately relaxed (the AI platform has no
+        name restriction) while the create flags were left strict. Documenting
+        only one half sends a reader in circles over an inherited manifest.
+        """
+        content = _read_skill(self.SKILL)
+        assert "asymmetry" in content.lower()
+        assert "1 character" in content or "one character" in content or "only requires 1" in content
+
+    def test_cli_unsettable_fields_documented(self):
+        """model and tools have no CLI flags. Exposure does — it is not in this set."""
+        content = _read_skill(self.SKILL)
+        assert "Two Fields the CLI Cannot Set" in content
+        for field in ("model", "tools"):
+            assert f"`{field}`" in content
+        assert "Three Fields the CLI Cannot Set" not in content, \
+            "exposure gained --expose-* flags; it is no longer hand-edit-only"
+
+    def test_exposure_flags_documented(self):
+        """All three --expose-* flags, with the agent_as_tool schema pairing."""
+        content = _read_skill(self.SKILL)
+        for flag in ("--expose-charlotte-chat", "--expose-agent-as-tool",
+                     "--expose-workflow-system-action"):
+            assert flag in content, f"missing exposure flag {flag}"
+        assert "--input-schema is required when --expose-agent-as-tool is set" in content, \
+            "must quote the create-time failure"
+        assert "input_schema is required when exposure.agent_as_tool is true" in content, \
+            "must quote the manifest-load failure — it breaks every later CLI call"
+
+    def test_exposure_block_omitted_when_unused(self):
+        """An absent exposure block is correct, not a missing default.
+
+        Earlier CLI builds always wrote the block with every switch false. It is
+        now a pointer with omitempty, so a reader who expects the old shape will
+        try to 'repair' a correct manifest.
+        """
+        content = _read_skill(self.SKILL)
+        assert "omitted entirely when nothing is exposed" in content
+
+    def test_delete_commands_documented(self):
+        """delete exists for both artifacts and behaves like every other command."""
+        content = _read_skill(self.SKILL)
+        assert "foundry agents delete" in content
+        assert "foundry knowledge-bases delete" in content
+        assert "still referenced by agent(s)" in content, \
+            "KB deletion is blocked while an agent references it"
+        assert "no `list` or `edit`" in content
+
+    def test_delete_takes_no_prompt_like_everything_else(self):
+        """delete accepts --no-prompt — do not reintroduce the old exception.
+
+        An earlier CLI build registered these two commands without the flag, so
+        passing it failed with 'unknown flag'. That was reverted for consistency
+        An earlier CLI build registered these two commands without the flag, so
+        passing it failed with 'unknown flag'. That was reverted for consistency.
+        Carrying the exception in the docs would send readers to
+        Carrying the exception in the docs would send readers to
+        strip a flag the CLI now needs.
+        """
+        for path in (self.SKILL, self.SCHEMA, self.KB):
+            content = _read_skill(path)
+            assert "unknown flag: --no-prompt" not in content, \
+                f"{path} still documents the reverted --no-prompt exception"
+        skill = _read_skill(self.SKILL)
+        assert "foundry agents delete --name \"Detection Triage Agent\" --no-prompt" in skill, \
+            "the delete example must carry --no-prompt like every other command"
+
+    def test_manifest_edit_carve_out_is_scoped(self):
+        """The exception to 'never edit manifest.yml' must be explicitly narrow.
+
+        A blanket "editing the manifest is fine here" would erode the rule that
+        protects id/path/entrypoint across every other capability.
+        """
+        content = _read_skill(self.SKILL)
+        assert "narrow, explicit exception" in content
+        assert "id" in content and "path" in content
+
+    def test_model_left_empty_not_invented(self):
+        """No invented model IDs — there is no client-side list."""
+        content = _read_skill(self.SKILL)
+        assert 'model: ""' in content
+        assert "platform default" in content.lower()
+
+    def test_tools_reference_formats(self):
+        """All three tools reference shapes, with exact operation casing."""
+        content = _read_skill(self.SKILL)
+        assert "collections.<collection_name>.<Operation>" in content
+        assert "collections.generic.<Operation>" in content
+        # Final segment is agent_tools.name, NOT the operationId — sending a
+        # reader to the operationId yields a silent tool-reference failure.
+        assert "api_integrations.<name>.<agent_tools.name>" in content
+        assert "api_integrations.<name>.<operationId>" not in content
+        for op in ("CreateObject", "GetObject", "DeleteObject",
+                   "ListObjects", "SearchObjects"):
+            assert op in content, f"missing collection operation {op}"
+
+    def test_system_prompt_fallback_trap(self):
+        """A typo'd --system-prompt path silently becomes the prompt text."""
+        content = _read_skill(self.SKILL)
+        assert "inline text" in content
+        assert "system_prompt.txt" in content
+
+    def test_output_schema_only_for_json_with_schema(self):
+        """json needs no schema; only json_with_schema does."""
+        content = _read_skill(self.SKILL)
+        assert "json_with_schema" in content
+        assert "asymmetry" in content.lower()
+
+    def test_kb_reference_covers_svg_drop(self):
+        """.svg KB files pass validation then vanish from the deploy bundle."""
+        content = _read_skill(self.KB)
+        assert ".svg" in content
+        assert "25 MB" in content
+
+    def test_schema_reference_has_no_version_gate_claim(self):
+        """Must state there is no manifest_version gate for ai artifacts."""
+        content = _read_skill(self.SCHEMA)
+        assert "2023-05-09" in content
+        assert "no `manifest_version` gate" in content
+
+
+# ── Agent tool exposure is documented on both sides ──────────────────────────
+
+
+class TestAgentToolExposure:
+    """Exposure and the tools entry are both required; neither alone errors.
+
+    The two halves live in different skills, so a reader who loads only one
+    must still learn that the other half exists.
+    """
+
+    COLLECTIONS = "skills/collections-development/SKILL.md"
+    API = "skills/api-integrations/SKILL.md"
+    AI = "skills/ai-agents-development/SKILL.md"
+
+    def test_collections_documents_the_flag_and_block(self):
+        content = _read_skill(self.COLLECTIONS)
+        assert "--agent-tools-expose" in content
+        assert "agent_tools_integration" in content
+
+    def test_api_integrations_documents_nested_agent_tools(self):
+        """expose_to_agent must be nested under agent_tools, like the workflow key."""
+        content = _read_skill(self.API)
+        assert "agent_tools" in content
+        assert "expose_to_agent" in content
+
+    def test_api_tools_ref_uses_agent_tools_name_not_operation_id(self):
+        """The last segment is agent_tools.name, not the operationId."""
+        content = _read_skill(self.API)
+        assert "api_integrations." in content
+        assert "not the `operationId`" in content
+
+    def test_both_halves_required_is_stated_in_all_three(self):
+        """Every skill that mentions exposure must warn it is only half."""
+        for skill in (self.COLLECTIONS, self.API, self.AI):
+            content = _read_skill(skill)
+            assert "silently cannot" in content, \
+                f"{skill} must warn that exposure alone is insufficient"
+
+
 # ── Cross-skill consistency ─────────────────────────────────────────────────
 
 

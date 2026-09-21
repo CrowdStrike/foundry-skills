@@ -2,7 +2,7 @@
 name: api-integrations
 description: Expose external APIs to Falcon Foundry via OpenAPI specs. TRIGGER when user asks to "create an API integration", "adapt an OpenAPI spec for Foundry", "expose an API to workflows", "connect to a third-party API", or runs `foundry api-integrations create`. Also trigger when user has an OpenAPI/Swagger spec and wants it working in Falcon Foundry. DO NOT TRIGGER when user wants to call Falcon platform APIs from function code — use functions-falcon-api instead.
 version: 1.5.0
-updated: 2026-08-19
+updated: 2026-08-24
 tags: [foundry, openapi, api, workflows]
 author: CrowdStrike
 license: MIT
@@ -158,6 +158,40 @@ paths:
 ```
 
 The `workflow` nesting under `x-cs-operation-config` is required. A flat `expose_to_workflow: true` directly under `x-cs-operation-config` will not work and causes deploy failures.
+
+### Exposing an Operation to AI Agents
+
+`agent_tools` is a sibling of `workflow` under the same `x-cs-operation-config` key. Add it when a Foundry AI agent needs to call the operation:
+
+```yaml
+paths:
+  /files/{id}:
+    get:
+      operationId: getFileReport
+      x-cs-operation-config:
+        agent_tools:
+          name: Get_a_file_report
+          description: get a file report
+          expose_to_agent: true
+        workflow:
+          name: Get a file report
+          description: Get a file report
+          system: false
+```
+
+The two blocks are independent — an operation can be exposed to agents, to workflows, to both, or to neither. `expose_to_agent` must be nested under `agent_tools`, exactly as `expose_to_workflow` must be nested under `workflow`.
+
+The agent must also name the operation in its own `tools` list as `api_integrations.<integration_name>.<name>`, where `<name>` is the `agent_tools.name` value — not the `operationId` and not the URL path:
+
+```yaml
+ai:
+    agents:
+        - name: Detection Triage Agent
+          tools:
+            - api_integrations.VirusTotal.Get_a_file_report
+```
+
+Exposure without the `tools` entry (or the reverse) yields an agent that silently cannot call the operation. See `ai-agents-development`.
 
 For autocomplete dropdown patterns and the HTTP Actions vs. Functions decision framework, see [references/spec-adaptation-examples.md](references/spec-adaptation-examples.md).
 
