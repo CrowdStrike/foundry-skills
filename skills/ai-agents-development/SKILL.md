@@ -1,7 +1,7 @@
 ---
 name: ai-agents-development
 description: Build AI agents and knowledge bases for Falcon Foundry apps. TRIGGER when user asks to "create an AI agent", "add a Foundry agent", "build a knowledge base", "give my agent documents", "expose a collection as an agent tool", "expose an API operation to an agent", "put my agent in Charlotte", "expose an agent as a tool for other agents", "delete an agent or knowledge base", runs `foundry agents create`, `foundry agents delete`, `foundry knowledge-bases create`, or `foundry knowledge-bases delete`, or needs help with the `ai.agents` / `ai.knowledge_bases` manifest blocks, agent system prompts, agent input/output formats, agent exposure, or agent tool references. DO NOT TRIGGER for Fusion SOAR workflow YAML — use workflows-development. DO NOT TRIGGER for serverless function handlers — use functions-development. DO NOT TRIGGER for designing a collection schema itself — use collections-development, then return here to wire the collection up as an agent tool.
-version: 1.6.0
+version: 1.5.0
 updated: 2026-09-11
 tags: [foundry, ai, agents, knowledge-bases, charlotte, agent-tools]
 author: CrowdStrike
