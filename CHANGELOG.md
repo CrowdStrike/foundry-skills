@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.7.0] - TBD
+## [1.6.0] - TBD
 
 ### Added
 
@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Agent tool exposure for collections** — `collections-development` now documents `--agent-tools-expose` and the `agent_tools_integration: {exposed: true}` block it writes. Exposure is only half the wiring: the agent must also name each operation in its own `tools` list as `collections.<name>.<Operation>`, using one of `CreateObject`, `GetObject`, `DeleteObject`, `ListObjects`, `SearchObjects`. Neither half alone errors — it just yields an agent that silently cannot reach the data.
 - **Agent tool exposure for API integrations** — `api-integrations` now documents `x-cs-operation-config.agent_tools`, a sibling of the existing `workflow` block, with `name`, `description`, and `expose_to_agent`. The agent references the operation as `api_integrations.<integration>.<agent_tools.name>` — not the `operationId` and not the URL path. `adapt_spec_for_foundry.py` now flags a misplaced `expose_to_agent` the same way it already flagged `expose_to_workflow`, and the skill router blocks on either.
 - **Build-order, `--files`, and exposure enforcement in the CLI guard** — `foundry agents create --knowledge-bases X` fails outright when `X` is not already in the manifest, so the guard warns before the round trip is wasted. `foundry knowledge-bases create` without `--files` is rejected by the CLI under `--no-prompt`, and `--expose-agent-as-tool` without `--input-schema` is rejected before any files are written; the guard catches both. `mkdir agents/` and `mkdir knowledge-bases/` are blocked alongside the other app directories.
+- **Installable from the OpenAI/Codex, Cursor, and GitHub Copilot marketplaces.** Beyond the Anthropic marketplace, the plugin is now published to the OpenAI/Codex curated CLI marketplace (`codex plugin add crowdstrike-falcon-foundry@openai-api-curated`; ChatGPT-authenticated Codex installs via `/plugins`), the Cursor marketplace, and the GitHub Copilot (awesome-copilot) directory. The skills-only bundle now ships the square interface icon the OpenAI directory requires, and the README install table links each live listing.
 
 ### Changed
 
@@ -21,15 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **A narrow carve-out to the "never edit manifest.yml" rule.** `ai.agents[].model` and `.tools` have no CLI flags — `agents create` always writes `model: ""` and omits `tools`. Editing the manifest is the only way to set them. Both the orchestrator and the new skill scope the exception to those two keys so it does not erode the rule that protects `id`, `path`, and `entrypoint`. Agent `exposure` is explicitly *not* part of the carve-out; it has flags.
 - **Knowledge base name and description validation is asymmetric.** The manifest validator now accepts a one-character KB name and no longer checks the description at all — the AI platform imposes no restriction, so the CLI stopped adding one. The `kb create` flag validators still enforce name 5–100 and description 3–500, so the looser rules only surface for a manifest you inherit or hand-write.
 - **Corrected the skill count in AGENTS.md** — it claimed 9 and had been stale for several releases; the repo now ships 12.
-
-## [1.6.0] - TBD
-
-### Added
-
-- **Installable from the OpenAI/Codex, Cursor, and GitHub Copilot marketplaces.** Beyond the Anthropic marketplace, the plugin is now published to the OpenAI/Codex curated CLI marketplace (`codex plugin add crowdstrike-falcon-foundry@openai-api-curated`; ChatGPT-authenticated Codex installs via `/plugins`), the Cursor marketplace, and the GitHub Copilot (awesome-copilot) directory. The skills-only bundle now ships the square interface icon the OpenAI directory requires, and the README install table links each live listing.
-
-### Changed
-
 - **Minimum CLI version bumped to 2.1.0** — The session-start hook now warns users on CLI 2.0.x and offers to upgrade. CLI 2.1.0 added `foundry functions exec`, `test`, and `logs`, and CLI 2.1.1 fixed non-interactive output for `actions view` and `triggers view` when multiple actions match a fuzzy name filter.
 - **`action_search.py` is now a convenience, not a workaround** — With CLI 2.1.1, `foundry workflows actions view --name "..." --no-prompt` lists multiple matches non-interactively instead of dropping into a picker. The bundled `action_search.py` remains useful for working without a manifest directory, but the warning framing it as a required fallback is removed.
 
