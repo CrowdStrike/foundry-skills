@@ -97,6 +97,24 @@ def respond_error(status: int, code: str, message: str) -> Dict[str, Any]:
     }
 ```
 
+## The `Request` Object
+
+`Request` is a dataclass, not a dict, and it has **no `query` attribute**. Query parameters and headers live under `request.params`, itself a `RequestParams` dataclass with two fields whose values are always lists:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `body` | `Dict[str, Any]` | Parsed JSON body |
+| `params.query` | `Dict[str, List[str]]` | Query string — every value is a list: `request.params.query.get("limit", ["50"])[0]` |
+| `params.header` | `Dict[str, List[str]]` | Request headers, same list-valued shape |
+| `context` | `Dict[str, Any]` | Context object supplied by the caller (`--context` on `exec`) |
+| `method`, `url` | `str` | HTTP verb and the URL the handler was invoked on |
+| `access_token` | `str` | Bearer token for this request; FalconPy reads it for you, so do not pass it around |
+| `trace_id` | `str` | Platform trace ID — worth including in log lines |
+| `fn_id`, `fn_version` | `str`, `int` | The function's ID and deployed version |
+| `files` | `Dict[str, bytes]` | Uploaded files keyed by name |
+
+`request.query` fails with `'Request' object has no attribute 'query'`, and `request.params.get(...)` fails with `'RequestParams' object has no attribute 'get'`. Both surface only at runtime in the deployed function, so get the shape right before deploying.
+
 ## Collection CRUD Pattern
 
 Full incident store using `CustomStorage` (Service Class) for collection operations from Python functions. Use service classes instead of the Uber class (`APIHarnessV2`) because the Falcon Foundry functions editor auto-detects required OAuth scopes (`custom-storage:read`, `custom-storage:write`) from `from falconpy import CustomStorage`. It cannot parse the Uber class `.command()` pattern.

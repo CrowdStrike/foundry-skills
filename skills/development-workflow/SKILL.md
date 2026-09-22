@@ -158,7 +158,7 @@ cd app-name
 
 `--no-prompt` prevents interactive prompts that fail in non-interactive environments with `Error: EOF`. `--no-git` skips git initialization. The command is `foundry apps create` (there is no `init` command). If it fails, fix the command and retry — MUST NOT fall back to `mkdir`, which produces invalid manifest structure.
 
-`foundry apps create` always creates a **subdirectory named after the app**, spaces included (`--name "My Dashboard"` yields `My Dashboard/manifest.yml`), and every later `foundry` command must run from inside it. When converting an existing repository into a Foundry app, run `create` beside the repo (or in a temp directory) and then move `manifest.yml` to the repo root — the generated manifest has no other files at that point, so the move is safe. Do not nest the app directory inside the repo and leave it there; the doubled layout confuses every relative path in the manifest.
+`foundry apps create` always makes a **subdirectory named after the app** (spaces included). When converting an existing repo, run `create` beside it and move the freshly generated `manifest.yml` to the repo root rather than leaving a nested app directory.
 
 ### Step 5: Add Capabilities (CLI Commands)
 
@@ -253,7 +253,7 @@ foundry ui run
 
 **Deploy once, poll with `list-deployments`.** Running `deploy` multiple times creates duplicate deployments and wastes minutes.
 
-**When a deployment shows `Failed`, the CLI does not tell you why.** `list-deployments` prints only the state. The reason is in the Falcon console: **App manager > the app > "Show errors (N)"**, listed per capability. Read it there before changing anything. Two related behaviors: `foundry apps validate` fails with `deployment is currently in progress` while a deploy is running (wait for the deployment to finish, do not treat it as a manifest error), and a deploy that fails validation server-side still consumes a deployment slot, so poll to completion before deploying again.
+**A `Failed` deployment has no reason in the CLI.** Read it in the console: **App manager > the app > "Show errors (N)"** (per capability). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`; wait, it is not a manifest error.
 
 ```bash
 # Release (run ONCE after deploy succeeds)
@@ -262,7 +262,7 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 **Note:** There is no `list-releases` command. After `release`, check status via the App Manager URL printed in the output, or wait ~30s and proceed to testing.
 
-**Patch releases update an installed app in place.** Once the app is installed from the App Catalog, releasing a new Patch version rolls it out to the installed copy — no uninstall, no reinstall. The one time a reinstall (uninstall, then install) is needed is to reach an API integration's credential form again, for example after adding an integration or changing its auth scheme.
+**Patch releases update an installed app in place**; no reinstall. Reinstall (uninstall, then install) only to reach an API integration's credential form again, e.g. after adding an integration.
 
 `foundry ui run` only serves UI locally — backend capabilities (API integrations, functions, collections) resolve from the cloud. Deploy those first.
 

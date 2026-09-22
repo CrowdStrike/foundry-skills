@@ -89,7 +89,7 @@ foundry functions create \
   --no-prompt
 ```
 
-`--max-exec-duration-seconds` and `--max-exec-memory-mb` write `max_exec_duration_seconds` / `max_exec_memory_mb` onto the function's manifest entry. Set them at create time when a handler needs more than the defaults in Resource Limits above; do not hand-edit `manifest.yml` for them afterward.
+The two `--max-exec-*` flags write the manifest's `max_exec_duration_seconds` / `max_exec_memory_mb`; set them at create time instead of hand-editing later.
 
 ## Function Execution & Debugging
 
@@ -213,9 +213,7 @@ Handler fields: `name` (identifier), `method` (HTTP verb), `api_path` (route, su
 
 ### Adding a Handler to an Existing Function
 
-`foundry functions create` scaffolds a new function with exactly one handler, and no CLI command adds a handler to a function that already exists. Adding one takes two edits: append an entry (`name`, `method`, `api_path`) to that function's `handlers:` list in `manifest.yml`, and add the matching `@func.handler(...)` function (or `m.Post(...)` route in Go) to the source.
-
-> **This is a narrow, explicit exception to the plugin-wide rule against editing `manifest.yml`**, in the same spirit as the `ai.agents[].model` / `.tools` carve-out. Edit **only** the `handlers:` list of the function you are extending; leave `id`, `path`, `language`, and every other artifact's entries alone. A hand-added handler cannot be given bound `request_schema`/`response_schema` (schemas bind only through the create flags — see below), so a handler that must be a Fusion action with visible outputs belongs in its own CLI-created function.
+No CLI command adds a handler to an existing function. Append an entry (`name`, `method`, `api_path`) to that function's `handlers:` list in `manifest.yml` and add the matching `@func.handler(...)` (or Go route). This is a narrow exception to the no-manifest-edits rule, like the `ai.agents[].model` carve-out: touch only that `handlers:` list. Hand-added handlers get no bound I/O schemas, so a handler that must be a Fusion action with visible outputs needs its own CLI-created function.
 
 ## Go FDK Pattern
 
@@ -288,21 +286,7 @@ if __name__ == '__main__':
 
 ### The `Request` Object
 
-`Request` is a dataclass, not a dict, and it has **no `query` attribute**. Query parameters and headers live under `request.params`, itself a `RequestParams` dataclass with two fields whose values are always lists:
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `body` | `Dict[str, Any]` | Parsed JSON body |
-| `params.query` | `Dict[str, List[str]]` | Query string — every value is a list: `request.params.query.get("limit", ["50"])[0]` |
-| `params.header` | `Dict[str, List[str]]` | Request headers, same list-valued shape |
-| `context` | `Dict[str, Any]` | Context object supplied by the caller (`--context` on `exec`) |
-| `method`, `url` | `str` | HTTP verb and the URL the handler was invoked on |
-| `access_token` | `str` | Bearer token for this request; FalconPy reads it for you, so do not pass it around |
-| `trace_id` | `str` | Platform trace ID — worth including in log lines |
-| `fn_id`, `fn_version` | `str`, `int` | The function's ID and deployed version |
-| `files` | `Dict[str, bytes]` | Uploaded files keyed by name |
-
-`request.query` fails with `'Request' object has no attribute 'query'`, and `request.params.get(...)` fails with `'RequestParams' object has no attribute 'get'`. Both surface only at runtime in the deployed function, so get the shape right before deploying.
+No `request.query`, and `request.params` has no `.get()`: query params and headers are `request.params.query` / `.header`, both `Dict[str, List[str]]` (`request.params.query.get("limit", ["50"])[0]`). Field table: [references/python-patterns.md](references/python-patterns.md#the-request-object).
 
 ### Python Authentication
 
@@ -318,7 +302,7 @@ falcon = Alerts()  # Auth is automatic — do not pass credentials
 
 FalconPy already reads env vars internally, so writing a `get_falcon_client()` wrapper that manually reads credentials adds no value and breaks context auth in the cloud.
 
-> **Construct FalconPy clients inside the handler, never at module scope.** Context auth works because the FDK places the request's bearer token where FalconPy's Foundry context auth looks for it — and that token exists only while a request is being handled. A module-level `falcon = Alerts()` (or `APIHarnessV2()`, `Hosts()`, `CustomStorage()`, `APIIntegrations()`) is built at import time with no token, so every call it makes returns `401 Unauthorized` even though the manifest scopes are correct. The examples in this skill construct the client on the first line of the handler for exactly this reason.
+> **Construct FalconPy clients inside the handler, never at module scope.** Context auth only has the request's bearer token while a request is being handled; a module-level `falcon = Alerts()` (or `APIHarnessV2()`, `CustomStorage()`, `APIIntegrations()`) is built at import with no token and returns `401` on every call despite correct scopes.
 
 ### Calling Registered API Integrations from Functions
 
@@ -414,7 +398,7 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 - **Using `APIHarnessV2` (Uber class) for collection operations.** Use `CustomStorage` service class instead so the Foundry functions editor can auto-detect OAuth scopes. See the Collection CRUD Pattern in [references/python-patterns.md](references/python-patterns.md).
 - **Manually reading env vars for FalconPy auth.** `Alerts()` with zero arguments handles all credential discovery.
 - **Constructing FalconPy clients at module scope.** `falcon = Alerts()` above the handler runs at import, before the FDK has a request token, so every call returns `401 Unauthorized`. Construct clients inside the handler.
-- **Reading query parameters from `request.query` or `request.params.get()`.** Neither exists. `request.params` is a `RequestParams` dataclass; use `request.params.query["limit"][0]` (values are lists). See [The `Request` Object](#the-request-object).
+- **`request.query` or `request.params.get()`.** Neither exists; use `request.params.query["limit"][0]` (values are lists).
 - **Shared utility files across functions.** `sys.path.append("../")` works locally but not in Foundry's FaaS runtime. Copy shared files into each function directory.
 - **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content. For bulk reads, use FQL filters to narrow the search rather than fetching all keys and reading them one by one in a loop.
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).

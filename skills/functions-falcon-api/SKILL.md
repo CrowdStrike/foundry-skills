@@ -55,7 +55,7 @@ func = Function.instance()
 def get_alerts(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
     falcon = Alerts()  # Zero-arg constructor — auth is automatic
 
-    limit = min(int(request.params.query.get("limit", ["50"])[0]), 100)  # query values are lists
+    limit = min(int(request.params.query.get("limit", ["50"])[0]), 100)
     # FQL filter: high-severity alerts from the last 24 hours.
     # Combine conditions with '+' (AND); relative times like 'now-24h' are supported.
     response = falcon.query_alerts_v2(
@@ -89,9 +89,6 @@ if __name__ == '__main__':
 
 FalconPy already reads env vars internally, so writing a `get_falcon_client()` wrapper adds no value and breaks context auth in the cloud.
 
-> **Construct the client inside the handler, never at module scope.** Foundry context auth reads the request's bearer token, which exists only while a request is being handled. A module-level `falcon = Alerts()` (or `APIHarnessV2()`, `Hosts()`, `CustomStorage()`) is built at import time with no token, so every call returns `401 Unauthorized` even though the manifest scopes are right. Every example in this skill constructs the client on the first line of the handler for this reason.
-
-Query parameters arrive as `request.params.query`, a `Dict[str, List[str]]` — there is no `request.query`, and `request.params` is a dataclass without `.get()`. See the `functions-development` skill for the full `Request` field list.
 
 ## Go: FDK Helper Authentication
 
@@ -149,7 +146,7 @@ def get_detections(request: Request, config, logger) -> Response:
     falcon = Alerts()  # Zero-arg — auth is automatic
 
     severity_min = int(request.params.query.get("severity_min", ["3"])[0])
-    limit = min(int(request.params.query.get("limit", ["50"])[0]), 100)  # query values are lists
+    limit = min(int(request.params.query.get("limit", ["50"])[0]), 100)
 
     # Use Alerts v2 methods — these hit /alerts/entities/alerts/v3 under the hood.
     # FQL filter: severity threshold + product "detections" (excludes cases/incidents).
@@ -311,11 +308,9 @@ auth:
 
 - [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — background on async LogScale querying from Foundry, plus CSV export. Note that this post reaches for `FoundryLogScale` with `mode="async"`; the `NGSIEM` pattern above is what has been verified end-to-end against the queryjobs API in a deployed app. Use the pattern above, and treat the post as context for the surrounding workflow (time ranges, result handling, export).
 
-## Charlotte AI AgentWorks (`/agentic-studio/*`): App Tokens Currently Rejected
+## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
-> **As of 2026-09-22, the agent definition endpoints under `/agentic-studio/` return `HTTP 500 Internal Server Error` for Foundry app tokens**, even when the app is installed with `charlotte-ai-agent-definition:read` and `:write` granted and every other API family (collections, alerts, hosts) works with the same token and the same context auth. This is the platform rejecting app-issued tokens for this API family, not a scope or base-URL problem — do not spend the debugging budget on `auth.scopes`.
-
-Workaround that works today: register the AgentWorks API as an **API integration** whose spec declares `oauth2` with the `clientCredentials` flow against the Falcon `/oauth2/token` endpoint, and call it from the function through `APIIntegrations().execute_command()`. The installer supplies a Falcon API client (with the Charlotte AI agent definition scope) on the app's install form, and the platform manages that token — nothing personal, nothing in env vars. The Falcon swagger is not downloadable without console auth, so a minimal hand-written spec covering only the operations you need is acceptable in this case; see the `api-integrations` decision tree. If app tokens are accepted later, drop the integration and the handler goes back to zero-arg FalconPy.
+As of 2026-09-22 these return `500` for app tokens even with the scopes granted. Workaround: an API integration with `oauth2 clientCredentials`, see [references/advanced-patterns.md](references/advanced-patterns.md#charlotte-ai-agentworks-agentic-studio-app-tokens-currently-rejected).
 
 ## The 207 Multi-Status Gotcha
 
@@ -351,7 +346,7 @@ def test_get_alerts_success():
         from crowdstrike.foundry.function import RequestParams
         from main import get_alerts
         request = Mock(spec=Request)
-        request.params = RequestParams(query={"limit": ["10"]})  # values are lists
+        request.params = RequestParams(query={"limit": ["10"]})
         response = get_alerts(request, None, Mock())
         assert response.code == 200
         assert len(response.body["alerts"]) == 1
@@ -389,7 +384,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
-| `APIHarnessV2` (no service class wraps these yet) | `/agentic-studio/*` — Charlotte AI AgentWorks agent definitions, versions, spans | `charlotte-ai-agent-definition:read`, `charlotte-ai-agent-definition:write` | Scopes are granted at install, but as of 2026-09-22 these endpoints return `500` for app tokens — see the AgentWorks section above |
+| `APIHarnessV2` (`/agentic-studio/*`) | AgentWorks agents, spans | `charlotte-ai-agent-definition:read`, `:write` | `500` for app tokens as of 2026-09-22, see above |
 
 **Go functions (gofalcon) require the same scopes.** The table above uses FalconPy class/method names, but the underlying Falcon API scopes are identical regardless of SDK. If your Go function calls the RTR admin API, declare `real-time-response-admin:write`. If it manages incidents, declare `incidents:read`, `incidents:write`.
 
@@ -432,9 +427,8 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 - **Using `requests` library instead of CrowdStrike SDKs.** SDKs handle auth, retries, pagination, and region discovery.
 - **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.
 - **Writing Falcon API calls outside of FDK handler functions.** The handler pattern is required for automatic auth injection.
-- **Constructing the client at module scope.** `falcon = Hosts()` above the handler is built at import with no request token; every call returns `401 Unauthorized`. Construct inside the handler.
-- **Reading query parameters with `request.params.get()`.** `request.params` is a dataclass with `query` and `header` dicts whose values are lists: `request.params.query.get("limit", ["50"])[0]`. There is no `request.query`.
-- **Treating `500` from `/agentic-studio/*` as a scope problem.** App tokens are currently rejected by that API family; use the API-integration workaround above.
+- **Module-scope client, or `request.params.get()` / `request.query`.** `401` on every call, or an attribute error; see `functions-development`.
+- **Treating `500` from `/agentic-studio/*` as a scope problem.** App tokens are currently rejected there; use the API-integration workaround.
 - **Not handling 207 Multi-Status.** These responses look successful but may contain embedded errors.
 
 ## Use Cases
