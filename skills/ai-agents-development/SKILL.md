@@ -267,7 +267,7 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 
 ## Invoking an Agent from Code
 
-Charlotte chat and Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has two things the API reference does not spell out:
+Charlotte chat and Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has one thing the API reference does not spell out:
 
 - **`credit_cents_limit` has a floor of `100`.** The field is documented as optional without a minimum; values below `100` are rejected with a `400`. Budget in whole credits.
 
