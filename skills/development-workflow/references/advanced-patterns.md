@@ -149,6 +149,17 @@ ignored:
   - "**/__pycache__/**"
 ```
 
+### App Logo
+
+The manifest `logo:` field is a relative path to a small square PNG, ~160x160, matching the `foundry-sample-*` apps (e.g. `logo: images/logo.png`). Two things about it are easy to get wrong:
+
+- **It is only picked up on the app's first deploy.** The App Catalog icon is set from `logo:` when the app is first created on a cloud. Adding or changing the logo in a later patch deploy does not update the catalog icon; it keeps the generated text avatar (the app's initials). To change an existing app's icon you effectively need a fresh app (delete and redeploy), so get the logo right before the first deploy.
+- **A logo-only change will not deploy.** `foundry apps deploy` versions artifacts (functions, collections, UI pages, agents). If the diff from the last version contains only the logo image and/or manifest metadata with no artifact change, deploy fails with `no deployable artifacts found`. There is no `--force`. Bundle the logo with an artifact change, or include it in the first deploy.
+
+If a UI page displays the same logo, inline the SVG in the page markup rather than referencing the PNG by path. The page runs in a sandboxed iframe without `allow-same-origin` and cannot load an image file from outside its own `src/` directory.
+
+**Deleting an app:** `foundry apps delete --force-delete --no-prompt` removes the app from the cloud but keeps the local files. The `--local-files` flag *also* deletes the local manifest and app directory, so omit it unless you intend to erase the local project too.
+
 ## Session Handoff
 
 When transferring Foundry development between sessions, preserve:

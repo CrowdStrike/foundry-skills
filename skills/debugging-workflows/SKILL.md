@@ -29,6 +29,7 @@ CLI command hangs
 Deploy fails
 ├── Validation error → Check manifest YAML syntax, then deploy again
 ├── "Unknown error"  → Duplicate workflow name across apps in tenant
+├── "no deployable artifacts found" → Diff is only manifest/logo/metadata; deploy needs an artifact change (function/collection/UI/agent). No --force; bundle it or put the logo in the first deploy
 ├── "Failed" with no reason in the CLI → Falcon console: App manager > app > "Show errors (N)" (per capability)
 ├── validate says "deployment is currently in progress" → A deploy is still running; poll list-deployments, then retry
 └── Silent failure   → Tenant may be missing required module (SKU) for requested scopes
