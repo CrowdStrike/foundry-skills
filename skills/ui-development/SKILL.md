@@ -2,7 +2,7 @@
 name: ui-development
 description: Build UI pages and extensions for Falcon Foundry apps using React or Vue with the Shoelace design system and Foundry-JS. TRIGGER when user asks to "create a UI page", "build a UI extension", "add a Shoelace component", "call an API from the UI", runs `foundry ui pages create` or `foundry ui run`, or needs help with Vite config, Foundry-JS, or Falcon console theming. DO NOT TRIGGER for backend functions, workflow YAML, or collection schemas.
 version: 1.5.0
-updated: 2026-08-24
+updated: 2026-09-22
 tags: [foundry, ui, react, vue, shoelace]
 author: CrowdStrike
 license: MIT
@@ -145,6 +145,15 @@ await falcon.connect();
 // Apply Falcon console theme
 const theme = await falcon.theme();
 document.documentElement.classList.add(`sl-theme-${theme}`);
+```
+
+`connect()` also puts `theme-light` or `theme-dark` on `<html>` and swaps it whenever the console sends a new `data` message (which includes theme changes). To follow the console theme live, either listen for `falcon.events.on('data', ...)` or watch the class attribute:
+
+```javascript
+const consoleTheme = () =>
+  document.documentElement.classList.contains('theme-light') ? 'light' : 'dark';
+new MutationObserver(() => applyTheme(consoleTheme()))
+  .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 ```
 
 > **⚠️ `connect()` is async.** In React, `falcon.connect()` must be called inside a `useEffect` and navigation must only be accessed AFTER connect resolves. Use React state (`isInitialized`) as the `useMemo` dependency — not `falcon.isConnected` (which is a plain object property, not reactive state):
@@ -297,6 +306,26 @@ Toggle via the **Developer tools** (`</>`) icon in the Falcon console toolbar:
 
 Only one mode at a time. Disable one before enabling the other.
 
+## Sandboxed Iframe: No Web Storage
+
+Pages and extensions run in an iframe sandboxed **without** `allow-same-origin`. That makes the document's origin opaque, so `localStorage` and `sessionStorage` are not merely empty — any access throws:
+
+```
+SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+```
+
+Keep UI state in memory (React/Vue state, a module-level object) for the life of the page, and use a foundry-js collection for anything that must persist across loads or users. If you are porting code that already uses Web Storage, wrap each call in `try/catch` and fall back to an in-memory map rather than letting the first read take the page down:
+
+```javascript
+const storage = {
+  mem: {},
+  get(k) { try { return localStorage.getItem(k); } catch { return this.mem[k] ?? null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { this.mem[k] = v; } },
+};
+```
+
+The same opaque-origin restriction applies to `document.cookie` and `indexedDB`.
+
 ## Iframe Communication
 
 Extensions must validate message origins:
@@ -343,6 +372,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 - **Shoelace dialogs/drawers white in dark mode.** Override `--sl-panel-background-color` and `--sl-color-neutral-0` with `var(--ground-floor)`. See [references/shoelace-reference.md](references/shoelace-reference.md).
 - **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
 - **Quoting numeric query parameters.** `execute()` accepts `Record<string, unknown>`, so `limit: '25'` passes type-checking and fails server-side with `got string want integer`. Match the `schema.type` declared in the OpenAPI spec — the extension still renders, so this reads as an API error rather than a code bug.
+- **Reading `localStorage` or `sessionStorage`.** The sandbox lacks `allow-same-origin`, so any access throws a `SecurityError` (see [Sandboxed Iframe: No Web Storage](#sandboxed-iframe-no-web-storage)). Use in-memory state or a collection; wrap legacy calls in `try/catch`.
 - **Missing CSP for Shoelace icons.** The Foundry CSP only allows `assets.foundry.crowdstrike.com`. If using `setBasePath()` with `cdn.jsdelivr.net`, you must add it to `connect-src` and `img-src` in the manifest's `content_security_policy`. Alternatively, copy icon assets to your `dist/` folder and set a relative base path to avoid CDN dependencies entirely.
 
 ## Reading Guide

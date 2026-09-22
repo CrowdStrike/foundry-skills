@@ -216,6 +216,33 @@ func main() {
 }
 ```
 
+## Request Schema Validation Happens Before the Proxy Call
+
+The platform validates the `request` object against the OpenAPI spec's parameter schemas before it forwards anything to the vendor. Values must be scalars typed exactly as the spec declares them — an `integer` parameter takes `1`, not `"1"` and not `["1"]`. A mismatch never reaches the vendor; it comes back as:
+
+```
+400 request failed schema validation: /properties/params/properties/query/properties/limit ...
+```
+
+This trips up two habits. The foundry-js `Params` type suggests `query?: Record<string, string[]>`, and the FDK's own `request.params.query` is `Dict[str, List[str]]` — both list-valued shapes fail for anything other than `type: string` array parameters. Unwrap and convert before forwarding:
+
+```python
+# Python — forward a query param from the handler's request to an integration
+limit = int(request.params.query.get("limit", ["25"])[0])
+response = api.execute_command_proxy(body={"resources": [{
+    "definition_id": "VendorApi",
+    "operation_id": "listItems",
+    "request": {"params": {"query": {"limit": limit}}},   # scalar, typed per the spec
+}]})
+```
+
+```javascript
+// foundry-js — same rule
+await apiIntegration.execute({ request: { params: { query: { limit: 25 } } } });  // number, not '25' or ['25']
+```
+
+Path parameters go under `params.path`, query parameters under `params.query`, and headers under `headers`; a request body goes in `json`. Check each parameter's `schema.type` in the spec before building the request.
+
 ## Extracting Fields from API Responses
 
 Before writing code that reads fields from an API response, verify the field's location in the OpenAPI spec's response schema. Fields are often nested under objects (e.g., `meta.severity` not `severity`). Similarly, query parameter names may differ from response field names (e.g., filtering by `meta.severity` even though the CSV column is just `severity`).
@@ -236,4 +263,5 @@ Before writing code that reads fields from an API response, verify the field's l
 | **operation_id** | Must match the `operationId` in the OpenAPI spec |
 | **Authentication** | Automatic when called from within FDK handlers |
 | **Response structure** | Returns `resources` array with `status_code` and `response_body` |
+| **Request validation** | Validated against the spec's parameter schemas before proxying — scalars typed per the spec, not string arrays |
 | **Local development** | Use the UUID `definition_id` from `manifest.yml`, not the human-readable name (avoids 404 errors) |

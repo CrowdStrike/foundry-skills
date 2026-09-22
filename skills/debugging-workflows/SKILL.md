@@ -2,7 +2,7 @@
 name: debugging-workflows
 description: Systematic troubleshooting for Falcon Foundry CLI errors, manifest validation failures, deploy failures, artifact runtime errors, and development server issues. TRIGGER when user encounters CLI errors, `foundry ui run` not working, deploy failures, authentication issues, function execution failures, "debug my function", "why did this fail", or any unexpected behavior during Foundry app development. Also trigger for headless/CI environment setup failures.
 version: 1.5.0
-updated: 2026-08-24
+updated: 2026-09-22
 tags: [foundry, debugging, cli, deployment, artifacts, functions, logs, execution]
 author: CrowdStrike
 license: MIT
@@ -29,6 +29,8 @@ CLI command hangs
 Deploy fails
 ├── Validation error → Check manifest YAML syntax, then deploy again
 ├── "Unknown error"  → Duplicate workflow name across apps in tenant
+├── "Failed" with no reason in the CLI → Falcon console: App manager > app > "Show errors (N)" (per capability)
+├── validate says "deployment is currently in progress" → A deploy is still running; poll list-deployments, then retry
 └── Silent failure   → Tenant may be missing required module (SKU) for requested scopes
 
 foundry ui run fails
@@ -39,6 +41,8 @@ foundry ui run fails
 Function execution fails
 ├── Status 500 + "Server Error"  → Check function logs: foundry functions logs <exec_id>
 ├── Status 202 + no result       → Async execution: foundry functions exec status <exec_id>
+├── 403 "app is not installed"   → Deployed but not released + installed from App Catalog; FalconPy calls need an installed app
+├── 401 on every FalconPy call, scopes correct → Client constructed at module scope; move it inside the handler
 ├── "authorization failed"       → Missing custom-apps:write scope on API client
 ├── "artifact is not deployed"   → Deploy first: foundry apps deploy --no-prompt
 ├── No logs available            → Wait ~5 min, then: foundry functions logs <exec_id> --refresh
@@ -132,6 +136,8 @@ Read the handler source and compare against log timestamps and error messages.
 | `ImportError: No module named X` | Missing from `requirements.txt` | Add dependency, redeploy |
 | `KeyError: 'field'` | Missing field in request body | Add input validation |
 | `401 Unauthorized` from FalconPy | Missing OAuth scope in manifest | Add scope, redeploy |
+| `401 Unauthorized` on every call, scopes correct | FalconPy client constructed at module scope (no request token at import) | Construct the client inside the handler |
+| `403` with `app is not installed` | App deployed but not released and installed | `foundry apps release`, then install from the App Catalog |
 | `Timeout` / no logs appear | Function exceeded `max_exec_duration_seconds` | Increase timeout or optimize |
 | Status 202, no result | Async execution | Poll: `foundry functions exec status <exec_id>` |
 | Logs say "available" but empty | Logs not yet in pipeline | Wait 5 min or use `--refresh` |
@@ -266,6 +272,8 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | `foundry ui run` fails on new app | Backend not deployed | Run `foundry apps deploy` first |
 | API calls return 403 | Insufficient OAuth scopes | Review manifest oauth section |
 | Deploy fails silently | Tenant missing required module (SKU) | Verify tenant has Falcon module for scopes |
+| Deployment `Failed`, CLI gives no reason | Reasons are console-only | App manager > app > "Show errors (N)" |
+| `deployment is currently in progress` from `validate` | A deploy is still running | Poll `foundry apps list-deployments` until it settles, then retry |
 | Local server won't start | Port conflicts | Use `--port` flag or kill existing processes |
 | Auth works locally, fails in CI | No config file in CI | Set `FOUNDRY_API_CLIENT_ID` env vars |
 | `connection issue` in a sandboxed agent | Denied write to the CLI's token cache | Grant write to `~/.config/foundry/`; the token refresh is expected |

@@ -2,7 +2,7 @@
 name: ai-agents-development
 description: Build AI agents and knowledge bases for Falcon Foundry apps. TRIGGER when user asks to "create an AI agent", "add a Foundry agent", "build a knowledge base", "give my agent documents", "expose a collection as an agent tool", "expose an API operation to an agent", "put my agent in Charlotte", "expose an agent as a tool for other agents", "delete an agent or knowledge base", runs `foundry agents create`, `foundry agents delete`, `foundry knowledge-bases create`, or `foundry knowledge-bases delete`, or needs help with the `ai.agents` / `ai.knowledge_bases` manifest blocks, agent system prompts, agent input/output formats, agent exposure, or agent tool references. DO NOT TRIGGER for Fusion SOAR workflow YAML — use workflows-development. DO NOT TRIGGER for serverless function handlers — use functions-development. DO NOT TRIGGER for designing a collection schema itself — use collections-development, then return here to wire the collection up as an agent tool.
 version: 1.5.0
-updated: 2026-09-11
+updated: 2026-09-22
 tags: [foundry, ai, agents, knowledge-bases, charlotte, agent-tools]
 author: CrowdStrike
 license: MIT
@@ -72,13 +72,13 @@ foundry knowledge-bases create \
   --no-prompt
 
 # 2. Agent SECOND, referencing the KB by NAME (not id, not path).
+#    Use --output-format json, not json_with_schema (fails at deploy — see below).
 foundry agents create \
   --name "Detection Triage Agent" \
   --description "Triages detections against the runbooks" \
   --system-prompt ./prompts/triage.md \
   --knowledge-bases "Threat Intel Docs" \
-  --output-format json_with_schema \
-  --output-schema /tmp/triage-output.json \
+  --output-format json \
   --expose-charlotte-chat \
   --no-prompt
 ```
@@ -104,6 +104,8 @@ cannot delete knowledge base "Threat Intel Docs": still referenced by agent(s): 
 
 Delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty `agents/` and `knowledge-bases/` parent directories behind; that is harmless. The manifest is saved *before* the directory is removed, so a failed removal reports an orphaned directory by path rather than losing the manifest edit.
 
+`delete` is local-only. The next deploy does **not** reconcile the platform side: the previously deployed agent stays registered under Charlotte AI > AgentWorks as an unpublished orphan, and if you recreate an agent under the same name the console shows two entries — the new one (Published) and the old one (Unpublished). Remove the orphan by hand in Charlotte AI > AgentWorks (or through the agent definition API). An app that lists or matches agents at runtime should filter by name prefix or by the IDs currently in `manifest.yml`, not assume one agent per name.
+
 ### The `--system-prompt` value is a path *or* literal text
 
 The CLI tries to read the value as a file path or URL first, and silently falls back to treating it as inline prompt text when that fails. Either way the content is written to `agents/<path>/system_prompt.txt`, always under that exact filename.
@@ -117,13 +119,15 @@ Schema files behave differently — they keep their original basename, so `--out
 | Flag | Allowed values | Default | Paired requirement |
 |------|---------------|---------|--------------------|
 | `--input-format` | `text`, `json` | `text` | `json` requires `--input-schema` |
-| `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html` | `text` | `json_with_schema` requires `--output-schema` |
+| `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html` | `text` | `json_with_schema` requires `--output-schema` — **and currently fails at deploy; use `json`** (see below) |
 
 Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_schema` does. Omitting the paired schema is caught late, when the manifest is saved:
 
 ```
 agent "my_agent" input_schema is required when input_format is json
 ```
+
+> **`json_with_schema` does not deploy from the CLI (observed with CLI 2.1.1, 2026-09-22).** An agent created with `--output-format json_with_schema --output-schema file.json` passes `foundry apps validate` and then fails every deploy with `output schema is required when using JSON format`, even when the schema file is valid and sitting in the agent directory — the file is uploaded but never bound. The same agent recreated with `--output-format json` deploys. Until this is fixed: use `json`, spell the expected shape out in the system prompt (field names, types, one example object), and validate the response in whatever consumes it (a function, a workflow condition, or the UI).
 
 ## Manifest Structure
 
@@ -142,7 +146,7 @@ ai:
             - api_integrations.VirusTotal.Get_a_file_report
           system_prompt: system_prompt.txt
           input_format: text
-          output_format: json_with_schema
+          output_format: json_with_schema         # valid shape, but deploys only as json today — see above
           output_schema: triage-output.json
           knowledge_bases:
             - Threat Intel Docs                  # by NAME
@@ -261,6 +265,13 @@ API integrations opt in per operation inside the OpenAPI spec, alongside the wor
 
 No other artifact type supports agent-tool exposure. Functions, workflows, and RTR scripts have no equivalent flag; to let an agent reach a function, expose the function to workflows and have the agent trigger the workflow.
 
+## Invoking an Agent from Code
+
+Charlotte chat and Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has two things the API reference does not spell out:
+
+- **`credit_cents_limit` has a floor of `100`.** The field is documented as optional without a minimum; values below `100` are rejected with a `400`. Budget in whole credits.
+- **Foundry app tokens are currently rejected by `/agentic-studio/*`.** As of 2026-09-22 those endpoints return `500` for app-issued tokens even with the `charlotte-ai-agent-definition` scopes granted. See the `functions-falcon-api` skill for the API-integration workaround.
+
 ## Common Pitfalls
 
 | Symptom | Cause | Fix |
@@ -279,6 +290,9 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 | KB file missing after deploy | `.svg` files are always ignored by the packager | Convert to PNG, or reference it another way |
 | `must be a filename only, not a path` | Subdirectory in a KB `files` entry | Flatten — KB directories cannot nest |
 | Agent cannot call an exposed collection | Exposed but not listed in `tools` | Both sides are required |
+| `output schema is required when using JSON format` at deploy | `json_with_schema` uploads the schema file but never binds it (CLI 2.1.1) | Recreate with `--output-format json`; describe the shape in the system prompt and validate in the consumer |
+| Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by name prefix or manifest IDs, not by name alone |
+| `400` when invoking an agent with `credit_cents_limit` | Value below the undocumented floor | Pass `100` or more |
 
 ## Reading Guide
 
@@ -286,6 +300,9 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 |------|-----------|
 | KB file sourcing, encryption, deploy packaging limits | [references/knowledge-bases.md](references/knowledge-bases.md) |
 | Full field-by-field schema, every validation error string | [references/manifest-schema.md](references/manifest-schema.md) |
+| Product docs: Falcon Foundry AI capabilities overview | [AI Capabilities](https://docs.crowdstrike.com/r/en-US/er9g8gmh/j2c92c94) |
+| Product docs: agents via the CLI | [AI agents (Foundry CLI)](https://docs.crowdstrike.com/r/en-US/er9g8gmh/ce325bab) |
+| Product docs: knowledge bases via the CLI | [Knowledge bases (Foundry CLI)](https://docs.crowdstrike.com/r/en-US/er9g8gmh/d82146c3) |
 
 ## Related Skills
 

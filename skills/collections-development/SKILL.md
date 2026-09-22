@@ -2,7 +2,7 @@
 name: collections-development
 description: Design JSON Schema collections and CRUD patterns for Falcon Foundry apps. TRIGGER when user asks to "create a collection", "define a JSON schema", "store data in Foundry", runs `foundry collections create`, or needs help with indexable fields, FQL queries, or collection access patterns. DO NOT TRIGGER for workflow YAML, function handlers, or UI components — use the appropriate sub-skill.
 version: 1.5.0
-updated: 2026-08-24
+updated: 2026-09-22
 tags: [foundry, collections, json-schema, nosql]
 author: CrowdStrike
 license: MIT
@@ -40,6 +40,8 @@ Falcon Foundry Collections are NoSQL document stores with JSON Schema validation
 | Start | Must begin with an alphanumeric character |
 | Allowed characters | Letters, numbers, spaces, dashes, periods, parentheses, and underscores only |
 | Not allowed | Commas, colons, semicolons, quotes, slashes, or other special characters |
+
+**Check the description against this table before running `collections create`.** The CLI accepts a comma (or any other disallowed character) in `--description` without complaint; the rejection only surfaces later, from `foundry apps validate` or deploy, by which time the collection is already in the manifest and has to be fixed by hand. Write the description with letters, numbers, spaces, dashes, periods, parentheses, and underscores only.
 
 ## Collection Limits
 
@@ -290,6 +292,8 @@ def _app_headers() -> dict:
         return {"X-CS-APP-ID": app_id}
     return {}
 
+# Construct inside the handler in a real function — a module-scope client has no request
+# token in Foundry and returns 401 on every call (see functions-development).
 client = CustomStorage(ext_headers=_app_headers())
 
 # Create or update (PutObject = upsert). Pass body as a dict.
@@ -365,6 +369,7 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 - **Using JSON Schema newer than draft 7.** Foundry only supports draft 7.
 - **Missing indexes.** Fields used in queries must be marked with `x-cs-indexable: true` or listed in `x-cs-indexable-fields`. Max 10 per collection.
 - **Invalid collection names.** Names must be 5-200 chars, start/end with letter or number, and contain only letters, numbers, and underscores.
+- **Commas or other punctuation in `--description`.** `collections create` accepts them; `foundry apps validate` and deploy reject them. Stick to letters, numbers, spaces, dashes, periods, parentheses, and underscores.
 - **Not configuring workflow share settings.** Set `workflow_integration.system_action: true` for app-only workflow access, or `false` to also expose collections as Falcon Fusion SOAR actions.
 - **Trying to delete collections via CLI.** Collections can only be deleted from the Falcon Foundry UI.
 - **Trying to manage objects via CLI.** Collection CRUD requires the CrowdStrike API or `foundry-js` SDK.

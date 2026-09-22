@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **FDK `Request` field reference** in `functions-development` — `body`, `params.query`, `params.header` (both `Dict[str, List[str]]`), `context`, `method`, `url`, `access_token`, `trace_id`, `fn_id`, `fn_version`, `files`. There is no `request.query`, and `request.params` is a dataclass without `.get()`; both mistakes only surface at runtime in the deployed function. The `functions-falcon-api` examples that used `request.params.get(...)` are corrected.
+- **Adding a handler to an existing function** — no CLI command does it. `functions-development` now documents editing that function's `handlers:` list (`name`, `method`, `api_path`) as an explicit carve-out to the no-manifest-edits rule, scoped the same way as the `ai.agents[].model` / `.tools` exception.
+- **`--max-exec-duration-seconds` and `--max-exec-memory-mb`** in the `functions create` scaffolding example, so timeouts and memory are set at create time instead of by hand-editing the manifest.
+- **Charlotte AI AgentWorks (`/agentic-studio/*`) from functions** — as of 2026-09-22 these endpoints return `500` for Foundry app tokens even with `charlotte-ai-agent-definition:read/write` granted. `functions-falcon-api` documents the API-integration workaround (`oauth2 clientCredentials` against `/oauth2/token`, credentials supplied by the installer) and adds the scopes to the reference table; `api-integrations` blesses a minimal hand-written spec for Falcon API families FalconPy does not wrap, since the Falcon swagger is not downloadable without console auth.
+- **Invoking an agent from code** in `ai-agents-development` — `credit_cents_limit` has an undocumented floor of `100` (a `400` below that). Links to the now-public product docs for AI capabilities, agents, and knowledge bases.
+- **No Web Storage in UI pages and extensions** — the iframe is sandboxed without `allow-same-origin`, so `localStorage` / `sessionStorage` throw. `ui-development` covers in-memory state, collections, and a `try/catch` wrapper for legacy code, plus following the console theme via the `theme-light` / `theme-dark` class foundry-js sets on `<html>`.
+- **Deploy diagnostics** — a `Failed` deployment's reason is only in the console (App manager > app > "Show errors (N)"), `foundry apps validate` fails with `deployment is currently in progress` while a deploy runs, and a FalconPy call from a deployed-but-not-installed app returns `403 app is not installed`. Added to `development-workflow` Step 7 and `debugging-workflows`.
+
+### Changed
+
+- **`json_with_schema` is no longer the recommended agent output format.** With CLI 2.1.1 an agent created with `--output-format json_with_schema --output-schema file.json` fails every deploy with `output schema is required when using JSON format`, even with a valid schema file. `ai-agents-development` now scaffolds with `--output-format json`, describes the shape in the system prompt, and validates in the consumer.
+- **FalconPy clients must be constructed inside the handler.** Context auth only has a request token while a request is being handled, so a module-scope `Alerts()` / `APIHarnessV2()` / `CustomStorage()` returns `401` on every call. Stated explicitly in `functions-development`, `functions-falcon-api`, and the collections Python example, and added to the debugging tables.
+- **`foundry agents delete` is local-only.** Redeploying does not remove the platform-side agent; it stays under Charlotte AI > AgentWorks as an unpublished orphan and a recreated agent shows up twice. `ai-agents-development` says to delete the orphan in the console and to match agents by name prefix or manifest IDs.
+- **`foundry apps create` always makes a subdirectory** named after the app, spaces included. `development-workflow` explains moving `manifest.yml` to the repo root when converting an existing repository.
+- **Patch releases update an installed app in place**; a reinstall is only needed to reach an API integration's credential form again.
+
+### Fixed
+
+- **`api-integrations create --description` is capped at 50 characters** (`input must be at most 50 characters long`); the skill insisted on the flag without stating the limit.
+- **API integration requests are schema-validated before proxying.** Query values must be scalars typed per the spec (`{"params": {"query": {"limit": 1}}}`), not the string arrays the foundry-js `Params` type and the FDK's `params.query` suggest; otherwise `400 request failed schema validation`. Documented in `api-integrations` and its calling-patterns reference.
+- **Collection descriptions with commas pass `collections create` and fail `apps validate`.** `collections-development` now says to check the allowed character set before creating.
+- **`foundry functions exec` behaviors** — `undeployed local changes detected` fires on any file under the function directory, not just the handler; platform API calls from the handler return `403 app is not installed` until the app is released and installed; and `exec` has been observed to hang for many minutes after the function returned a non-2xx payload status — wrap it in `timeout` and fall back to `exec status <id>`.
+- **Function manifest example used `path:` for handler routes**; the field is `api_path`.
+
 ## [1.7.0] - TBD
 
 ### Added
