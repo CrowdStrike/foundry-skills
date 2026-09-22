@@ -115,9 +115,3 @@ def enrich_host_context(request: Request, config, logger) -> Response:
 
     return Response(body={"host": host, "detections": detections, "alerts": alerts}, code=200)
 ```
-
-## Charlotte AI AgentWorks (`/agentic-studio/*`): App Tokens Currently Rejected
-
-> **Until a platform fix dated 2026-09-22, the agent definition endpoints under `/agentic-studio/` returned `HTTP 500 Internal Server Error` for Foundry app tokens** even with `charlotte-ai-agent-definition:read` and `:write` granted, while every other API family worked with the same token. The fix is rolling out by cloud (verified on EU-1 the same day: list, spans, and invocations all succeed with the app token). If a cloud still returns `500` on every agentic-studio call with correct scopes and context auth, it has not received the fix — it is not a scope or base-URL problem.
-
-Workaround that works today: register the AgentWorks API as an **API integration** whose spec declares `oauth2` with the `clientCredentials` flow against the Falcon `/oauth2/token` endpoint, and call it from the function through `APIIntegrations().execute_command()`. The installer supplies a Falcon API client (with the Charlotte AI agent definition scope) on the app's install form, and the platform manages that token — nothing personal, nothing in env vars. The Falcon swagger is not downloadable without console auth, so a minimal hand-written spec covering only the operations you need is acceptable in this case; see the `api-integrations` decision tree. If app tokens are accepted later, drop the integration and the handler goes back to zero-arg FalconPy.

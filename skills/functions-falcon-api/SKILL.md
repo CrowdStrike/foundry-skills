@@ -310,7 +310,7 @@ auth:
 
 ## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
-No FalconPy service class wraps these; use `APIHarnessV2().command("Manual", override="GET,/agentic-studio/...")` with the `charlotte-ai-agent-definition` scopes. App tokens got `500` here until a 2026-09-22 platform fix (rolling out by cloud); if you still see it, [references/advanced-patterns.md](references/advanced-patterns.md#charlotte-ai-agentworks-agentic-studio-app-tokens-currently-rejected) has a fallback.
+No FalconPy service class wraps these; use `APIHarnessV2().command("Manual", override="GET,/agentic-studio/...")` with the `charlotte-ai-agent-definition` scopes (`read` for queries and entities, `write` for invocations). The agent invocation API rejects `credit_cents_limit` below 100.
 
 ## The 207 Multi-Status Gotcha
 
@@ -428,7 +428,6 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 - **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.
 - **Writing Falcon API calls outside of FDK handler functions.** The handler pattern is required for automatic auth injection.
 - **Module-scope client, or `request.params.get()` / `request.query`.** `401` on every call, or an attribute error.
-- **Treating `500` from `/agentic-studio/*` as a scope problem.** See the AgentWorks section.
 - **Not handling 207 Multi-Status.** These responses look successful but may contain embedded errors.
 
 ## Use Cases

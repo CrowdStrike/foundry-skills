@@ -41,7 +41,7 @@ External API (Okta, VirusTotal, ServiceNow, etc.)
 CrowdStrike Falcon API
 ├── From functions → use functions-falcon-api instead
 ├── From workflows → use CrowdStrike auto-auth (no spec needed)
-└── API family FalconPy does not wrap, or one that rejects app tokens
+└── API family FalconPy does not wrap
     → API integration with oauth2 clientCredentials against /oauth2/token.
       The Falcon swagger at assets.falcon.*.crowdstrike.com returns AccessDenied
       without console auth, so a minimal spec written from the product docs
