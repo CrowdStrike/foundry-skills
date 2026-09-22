@@ -370,6 +370,7 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 - **Missing indexes.** Fields used in queries must be marked with `x-cs-indexable: true` or listed in `x-cs-indexable-fields`. Max 10 per collection.
 - **Invalid collection names.** Names must be 5-200 chars, start/end with letter or number, and contain only letters, numbers, and underscores.
 - **Commas or other punctuation in `--description`.** `collections create` accepts them; `foundry apps validate` and deploy reject them. Stick to letters, numbers, spaces, dashes, periods, parentheses, and underscores.
+- **Editing a schema file and redeploying does not change an existing collection.** Writes keep validating against the schema the collection was created with (observed: a new top-level field rejected as `additional properties not allowed` after the schema that declared it was deployed). Ship `"additionalProperties": true` at the top level if fields may be added later, and treat any breaking schema change as a new collection name.
 - **Not configuring workflow share settings.** Set `workflow_integration.system_action: true` for app-only workflow access, or `false` to also expose collections as Falcon Fusion SOAR actions.
 - **Trying to delete collections via CLI.** Collections can only be deleted from the Falcon Foundry UI.
 - **Trying to manage objects via CLI.** Collection CRUD requires the CrowdStrike API or `foundry-js` SDK.

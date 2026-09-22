@@ -270,7 +270,7 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 Charlotte chat and Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has two things the API reference does not spell out:
 
 - **`credit_cents_limit` has a floor of `100`.** The field is documented as optional without a minimum; values below `100` are rejected with a `400`. Budget in whole credits.
-- **Foundry app tokens are currently rejected by `/agentic-studio/*`.** As of 2026-09-22 those endpoints return `500` for app-issued tokens even with the `charlotte-ai-agent-definition` scopes granted. See the `functions-falcon-api` skill for the API-integration workaround.
+- **A `500` on every `/agentic-studio/*` call with correct scopes** means the cloud has not yet received the 2026-09-22 platform fix for app tokens. See the `functions-falcon-api` skill.
 
 ## Common Pitfalls
 
@@ -292,6 +292,7 @@ Charlotte chat and Fusion workflows invoke an agent for you. Calling the agent d
 | Agent cannot call an exposed collection | Exposed but not listed in `tools` | Both sides are required |
 | `output schema is required when using JSON format` at deploy | `json_with_schema` uploads the schema file but never binds it (CLI 2.1.1) | Recreate with `--output-format json`; describe the shape in the system prompt and validate in the consumer |
 | Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by name prefix or manifest IDs, not by name alone |
+| Deploy fails with `model <id> is not available`, and still fails after setting `model: ""` | Model IDs are CID-specific, and a failed deploy leaves the pinned model on the platform-side agent | Pick an ID from `/agentic-studio/queries/models/v1` in that CID, or remove the agent and create it again |
 | `400` when invoking an agent with `credit_cents_limit` | Value below the undocumented floor | Pass `100` or more |
 
 ## Reading Guide

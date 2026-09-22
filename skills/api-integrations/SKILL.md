@@ -42,7 +42,6 @@ CrowdStrike Falcon API
 ├── From functions → use functions-falcon-api instead
 ├── From workflows → use CrowdStrike auto-auth (no spec needed)
 └── API family FalconPy does not wrap, or one that rejects app tokens
-    (e.g. /agentic-studio/* as of 2026-09-22)
     → API integration with oauth2 clientCredentials against /oauth2/token.
       The Falcon swagger at assets.falcon.*.crowdstrike.com returns AccessDenied
       without console auth, so a minimal spec written from the product docs
