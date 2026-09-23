@@ -70,9 +70,7 @@ This skill is split across multiple files. Consult these for full examples:
 
 ## Runtime Environment
 
-**Python runtime version: 3.13** (manylinux_2_28, glibc 2.28). When choosing package versions for `requirements.txt`, ensure they have wheels compatible with this environment. Packages requiring `manylinux_2_17` (glibc 2.17) or `manylinux_2_28` (glibc 2.28) are compatible; those requiring newer glibc versions (e.g., `manylinux_2_39`) may fail at import time.
-
-When linting Python functions with pylint, use `--py-version=3.13` or set `py-version=3.13` in `.pylintrc` to match the runtime.
+**Python: develop on 3.14.** The docs state only a minimum (3.9+) and the platform moves faster than them, so use the latest release. The runtime is manylinux_2_28 (glibc 2.28): pick `requirements.txt` versions with `manylinux_2_17` or `manylinux_2_28` wheels; wheels needing newer glibc (e.g., `manylinux_2_39`) may fail at import time. Run tests in a venv built like CI's, not the global interpreter — see [testing-patterns](references/testing-patterns.md).
 
 ## CLI Scaffolding
 

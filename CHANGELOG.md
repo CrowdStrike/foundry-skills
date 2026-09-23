@@ -25,7 +25,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Converting an existing repository** — `development-workflow` explains moving `manifest.yml` to the repo root, since `foundry apps create` always creates a subdirectory named after the app.
 - **App logos** — `development-workflow` documents the manifest `logo:` field, including that the App Catalog icon is only set on an app's first deploy.
 - **Deploy troubleshooting** — `development-workflow` and `debugging-workflows` point to App manager's "Show errors" for the reason a deployment failed, and explain `deployment is currently in progress`, `no deployable artifacts found`, `403 app is not installed`, and the harmless faas-gateway `404`s a UI page logs while waiting on a function. They also note that patch releases update an installed app in place, so reinstalling is only needed to reach an API integration's credential form again.
-- **Web Storage and theming in UI pages** — `ui-development` explains that `localStorage` and `sessionStorage` throw in the sandboxed iframe and what to use instead, and that pages follow the console's light or dark theme with no extra code.
+- **Sandbox restrictions and theming in UI pages** — `ui-development` explains that `localStorage` and `sessionStorage` throw in the sandboxed iframe, that `alert()`, `confirm()`, and leave-page prompts are silently ignored, and what to use instead. It also notes that pages follow the console's light or dark theme with no extra code.
+- **Bulk work from a UI page** — `ui-development` shows how to make a page that processes many items save progress, resume on re-run, and report failures, and when to move the loop into a workflow instead.
+- **`Models` and an AgentWorks route map** — `functions-falcon-api` adds FalconPy's `Models` class and maps each AgentWorks route to its FalconPy method.
+- **Listing collection keys** — `collections-development` shows how to page through `ListObjects` by starting key, and why listing keys before reading them is faster than reading every candidate.
+- **What the deploy packages** — `development-workflow` lists what `foundry apps deploy` leaves out on its own (hidden paths, SVGs) and which `ignored:` entries a Python function needs.
+- **When function logs never arrive** — `debugging-workflows` adds a fallback for when `foundry functions logs` keeps failing.
 
 ### Changed
 
@@ -40,10 +45,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **FalconPy clients are created inside the handler** — the function examples now do this, and the skills explain why: a client created at module scope gets a `401` on every call.
 - **Collection pitfalls** — `collections-development` notes that descriptions containing commas fail `apps validate`, and that redeploying a changed schema doesn't update an existing collection, so schemas should allow for fields added later.
 - **API integration pitfalls** — `api-integrations` states the 50-character limit on `--description`, and that query parameter values must match the types in the spec.
-- **`foundry functions exec` pitfalls** — `functions-development` explains which local changes count as undeployed, and what to do if `exec` hangs.
+- **`foundry functions exec` pitfalls** — `functions-development` explains which local changes count as undeployed (including paths excluded by `ignored:`), and what to do if `exec` hangs.
+- **Python version and local tests** — `functions-development` now recommends developing on Python 3.14 and running function tests in a virtual environment that matches CI.
+- **Polling a deploy** — `development-workflow` notes that release numbers differ from deployment versions, so poll by the version `deploy` printed.
 
 ### Fixed
 
+- **`ignored:` entries are regular expressions.** The `development-workflow` example used globs such as `**/*.test.ts`, which fail `foundry apps validate`; it now uses anchored regexes.
 - **`--system-prompt` silently accepts a bad path.** The CLI tries the value as a file path or URL and falls back to treating it as inline prompt text, so a typo becomes the agent's entire instruction set with no error. The skill tells you to read back `agents/<path>/system_prompt.txt` after every create, and the CLI guard repeats it.
 - **`.svg` files in a knowledge base are silently dropped at deploy.** The packager unconditionally ignores SVGs, so the file passes `foundry apps validate` and then is absent from the bundle — the agent behaves as if it were never added. Documented alongside the shared 25 MB package cap, which a large PDF corpus can exhaust on its own.
 - **Removed calls to `falcon.theme()`**, which doesn't exist in foundry-js.

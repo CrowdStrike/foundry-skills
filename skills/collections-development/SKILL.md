@@ -315,6 +315,17 @@ response = client.SearchObjects(collection_name="incidents",
 for item in response.get("body", {}).get("resources", []):
     obj = client.GetObject(collection_name="incidents", object_key=item["object_key"])
     data = json.loads(obj.decode("utf-8"))
+
+# List every key — ListObjects pages by starting key, not a cursor
+keys, start = [], None
+while True:
+    params = {"start": start} if start else {}
+    batch = client.ListObjects(collection_name="incidents", limit=100, **params)["body"].get("resources", [])
+    batch = [k for k in batch if k != start]  # drop the start key if it comes back
+    if not batch:
+        break
+    keys.extend(batch)
+    start = batch[-1]
 ```
 
 Key points:
@@ -323,6 +334,8 @@ Key points:
 - `GetObject` returns bytes directly — decode with `json.loads(response.decode("utf-8"))`
 - **A missing key is not a 404 in FalconPy 1.6.5 and earlier.** The API answers a 404 with an empty body, and FalconPy's error check then calls `.get()` on those bytes, so `GetObject` returns a synthetic `{"status_code": 500, "body": {"errors": [{"message": "'bytes' object has no attribute 'get'"}]}}`. Treat that message as "not found" (see `get_incident` in [python-patterns.md](../functions-development/references/python-patterns.md)) until the fix (falconpy#1509, returns the real 404) is released. Don't go the other way and treat *every* non-bytes reply as missing: a transient 429 or 5xx then reads as "no record", and code that writes the record back erases it.
 - `SearchObjects` returns metadata only, not full objects
+- `ListObjects` returns keys (alphabetical) in `body.resources` and takes `start`/`end` keys. Pass the last key as the next `start` and stop only on an empty batch — stopping when a page is shorter than `limit` ends early if the service caps page size
+- **List before you read.** Calling `GetObject` on every *candidate* key (most of them misses) is slow; list the keys once and read only the ones that exist. In one app, that cut a 519-item page load from about 25 s to about 7 s
 - FQL filters only work on fields marked `x-cs-indexable: true` in the collection schema
 
 ## FQL Search Syntax

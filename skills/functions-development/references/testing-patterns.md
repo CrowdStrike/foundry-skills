@@ -187,6 +187,18 @@ func (m *MockFalconClient) QueryAlerts(params interface{}) (interface{}, error) 
 }
 ```
 
+## Running Python Tests Like CI
+
+Run function tests in a virtual environment built from the same Python version and install commands as the project's CI, never the global interpreter. `crowdstrike-falconpy` is unpinned, so CI and the deployed function install the latest release, while a global interpreter may hold a much older one — a test run there can miss service classes that exist in production, or pass against behavior that has since changed.
+
+```bash
+uv venv --python 3.14 .venv   # match the version your CI uses
+uv pip install --python .venv/bin/python -r functions/my-function/requirements.txt pytest
+.venv/bin/python -m pytest functions/my-function/tests
+```
+
+A repo-root `.venv` is safe to leave in place: the deploy never packages hidden paths (any path component starting with `.`).
+
 ## Python Test with pytest and mock
 
 ```python

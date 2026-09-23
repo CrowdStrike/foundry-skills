@@ -70,6 +70,24 @@ if __name__ == '__main__':
     func.run()
 ```
 
+## AgentWorks: route-to-method map
+
+Every route below was verified from a deployed function (2026-09-23) against FalconPy 1.6.5, the current PyPI release:
+
+| Route | FalconPy 1.6.5 |
+|---|---|
+| `GET /agentic-studio/queries/spans/v1` | `Spans().queries_spans_v1(filter=, sort=, limit=, offset=)` |
+| `GET /agentic-studio/entities/spans/v1` | `Spans().entities_spans_v1(ids=)` |
+| `GET /agentic-studio/queries/agent-versions/v1` | `AgentVersions().query_agent_versions_v1(...)` |
+| `GET /agentic-studio/entities/agent-versions/v1` | `AgentVersions().get_agent_versions_v1(ids=)` |
+| `GET /agentic-studio/queries/models/v1` | `Models().queries_models_v1(...)` |
+| `GET /agentic-studio/entities/models/v1` | `Models().entities_models_v1(ids=)` |
+| `POST /agentic-studio/entities/agent-invocations/v1` | `AgentInvocation().invoke_published_agent_external_v1(body=)` |
+| `GET /agentic-studio/entities/agent-invocations/v3` | `AgentInvocation().get_agent_invocation_v3(id=)` (singular `id`) |
+| `GET /agentic-studio/queries/agents/v2`, `/entities/agents/v2` | No class; `APIHarnessV2().command("Manual", override="GET,<route>", parameters=...)` |
+
+An `Agents` service class for the agent-record routes is in development in FalconPy but not yet released. When a release ships it, check its method names and prefer it over the `override` call.
+
 ## AgentWorks spans: attributing executions to an agent
 
 Every `aw_agent` root span carries the agent's ID in the `aw_agent.id` attribute, and FQL filters on it. Verified against a live CID (2026-09-23) by looking up the `aw_agent.id` of a span and getting back the agent the span names:

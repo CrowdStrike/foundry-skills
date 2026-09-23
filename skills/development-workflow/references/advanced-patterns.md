@@ -160,17 +160,27 @@ git diff manifest.yml   # only id lines should change
 
 > **Mutually exclusive:** Only one mode can be active at a time. Disable development mode before enabling preview mode, and vice versa.
 
-### Package Size Optimization
+### What the Deploy Packages (`ignored:`)
 
-Use the `ignored` field in `manifest.yml` to exclude files from the deployment package:
+`foundry apps deploy` walks the app directory and packages every file except:
+
+- **Hidden paths.** Any path with a component starting with `.` is skipped, so `.venv`, `.pytest_cache`, `.env`, and `.git` never need `ignored:` entries.
+- **SVG files.** `*.svg` is always excluded (an XSS guard), which is why a page should inline an SVG rather than reference one by path.
+- **Anything matching an `ignored:` entry.**
+
+Each `ignored:` entry is a **Go regular expression**, not a glob, matched unanchored against the path relative to the app root. A glob like `**/*.test.ts` is an invalid regex and fails `foundry apps validate` with `ignored item "..." is not a valid regular expression`. Because matching is unanchored, `tests` also matches `contests.py`; anchor on path separators:
 
 ```yaml
 ignored:
-  - "**/*.test.ts"
-  - "**/*.spec.js"
-  - "**/node_modules/.cache/**"
-  - "**/__pycache__/**"
+  - (^|/)__pycache__(/|$)
+  - ^functions/[^/]+/tests(/|$)
+  - (^|/)node_modules(/|$)
+  - \.test\.ts$
 ```
+
+`__pycache__/` and `tests/` are the entries a Python function usually needs; without them, the deploy lists the `.pyc` files and test modules.
+
+**Ignoring `tests/` makes `exec` warn on every run.** `foundry functions exec` compares the whole local function directory against the last deployment, and the deployment has no `tests/`, so it reports undeployed local changes even right after a successful deploy. Pass `--ignore-deploy-warning` once you have confirmed the handler itself is deployed (see `functions-development/references/execution-and-testing.md`).
 
 ### App Logo
 

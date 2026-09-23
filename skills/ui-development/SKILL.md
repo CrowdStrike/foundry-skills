@@ -302,25 +302,15 @@ Toggle via the **Developer tools** (`</>`) icon in the Falcon console toolbar:
 
 Only one mode at a time. Disable one before enabling the other.
 
-## Sandboxed Iframe: No Web Storage
+## Sandboxed Iframe Restrictions
 
-Pages and extensions run in an iframe sandboxed **without** `allow-same-origin`. That makes the document's origin opaque, so `localStorage` and `sessionStorage` are not merely empty — any access throws:
+Pages and extensions run in an iframe sandboxed with `allow-scripts allow-forms allow-downloads` only:
 
-```
-SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
-```
+- **No `allow-same-origin`:** `localStorage`, `sessionStorage`, `document.cookie`, and `indexedDB` throw `SecurityError`. Keep state in memory or a collection.
+- **No `allow-modals`:** `alert()`, `confirm()`, `prompt()`, and `beforeunload` prompts are silently ignored — `confirm()` returns `false`. Show errors inline and confirm with `<sl-dialog>`.
+- **Page lifetime:** a loop over many items stops starting new calls when the user leaves. Save per item, make re-runs resume, or move the loop into a workflow.
 
-Keep UI state in memory (React/Vue state, a module-level object) for the life of the page, and use a foundry-js collection for anything that must persist across loads or users. If you are porting code that already uses Web Storage, wrap each call in `try/catch` and fall back to an in-memory map rather than letting the first read take the page down:
-
-```javascript
-const storage = {
-  mem: {},
-  get(k) { try { return localStorage.getItem(k); } catch { return this.mem[k] ?? null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch { this.mem[k] = v; } },
-};
-```
-
-The same opaque-origin restriction applies to `document.cookie` and `indexedDB`.
+See [references/sandboxed-iframe.md](references/sandboxed-iframe.md) for the errors, a storage fallback, and a resumable bulk-processing pattern.
 
 ## Iframe Communication
 
@@ -368,7 +358,8 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 - **Shoelace dialogs/drawers white in dark mode.** Override `--sl-panel-background-color` and `--sl-color-neutral-0` with `var(--ground-floor)`. See [references/shoelace-reference.md](references/shoelace-reference.md).
 - **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
 - **Quoting numeric query parameters.** `execute()` accepts `Record<string, unknown>`, so `limit: '25'` passes type-checking and fails server-side with `got string want integer`. Match the `schema.type` declared in the OpenAPI spec — the extension still renders, so this reads as an API error rather than a code bug.
-- **Reading `localStorage` or `sessionStorage`.** The sandbox lacks `allow-same-origin`, so any access throws a `SecurityError` (see [Sandboxed Iframe: No Web Storage](#sandboxed-iframe-no-web-storage)). Use in-memory state or a collection; wrap legacy calls in `try/catch`.
+- **Reading `localStorage` or `sessionStorage`.** The sandbox lacks `allow-same-origin`, so any access throws a `SecurityError` (see [Sandboxed Iframe Restrictions](#sandboxed-iframe-restrictions)). Use in-memory state or a collection; wrap legacy calls in `try/catch`.
+- **Reporting errors with `alert()` or guarding actions with `confirm()`.** The sandbox lacks `allow-modals`, so both are silently ignored: errors vanish and `confirm()`-guarded actions never run. Use inline errors and `<sl-dialog>`.
 - **Missing CSP for Shoelace icons.** The Foundry CSP only allows `assets.foundry.crowdstrike.com`. If using `setBasePath()` with `cdn.jsdelivr.net`, you must add it to `connect-src` and `img-src` in the manifest's `content_security_policy`. Alternatively, copy icon assets to your `dist/` folder and set a relative base path to avoid CDN dependencies entirely.
 
 ## Reading Guide
@@ -381,6 +372,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | React component examples | [references/react-patterns.md](references/react-patterns.md) |
 | Vue component examples | [references/vue-patterns.md](references/vue-patterns.md) |
 | Foundry-JS: workflows, LogScale, cloud functions, collections CRUD | [references/foundry-js.md](references/foundry-js.md) |
+| Sandbox restrictions (storage, modals), long-running page loops | [references/sandboxed-iframe.md](references/sandboxed-iframe.md) |
 | Framework selection, ExtensionMessaging, E2E testing, Extension Builder, CSP, dev server coordination | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases

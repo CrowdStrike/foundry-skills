@@ -310,7 +310,7 @@ auth:
 
 ## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
-Use the `Spans`, `AgentInvocation`, and `AgentVersions` service classes with the `charlotte-ai-agent-definition` scopes (`read`, plus `write` to invoke and poll). FalconPy 1.6.5 has no class for agent records (`/agentic-studio/entities/agents/v2`); use `APIHarnessV2` with `override`. To query an agent's executions, filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing); see [advanced-patterns](references/advanced-patterns.md).
+Use the `Spans`, `AgentInvocation`, `AgentVersions`, and `Models` classes with the `charlotte-ai-agent-definition` scopes (`read`; `write` to invoke and poll). FalconPy 1.6.5 has no class for agent records (`/agentic-studio/entities/agents/v2`); use `APIHarnessV2` with `override`. Filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing). Route-to-method map: [advanced-patterns](references/advanced-patterns.md).
 
 ## The 207 Multi-Status Gotcha
 
@@ -384,7 +384,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
-| `Spans`, `AgentInvocation`, `AgentVersions`; `APIHarnessV2` for agent records | AgentWorks | `charlotte-ai-agent-definition:read`, `:write` | Endpoints verified on EU-1 |
+| `Spans`, `AgentInvocation`, `AgentVersions`, `Models`; `APIHarnessV2` for agent records | AgentWorks | `charlotte-ai-agent-definition:read`, `:write` | Endpoints verified on EU-1 |
 
 **Go functions (gofalcon) require the same scopes.** The table above uses FalconPy class/method names, but the underlying Falcon API scopes are identical regardless of SDK. If your Go function calls the RTR admin API, declare `real-time-response-admin:write`. If it manages incidents, declare `incidents:read`, `incidents:write`.
 
