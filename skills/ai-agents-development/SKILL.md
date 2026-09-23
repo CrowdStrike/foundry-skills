@@ -72,7 +72,8 @@ foundry knowledge-bases create \
   --no-prompt
 
 # 2. Agent SECOND, referencing the KB by NAME (not id, not path).
-#    Use --output-format json, not json_with_schema (fails at deploy — see below).
+#    Plain json needs no schema. For enforced structure use json_with_schema with
+#    --output-schema pointing at a file named output_schema.json (see below).
 foundry agents create \
   --name "Detection Triage Agent" \
   --description "Triages detections against the runbooks" \
@@ -112,14 +113,14 @@ The CLI tries to read the value as a file path or URL first, and silently falls 
 
 Consequence: a typo'd path becomes your system prompt. `--system-prompt ./prmopts/triage.md` produces an agent whose entire instruction set is the string `./prmopts/triage.md`, with no error. **Always read back `agents/<path>/system_prompt.txt` after creating an agent.** Omitting the flag entirely yields a generic default prompt.
 
-Schema files behave differently — they keep their original basename, so `--output-schema /tmp/triage-output.json` lands at `agents/<path>/triage-output.json`.
+Schema files behave differently — they keep their original basename, so `--output-schema /tmp/triage-output.json` lands at `agents/<path>/triage-output.json`. That basename is load-bearing: the deploy backend only reads `input_schema.json` and `output_schema.json`, so name the source files exactly that before passing them to the CLI (see below).
 
 ### Input and output formats
 
 | Flag | Allowed values | Default | Paired requirement |
 |------|---------------|---------|--------------------|
 | `--input-format` | `text`, `json` | `text` | `json` requires `--input-schema` |
-| `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html` | `text` | `json_with_schema` requires `--output-schema` — **and currently fails at deploy; use `json`** (see below) |
+| `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html` | `text` | `json_with_schema` requires `--output-schema`, and the file **must be named `output_schema.json`** (see below) |
 
 Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_schema` does. Omitting the paired schema is caught late, when the manifest is saved:
 
@@ -127,7 +128,9 @@ Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_s
 agent "my_agent" input_schema is required when input_format is json
 ```
 
-> **`json_with_schema` does not deploy from the CLI (observed with CLI 2.1.1, 2026-09-22).** An agent created with `--output-format json_with_schema --output-schema file.json` passes `foundry apps validate` and then fails every deploy with `output schema is required when using JSON format`, even when the schema file is valid and sitting in the agent directory — the file is uploaded but never bound. The same agent recreated with `--output-format json` deploys. Until this is fixed: use `json`, spell the expected shape out in the system prompt (field names, types, one example object), and validate the response in whatever consumes it (a function, a workflow condition, or the UI).
+> **The schema file name is fixed by the backend, not by the manifest (CLI 2.1.1, verified 2026-09-22).** At deploy, the Foundry API ignores the `output_schema:` value entirely and reads the schema from a file literally named `output_schema.json` in the agent directory (`input_schema.json` for input). `foundry agents create` keeps whatever basename you pass, so `--output-schema /tmp/triage-output.json` passes `foundry apps validate` and then fails every deploy with `output schema is required when using JSON format`. Pasting the schema inline under `output_schema:` (as a YAML object or a JSON string) fails the same way, because the backend never looks there. Name the source file `output_schema.json` before the create command, or rename it under `agents/<path>/` and set `output_schema: output_schema.json`.
+>
+> Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors", not in the CLI: for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Keep schemas to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put range constraints in `description`. OpenAI models additionally require `additionalProperties: false` on every object and every property listed in `required`. Plain `json` output needs no schema and skips all of this, at the cost of enforcement.
 
 ## Manifest Structure
 
@@ -146,8 +149,8 @@ ai:
             - api_integrations.VirusTotal.Get_a_file_report
           system_prompt: system_prompt.txt
           input_format: text
-          output_format: json_with_schema         # valid shape, but deploys only as json today — see above
-          output_schema: triage-output.json
+          output_format: json_with_schema
+          output_schema: output_schema.json       # must be this exact basename — see above
           knowledge_bases:
             - Threat Intel Docs                  # by NAME
           exposure:                              # omitted entirely when nothing is exposed
@@ -170,7 +173,7 @@ On disk:
 
 ```
 agents/Detection_Triage_Agent/system_prompt.txt
-agents/Detection_Triage_Agent/triage-output.json
+agents/Detection_Triage_Agent/output_schema.json
 knowledge-bases/Threat_Intel_Docs/runbook.md
 knowledge-bases/Threat_Intel_Docs/iocs.csv
 ```
@@ -289,7 +292,8 @@ Charlotte chat and Fusion workflows invoke an agent for you. Calling the agent d
 | KB file missing after deploy | `.svg` files are always ignored by the packager | Convert to PNG, or reference it another way |
 | `must be a filename only, not a path` | Subdirectory in a KB `files` entry | Flatten — KB directories cannot nest |
 | Agent cannot call an exposed collection | Exposed but not listed in `tools` | Both sides are required |
-| `output schema is required when using JSON format` at deploy | `json_with_schema` uploads the schema file but never binds it (CLI 2.1.1) | Recreate with `--output-format json`; describe the shape in the system prompt and validate in the consumer |
+| `output schema is required when using JSON format` at deploy | Schema file not named `output_schema.json`; the backend reads only that fixed name and ignores `output_schema:` in the manifest (CLI 2.1.1) | Rename the file to `output_schema.json` (`input_schema.json` for input) and update the manifest key; `apps validate` does not catch this |
+| Deploy `Failed` with `output schema at root.properties.X uses unsupported schema keyword ...` in App manager "Show errors" | Schema keyword the agent's model provider rejects (`minimum`/`maximum` for Claude on Bedrock) | Drop the keyword and state the constraint in `description`; for OpenAI models also set `additionalProperties: false` on every object and list every property in `required` |
 | Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by name prefix or manifest IDs, not by name alone |
 | Deploy fails with `model <id> is not available`, and still fails after setting `model: ""` | Model IDs are CID-specific, and a failed deploy leaves the pinned model on the platform-side agent | Pick an ID from `/agentic-studio/queries/models/v1` in that CID, or remove the agent and create it again |
 | `400` when invoking an agent with `credit_cents_limit` | Value below the undocumented floor | Pass `100` or more |

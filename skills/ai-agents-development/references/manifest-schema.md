@@ -24,9 +24,9 @@ The entire `ai:` block is omitted from the manifest when both lists are empty. T
 | Tools | `tools` | list of string | no | **no** | Dotted references; see below. Omitted when empty. |
 | System prompt | `system_prompt` | string | **yes** | `--system-prompt` | Always the literal `system_prompt.txt`; the flag value supplies the file's *content* (path/URL read, else inline text). |
 | Input format | `input_format` | string | **yes** | `--input-format` | `text` or `json`. Defaults to `text`. |
-| Input schema | `input_schema` | string | conditional | `--input-schema` | Required when `input_format: json`. Basename of a JSON schema file in the agent dir. |
+| Input schema | `input_schema` | string | conditional | `--input-schema` | Required when `input_format: json`. Basename of a JSON schema file in the agent dir. The deploy backend reads only `input_schema.json`, so use that exact name. |
 | Output format | `output_format` | string | **yes** | `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html`. Defaults to `text`. |
-| Output schema | `output_schema` | string | conditional | `--output-schema` | Required **only** when `output_format: json_with_schema` (not for plain `json`). |
+| Output schema | `output_schema` | string | conditional | `--output-schema` | Required **only** when `output_format: json_with_schema` (not for plain `json`). Must be `output_schema.json`: the deploy backend reads that fixed filename from the agent dir and ignores this value, so any other basename (or an inline schema) fails deploy with `output schema is required when using JSON format`. |
 | Knowledge bases | `knowledge_bases` | list of string | no | `--knowledge-bases` | KB **names** (not ids/paths). Each must exist in `ai.knowledge_bases`. |
 | Exposure | `exposure` | object | no | `--expose-*` (3 flags) | Omitted entirely when nothing is exposed. See below. |
 
@@ -134,7 +134,7 @@ ai:
           system_prompt: system_prompt.txt
           input_format: text
           output_format: json_with_schema
-          output_schema: triage-output.json
+          output_schema: output_schema.json
           knowledge_bases:
             - Threat Intel Docs
           exposure:
@@ -157,7 +157,7 @@ Required on disk for this to validate:
 
 ```
 agents/Detection_Triage_Agent/system_prompt.txt
-agents/Detection_Triage_Agent/triage-output.json
+agents/Detection_Triage_Agent/output_schema.json
 knowledge-bases/Threat_Intel_Docs/runbook.md
 knowledge-bases/Threat_Intel_Docs/iocs.csv
 ```
