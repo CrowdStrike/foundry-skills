@@ -128,7 +128,7 @@ foundry apps clone --name "existing-app"
 foundry apps sync --deployment-version v0.1.0-pre-release -d . --replace-all --no-prompt
 ```
 
-**`sync`'s target directory defaults to the app name.** Without `-d/--directory` it writes into a new `AppName/` directory (spaces included), which looks like it ignored your project — pass `-d .` (with `--replace-all` when the directory already has files) to sync in place. *(Flags and behavior observed on CLI 2.1.1; run `foundry apps sync --help` to confirm on your version, since CLI behavior changes between releases.)*
+**`sync`'s target directory defaults to the app name.** Without `-d/--directory` it writes into a new `AppName/` directory (spaces included), which looks like it ignored your project — pass `-d .` (with `--replace-all` when the directory already has files) to sync in place. *(Confirm the exact flags with `foundry apps sync --help`; CLI flags can change between releases.)*
 
 **The ID-stripping convention fights local tooling.** If you commit `manifest.yml` with blanked IDs (the `foundry-sample-*` pattern, so the app installs into any CID), local commands still need the real IDs present. `foundry functions exec` fails with `app_id not found in manifest; deploy the app first`, and `foundry apps deploy` needs them to target the existing app instead of creating a new one. Re-fill the IDs from the deployed app before working locally — `foundry apps sync --deployment-version <version> -d . --replace-all --no-prompt` overwrites the working copy in place — then blank them again before committing.
 
