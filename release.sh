@@ -230,8 +230,6 @@ PY
 
   local count size
   count=$(find "$work" -type f | wc -l | tr -d ' ')
-  local count size
-  count=$(find "$work" -type f | wc -l | tr -d ' ')
   size=$(du -h "$tmpzip" | cut -f1 | tr -d ' ')
   printf "\n  %s files, %s\n" "$count" "$size"
 

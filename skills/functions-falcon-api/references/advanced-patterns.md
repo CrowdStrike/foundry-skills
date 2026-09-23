@@ -70,6 +70,35 @@ if __name__ == '__main__':
     func.run()
 ```
 
+## AgentWorks spans: attributing executions to an agent
+
+Every `aw_agent` root span carries the agent's ID in the `aw_agent.id` attribute, and FQL filters on it. Verified against a live CID (2026-09-23) by looking up the `aw_agent.id` of a span and getting back the agent the span names:
+
+```python
+from falconpy import Spans
+
+spans = Spans()  # inside the handler, like every FalconPy client
+flt = f"attributes.aw_agent.id:'{agent_id}'+span_type:'aw_agent'"
+response = spans.queries_spans_v1(filter=flt, sort="start_time|desc", limit=3)
+# response["body"]["meta"]["pagination"]["total"] is the agent's execution count
+```
+
+- **The key is `aw_agent.id`, not `aw_agent.agent_id`.** A filter on the wrong key (`attributes.aw_agent.agent_id:'...'`) silently returns zero results, not an error, which reads as "this agent never ran".
+- Other attributes on the root span: `aw_agent.invocation_id`, `aw_agent.definition.name`, `.model`, `.tools`, `.system_prompt`, `.knowledge_base_ids`, `aw_agent.input`, `aw_agent.submitted_from.*`, and `cost.reserved_credit_cents`. The span's own `name` is always `Agent request`, so filtering on `name` does not find an agent.
+- **There is no version ID on the span**, so executions cannot be counted per agent *version*.
+- **Run status is on a child span.** `aw_agent.invocation_status` lives on the `aw_agent_response` span of the same trace, not on the root; look it up with `trace_id:'<trace_id>'+span_type:'aw_agent_response'`. A root span without one is still running.
+- **Don't match on `aw_agent.definition.name`.** Agent names are not unique per CID (unlike Foundry apps and workflows; a real CID had two distinct agents both named "SOC Daily Briefing Agent"), so a name match can merge two agents' runs.
+- There is **no endpoint to list invocations by agent**. `AgentInvocation().invoke_published_agent_external_v1(body=...)` returns an id and an `ai_trace_id`; poll the id with `get_agent_invocation_v3(id=...)`. To observe a run's spans, query `trace_id:'<ai_trace_id>'`.
+
+## AgentWorks: finding your app's own agents by name
+
+A function that invokes agents its app ships (a judge, a classifier) usually has to resolve them by name, since the manifest's `ai.agents[].id` is the Foundry artifact ID, not the AgentWorks agent ID. Two things make a plain name lookup wrong, both verified in a live CID (2026-09-23):
+
+- **The versions query returns deleted agents.** `AgentVersions().query_agent_versions_v1(filter="name:'<name>'+is_published:true")` still returns the published versions of agents that were deleted, including the ones an earlier install of the same app left behind. Resolving by name then finds two agents per name, or picks a dead one.
+- **The agent record says who owns it.** `/agentic-studio/entities/agents/v2` returns `is_deleted` and `attribution`, for example `{"origin": "foundry", "data": {"foundry_app_id": "<app id>"}}` on an agent a Falcon Foundry app deployed. The deleted leftovers carried the previous app's ID. FalconPy 1.6.5 has no class for this endpoint; call it with `APIHarnessV2().command("Manual", override="GET,/agentic-studio/entities/agents/v2", parameters={"ids": agent_ids})`.
+
+So hydrate each candidate's agent record and keep only `not is_deleted` and `attribution.origin == "foundry"`; refuse, rather than guess, if more than one survives. Matching `attribution.data.foundry_app_id` against your own app would be stricter still, but the Python FDK does not expose the function's app ID.
+
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |

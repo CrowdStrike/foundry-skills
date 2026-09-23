@@ -293,7 +293,11 @@ elif [ "$NO_SKILL" = "1" ]; then
   TEST_PID=$!
   ( sleep "$BASELINE_TIMEOUT" && kill "$TEST_PID" 2>/dev/null && echo "" && echo "  Baseline timed out after ${BASELINE_TIMEOUT}s" ) &
   TIMER_PID=$!
-  wait "$TEST_PID" 2>/dev/null; RED_EXIT=$?
+  if wait "$TEST_PID" 2>/dev/null; then
+    RED_EXIT=0
+  else
+    RED_EXIT=$?
+  fi
   kill "$TIMER_PID" 2>/dev/null || true
   wait "$TIMER_PID" 2>/dev/null || true
 
@@ -303,9 +307,12 @@ else
   echo "========================================="
   echo ""
 
-  /tmp/test-skill-enhanced.sh --save "$BASELINE_JSON" --runs "$RUNS" --dir "$RED_DIR" \
-    --plugin-dir "$MAIN_EXTRACT_DIR" --skip-plugin-manage
-  RED_EXIT=$?
+  if /tmp/test-skill-enhanced.sh --save "$BASELINE_JSON" --runs "$RUNS" --dir "$RED_DIR" \
+    --plugin-dir "$MAIN_EXTRACT_DIR" --skip-plugin-manage; then
+    RED_EXIT=0
+  else
+    RED_EXIT=$?
+  fi
 
   # Save baseline SHA so we can detect staleness later
   git -C "$REPO_ROOT" rev-parse "$BASELINE_REF" > "$BASELINE_SHA_FILE"

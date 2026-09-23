@@ -158,6 +158,8 @@ cd app-name
 
 `--no-prompt` prevents interactive prompts that fail in non-interactive environments with `Error: EOF`. `--no-git` skips git initialization. The command is `foundry apps create` (there is no `init` command). If it fails, fix the command and retry — MUST NOT fall back to `mkdir`, which produces invalid manifest structure.
 
+`foundry apps create` always makes a **subdirectory named after the app** (spaces included). When converting an existing repo, run `create` beside it and move the freshly generated `manifest.yml` to the repo root rather than leaving a nested app directory.
+
 ### Step 5: Add Capabilities (CLI Commands)
 
 Run in dependency order. Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs.
@@ -251,12 +253,16 @@ foundry ui run
 
 **Deploy once, poll with `list-deployments`.** Running `deploy` multiple times creates duplicate deployments and wastes minutes.
 
+**A `Failed` deployment has no reason in the CLI.** Read it in the console: **App manager > the app > "Show errors (N)"** (per capability). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`; wait, it is not a manifest error.
+
 ```bash
 # Release (run ONCE after deploy succeeds)
 foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes"
 ```
 
 **Note:** There is no `list-releases` command. After `release`, check status via the App Manager URL printed in the output, or wait ~30s and proceed to testing.
+
+**Patch releases update an installed app in place**; no reinstall. Reinstall (uninstall, then install) only to reach an API integration's credential form again, e.g. after adding an integration.
 
 `foundry ui run` only serves UI locally — backend capabilities (API integrations, functions, collections) resolve from the cloud. Deploy those first.
 

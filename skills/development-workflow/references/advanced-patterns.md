@@ -115,14 +115,37 @@ Use CLI scaffolding commands to generate artifacts. The CLI creates directories,
 | **Import** | Falcon console only (not CLI) | Accepts tar.gz or ZIP |
 | **Export** | Falcon console only (not CLI) | Exports full app package |
 | **Clone** | CLI only: `foundry apps clone` | Creates a local copy of a deployed app |
-| **Sync** | CLI: `foundry apps sync` | Syncs local project with deployed state |
+| **Sync** | CLI: `foundry apps sync` | Pulls a deployed version's files (including the IDs the deploy assigned) into a **new subdirectory named after the app**, not the current directory |
 
 ```bash
 # Clone an existing deployed app to local
 foundry apps clone --name "existing-app"
 
-# Sync local project with deployed state
-foundry apps sync
+# Sync a deployed version's files (and the IDs the deploy assigned) into the CURRENT directory.
+# -d . targets the current dir instead of a new subdirectory; --replace-all overwrites existing files.
+# Under --no-prompt, --deployment-version is required, else: "flag --deployment-version is required
+# when --no-prompt flag is used". --app-id selects the app when the manifest's app_id is blank.
+foundry apps sync --deployment-version v0.1.0-pre-release -d . --replace-all --no-prompt
+```
+
+**`sync`'s target directory defaults to the app name.** Without `-d/--directory` it writes into a new `AppName/` directory (spaces included), which looks like it ignored your project — pass `-d .` (with `--replace-all` when the directory already has files) to sync in place. *(Confirm the exact flags with `foundry apps sync --help`; CLI flags can change between releases.)*
+
+**The ID-stripping convention fights local tooling.** If you commit `manifest.yml` with blanked IDs (the `foundry-sample-*` pattern, so the app installs into any CID), local commands still need the real IDs present. `foundry functions exec` fails with `app_id not found in manifest; deploy the app first`, and `foundry apps deploy` needs them to target the existing app instead of creating a new one. Re-fill the IDs from the deployed app before working locally, then blank them again before committing.
+
+Don't sync into the working copy to do it: `-d . --replace-all` replaces **every** file with the deployed version, so any function, UI, or manifest edit that isn't deployed yet is lost. Sync into a scratch directory and copy only the IDs across. Copying the whole synced `manifest.yml` has the same problem for undeployed manifest edits (a changed `model`, a new `ignored` pattern), and the synced file is re-indented besides. The `yq` merge below matches pages by key and functions and agents by name; extend it for other artifact types your app has (extensions, workflows, API integrations):
+
+```bash
+foundry apps sync --app-id <app-id> --deployment-version <version> -d /tmp/app-deployed --replace-all --no-prompt
+S=/tmp/app-deployed/manifest.yml
+yq -i "
+  .app_id = load(\"$S\").app_id |
+  .ui.pages |= with_entries(.key as \$k | .value.id = load(\"$S\").ui.pages[\$k].id) |
+  .ui.navigation.id = load(\"$S\").ui.navigation.id |
+  .functions[] |= (.name as \$n | .id = (load(\"$S\").functions[] | select(.name == \$n) | .id)) |
+  .docs.id = load(\"$S\").docs.id |
+  .ai.agents[] |= (.name as \$n | .id = (load(\"$S\").ai.agents[] | select(.name == \$n) | .id))
+" manifest.yml
+git diff manifest.yml   # only id lines should change
 ```
 
 ### Development Mode vs Preview Mode
@@ -148,6 +171,17 @@ ignored:
   - "**/node_modules/.cache/**"
   - "**/__pycache__/**"
 ```
+
+### App Logo
+
+The manifest `logo:` field is a relative path to a small square PNG, ~160x160, matching the `foundry-sample-*` apps (e.g. `logo: images/logo.png`). Two things about it are easy to get wrong:
+
+- **It is only picked up on the app's first deploy.** The App Catalog icon is set from `logo:` when the app is first created on a cloud. Adding or changing the logo in a later patch deploy does not update the catalog icon; it keeps the generated text avatar (the app's initials). To change an existing app's icon you effectively need a fresh app (delete and redeploy), so get the logo right before the first deploy.
+- **A logo-only change will not deploy.** `foundry apps deploy` versions artifacts (functions, collections, UI pages, agents). If the diff from the last version contains only the logo image and/or manifest metadata with no artifact change, deploy fails with `no deployable artifacts found`. There is no `--force`. Bundle the logo with an artifact change, or include it in the first deploy.
+
+If a UI page displays the same logo, inline the SVG in the page markup rather than referencing the PNG by path. The page runs in a sandboxed iframe without `allow-same-origin` and cannot load an image file from outside its own `src/` directory.
+
+**Deleting an app:** `foundry apps delete --force-delete --no-prompt` removes the app from the cloud but keeps the local files. The `--local-files` flag *also* deletes the local manifest and app directory, so omit it unless you intend to erase the local project too.
 
 ## Session Handoff
 

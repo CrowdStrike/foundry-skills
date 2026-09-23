@@ -84,8 +84,12 @@ foundry functions create \
   --handler-name process \
   --handler-method POST \
   --handler-path /api/process \
+  --max-exec-duration-seconds 60 \
+  --max-exec-memory-mb 256 \
   --no-prompt
 ```
+
+The two `--max-exec-*` flags write the manifest's `max_exec_duration_seconds` / `max_exec_memory_mb`; set them at create time instead of hand-editing later.
 
 ## Function Execution & Debugging
 
@@ -199,13 +203,17 @@ functions:
     handlers:
       - name: process
         method: POST
-        path: "/api/investigations/{id}/evidence"
+        api_path: "/api/investigations/evidence"
       - name: healthcheck
         method: GET
-        path: "/api/health"
+        api_path: "/api/health"
 ```
 
-Handler fields: `name` (identifier), `method` (HTTP verb), `path` (route, supports `{param}` placeholders). A single function can expose multiple HTTP endpoints. Function description max 100 characters (alphanumeric only).
+Handler fields: `name`, `method`, `api_path`. One function can expose several endpoints. The Python FDK matches `api_path` exactly (no `{param}` placeholders), so pass IDs in the body or query. Descriptions are length-checked only: 1024 characters per function, 512 per handler.
+
+### Adding a Handler to an Existing Function
+
+No CLI command adds a handler to an existing function. Append an entry (`name`, `method`, `api_path`) to that function's `handlers:` list in `manifest.yml` and add the matching `@func.handler(...)` (or Go route). This is a narrow exception to the no-manifest-edits rule, like the `ai.agents[].model` carve-out: touch only that `handlers:` list. Hand-added handlers get no bound I/O schemas, so a handler that must be a Fusion action with visible outputs needs its own CLI-created function.
 
 ## Go FDK Pattern
 
@@ -276,6 +284,10 @@ if __name__ == '__main__':
     func.run()
 ```
 
+### The `Request` Object
+
+No `request.query`, and `request.params` has no `.get()`: query params and headers are `request.params.query` / `.header`, both `Dict[str, List[str]]` (`request.params.query.get("limit", ["50"])[0]`). Field table: [references/python-patterns.md](references/python-patterns.md#the-request-object).
+
 ### Python Authentication
 
 FalconPy handles credential discovery automatically. Call Service Class constructors with zero arguments:
@@ -289,6 +301,8 @@ falcon = Alerts()  # Auth is automatic — do not pass credentials
 - **Locally**: Reads `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET` from environment variables
 
 FalconPy already reads env vars internally, so writing a `get_falcon_client()` wrapper that manually reads credentials adds no value and breaks context auth in the cloud.
+
+> **Construct FalconPy clients inside the handler, never at module scope.** Context auth only has the request's bearer token while a request is being handled; a module-level `falcon = Alerts()` (or `APIHarnessV2()`, `CustomStorage()`, `APIIntegrations()`) is built at import with no token and returns `401` on every call despite correct scopes.
 
 ### Calling Registered API Integrations from Functions
 
@@ -383,6 +397,8 @@ For the full `FunctionError` class with enum codes, see [references/python-patte
 - **Using `requests` instead of CrowdStrike SDKs.** The SDKs handle auth, retries, regions, and error parsing.
 - **Using `APIHarnessV2` (Uber class) for collection operations.** Use `CustomStorage` service class instead so the Foundry functions editor can auto-detect OAuth scopes. See the Collection CRUD Pattern in [references/python-patterns.md](references/python-patterns.md).
 - **Manually reading env vars for FalconPy auth.** `Alerts()` with zero arguments handles all credential discovery.
+- **Constructing FalconPy clients at module scope.** `falcon = Alerts()` above the handler runs at import, before the FDK has a request token, so every call returns `401 Unauthorized`. Construct clients inside the handler.
+- **`request.query` or `request.params.get()`.** Neither exists; use `request.params.query["limit"][0]` (values are lists).
 - **Shared utility files across functions.** `sys.path.append("../")` works locally but not in Foundry's FaaS runtime. Copy shared files into each function directory.
 - **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content. For bulk reads, use FQL filters to narrow the search rather than fetching all keys and reading them one by one in a loop.
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).

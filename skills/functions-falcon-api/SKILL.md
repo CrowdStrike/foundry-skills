@@ -55,7 +55,7 @@ func = Function.instance()
 def get_alerts(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
     falcon = Alerts()  # Zero-arg constructor — auth is automatic
 
-    limit = min(int(request.params.get("limit", 50)), 100)
+    limit = min(int(request.params.query.get("limit", ["50"])[0]), 100)
     # FQL filter: high-severity alerts from the last 24 hours.
     # Combine conditions with '+' (AND); relative times like 'now-24h' are supported.
     response = falcon.query_alerts_v2(
@@ -88,6 +88,7 @@ if __name__ == '__main__':
 - **Locally**: Reads `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET` from environment variables
 
 FalconPy already reads env vars internally, so writing a `get_falcon_client()` wrapper adds no value and breaks context auth in the cloud.
+
 
 ## Go: FDK Helper Authentication
 
@@ -144,8 +145,8 @@ func main() {
 def get_detections(request: Request, config, logger) -> Response:
     falcon = Alerts()  # Zero-arg — auth is automatic
 
-    severity_min = int(request.params.get("severity_min", 3))
-    limit = min(int(request.params.get("limit", 50)), 100)
+    severity_min = int(request.params.query.get("severity_min", ["3"])[0])
+    limit = min(int(request.params.query.get("limit", ["50"])[0]), 100)
 
     # Use Alerts v2 methods — these hit /alerts/entities/alerts/v3 under the hood.
     # FQL filter: severity threshold + product "detections" (excludes cases/incidents).
@@ -171,11 +172,11 @@ def get_detections(request: Request, config, logger) -> Response:
 ### Host Lookups
 
 ```python
-@func.handler(method='GET', path='/api/hosts/{hostname}')
+@func.handler(method='GET', path='/api/hosts')
 def get_host_details(request: Request, config, logger) -> Response:
     falcon = Hosts()
 
-    hostname = request.params.get("hostname")
+    hostname = request.params.query.get("hostname", [""])[0]  # ?hostname=...
     if not hostname:
         return Response(body={"error": "Hostname required"}, code=400)
 
@@ -307,6 +308,10 @@ auth:
 
 - [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — background on async LogScale querying from Foundry, plus CSV export. Note that this post reaches for `FoundryLogScale` with `mode="async"`; the `NGSIEM` pattern above is what has been verified end-to-end against the queryjobs API in a deployed app. Use the pattern above, and treat the post as context for the surrounding workflow (time ranges, result handling, export).
 
+## Charlotte AI AgentWorks (`/agentic-studio/*`)
+
+Use the `Spans`, `AgentInvocation`, and `AgentVersions` service classes with the `charlotte-ai-agent-definition` scopes (`read`, plus `write` to invoke and poll). FalconPy 1.6.5 has no class for agent records (`/agentic-studio/entities/agents/v2`); use `APIHarnessV2` with `override`. To query an agent's executions, filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing); see [advanced-patterns](references/advanced-patterns.md).
+
 ## The 207 Multi-Status Gotcha
 
 CrowdStrike APIs may return `207 Multi-Status` responses that look successful but contain embedded errors. Check the errors array:
@@ -338,9 +343,10 @@ def test_get_alerts_success():
     }
 
     with patch('falconpy.Alerts', return_value=mock_falcon):
+        from crowdstrike.foundry.function import RequestParams
         from main import get_alerts
         request = Mock(spec=Request)
-        request.params = {"limit": "10"}
+        request.params = RequestParams(query={"limit": ["10"]})
         response = get_alerts(request, None, Mock())
         assert response.code == 200
         assert len(response.body["alerts"]) == 1
@@ -378,6 +384,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
+| `Spans`, `AgentInvocation`, `AgentVersions`; `APIHarnessV2` for agent records | AgentWorks | `charlotte-ai-agent-definition:read`, `:write` | Endpoints verified on EU-1 |
 
 **Go functions (gofalcon) require the same scopes.** The table above uses FalconPy class/method names, but the underlying Falcon API scopes are identical regardless of SDK. If your Go function calls the RTR admin API, declare `real-time-response-admin:write`. If it manages incidents, declare `incidents:read`, `incidents:write`.
 
@@ -420,6 +427,7 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 - **Using `requests` library instead of CrowdStrike SDKs.** SDKs handle auth, retries, pagination, and region discovery.
 - **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.
 - **Writing Falcon API calls outside of FDK handler functions.** The handler pattern is required for automatic auth injection.
+- **Module-scope client, or `request.params.get()` / `request.query`.** `401` on every call, or an attribute error.
 - **Not handling 207 Multi-Status.** These responses look successful but may contain embedded errors.
 
 ## Use Cases

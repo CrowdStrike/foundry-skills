@@ -15,6 +15,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Agent tool exposure for API integrations** — `api-integrations` now documents `x-cs-operation-config.agent_tools`, a sibling of the existing `workflow` block, with `name`, `description`, and `expose_to_agent`. The agent references the operation as `api_integrations.<integration>.<agent_tools.name>` — not the `operationId` and not the URL path. `adapt_spec_for_foundry.py` now flags a misplaced `expose_to_agent` the same way it already flagged `expose_to_workflow`, and the skill router blocks on either.
 - **Build-order, `--files`, and exposure enforcement in the CLI guard** — `foundry agents create --knowledge-bases X` fails outright when `X` is not already in the manifest, so the guard warns before the round trip is wasted. `foundry knowledge-bases create` without `--files` is rejected by the CLI under `--no-prompt`, and `--expose-agent-as-tool` without `--input-schema` is rejected before any files are written; the guard catches both. `mkdir agents/` and `mkdir knowledge-bases/` are blocked alongside the other app directories.
 - **Installable from the OpenAI/Codex, Cursor, and GitHub Copilot marketplaces.** Beyond the Anthropic marketplace, the plugin is now published to the OpenAI/Codex curated CLI marketplace (`codex plugin add crowdstrike-falcon-foundry@openai-api-curated`; ChatGPT-authenticated Codex installs via `/plugins`), the Cursor marketplace, and the GitHub Copilot (awesome-copilot) directory. The skills-only bundle now ships the square interface icon the OpenAI directory requires, and the README install table links each live listing.
+- **Links to the public AI docs** — `ai-agents-development` now links to the product docs for AI capabilities, agents, and knowledge bases.
+- **Charlotte AI AgentWorks APIs from functions** — `functions-falcon-api` shows how to call AgentWorks with FalconPy's `Spans`, `AgentInvocation`, and `AgentVersions` classes, including how to count an agent's executions from its trace spans, and adds the `charlotte-ai-agent-definition` scopes to the scope reference. `api-integrations` covers writing a minimal spec for Falcon APIs FalconPy doesn't wrap.
+- **Finding an app's own agents** — `functions-falcon-api` shows how a function resolves the agents its app deployed by name, skipping deleted agents that an earlier install left behind.
+- **FDK `Request` field reference** — `functions-development` lists every field on the Python FDK request object. Query parameters live at `request.params.query`, not `request.query` or `request.params.get()`.
+- **Adding a handler to an existing function** — no CLI command does this, so `functions-development` allows editing that function's `handlers:` list as a narrow exception to the no-manifest-edits rule.
+- **Execution limits at create time** — the `functions create` example now includes `--max-exec-duration-seconds` and `--max-exec-memory-mb`.
+- **`foundry apps sync` guidance** — `development-workflow` covers the flags `sync` needs when run non-interactively, and a safe way to refill blanked manifest IDs (the `foundry-sample-*` pattern) without overwriting local edits.
+- **Converting an existing repository** — `development-workflow` explains moving `manifest.yml` to the repo root, since `foundry apps create` always creates a subdirectory named after the app.
+- **App logos** — `development-workflow` documents the manifest `logo:` field, including that the App Catalog icon is only set on an app's first deploy.
+- **Deploy troubleshooting** — `development-workflow` and `debugging-workflows` point to App manager's "Show errors" for the reason a deployment failed, and explain `deployment is currently in progress`, `no deployable artifacts found`, `403 app is not installed`, and the harmless faas-gateway `404`s a UI page logs while waiting on a function. They also note that patch releases update an installed app in place, so reinstalling is only needed to reach an API integration's credential form again.
+- **Web Storage and theming in UI pages** — `ui-development` explains that `localStorage` and `sessionStorage` throw in the sandboxed iframe and what to use instead, and that pages follow the console's light or dark theme with no extra code.
 
 ### Changed
 
@@ -24,11 +35,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Corrected the skill count in AGENTS.md** — it claimed 9 and had been stale for several releases; the repo now ships 12.
 - **Minimum CLI version bumped to 2.1.0** — The session-start hook now warns users on CLI 2.0.x and offers to upgrade. CLI 2.1.0 added `foundry functions exec`, `test`, and `logs`, and CLI 2.1.1 fixed non-interactive output for `actions view` and `triggers view` when multiple actions match a fuzzy name filter.
 - **`action_search.py` is now a convenience, not a workaround** — With CLI 2.1.1, `foundry workflows actions view --name "..." --no-prompt` lists multiple matches non-interactively instead of dropping into a picker. The bundled `action_search.py` remains useful for working without a manifest directory, but the warning framing it as a required fallback is removed.
+- **`json_with_schema` agents** — `ai-agents-development` explains what it takes for a `json_with_schema` agent to deploy: name the schema file `output_schema.json`, follow the model's schema rules, and use plain `json` for models that don't support structured output.
+- **Agent cleanup** — `ai-agents-development` notes that `foundry agents delete` only removes the local copy, leaving the deployed agent in AgentWorks, and that a deploy that fails on an unavailable model ID needs a different model or a recreated agent.
+- **FalconPy clients are created inside the handler** — the function examples now do this, and the skills explain why: a client created at module scope gets a `401` on every call.
+- **Collection pitfalls** — `collections-development` notes that descriptions containing commas fail `apps validate`, and that redeploying a changed schema doesn't update an existing collection, so schemas should allow for fields added later.
+- **API integration pitfalls** — `api-integrations` states the 50-character limit on `--description`, and that query parameter values must match the types in the spec.
+- **`foundry functions exec` pitfalls** — `functions-development` explains which local changes count as undeployed, and what to do if `exec` hangs.
 
 ### Fixed
 
 - **`--system-prompt` silently accepts a bad path.** The CLI tries the value as a file path or URL and falls back to treating it as inline prompt text, so a typo becomes the agent's entire instruction set with no error. The skill tells you to read back `agents/<path>/system_prompt.txt` after every create, and the CLI guard repeats it.
 - **`.svg` files in a knowledge base are silently dropped at deploy.** The packager unconditionally ignores SVGs, so the file passes `foundry apps validate` and then is absent from the bundle — the agent behaves as if it were never added. Documented alongside the shared 25 MB package cap, which a large PDF corpus can exhaust on its own.
+- **Removed calls to `falcon.theme()`**, which doesn't exist in foundry-js.
+- **Handler routing and description limits** — the function manifest example used `path:` instead of `api_path`, `api_path` doesn't support `{param}` placeholders, and descriptions are limited to 1024 characters for a function and 512 for a handler.
+- **foundry-js from the asset CDN** — only version 0.20.0 is served, so `ui-development`'s blueprint reference now shows vendoring the npm build when a page needs a newer version.
+- **The Detection Triage Agent example** now uses the same output format in its create command, manifest, and file listing.
 
 ## [1.5.0] - 2026-08-19
 

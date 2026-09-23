@@ -30,6 +30,14 @@ Only 2 source files. No build dependencies, no vite config, no npm install, no n
 </html>
 ```
 
+**The asset CDN lags npm.** `assets.foundry.crowdstrike.com` serves `foundry-js@0.20.0`, while npm's `latest` is `0.22.0`; `foundry-js@0.21.0/index.js` and `@0.22.0/index.js` return `403` there (checked 2026-09-23). To run a newer version in a no-build page, vendor it: the npm package's `dist/index.js` is a single self-contained ES module (no imports), so copy it next to the page and point the import map at it.
+
+```bash
+npm pack @crowdstrike/foundry-js@0.22.0 && tar xzf crowdstrike-foundry-js-0.22.0.tgz
+cp package/dist/index.js src/vendor/foundry-js-0.22.0.js
+# import map: "@crowdstrike/foundry-js": "./vendor/foundry-js-0.22.0.js"
+```
+
 **src/app.js:**
 ```javascript
 import FalconApi from '@crowdstrike/foundry-js';

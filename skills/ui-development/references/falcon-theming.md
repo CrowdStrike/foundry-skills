@@ -91,16 +91,14 @@ export const App: React.FC = () => {
 
 ### Using with FalconApi SDK
 
-The FalconApi SDK provides a simpler theme method:
+With foundry-js there is nothing to call. `connect()` adds `theme-dark` or `theme-light` to `<html>` (from `falcon.data.theme`) and swaps it on every console theme change, and `@crowdstrike/falcon-shoelace` styles off exactly those classes. There is no `falcon.theme()` method.
 
 ```javascript
 import FalconApi from '@crowdstrike/foundry-js';
 
 const falcon = new FalconApi();
-await falcon.connect();
-
-const theme = await falcon.theme();
-document.documentElement.classList.add(`sl-theme-${theme}`);
+await falcon.connect();   // <html class="theme-dark"> or "theme-light" from here on
+falcon.events.on('data', (data) => console.log('console theme is now', data.theme));
 ```
 
 ## Design Tokens

@@ -19,7 +19,7 @@ metadata:
 >
 > You MUST implement API integrations by downloading vendor OpenAPI specs, adapting them for Foundry, and properly configuring authentication schemes.
 >
-> **Note:** For `api-integrations create`, always include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
+> **Note:** For `api-integrations create`, always include `--description` (50 characters max) — the CLI still prompts for it even with `--no-prompt` if omitted.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
@@ -39,8 +39,13 @@ External API (Okta, VirusTotal, ServiceNow, etc.)
 └── No vendor spec available      → Write minimal spec as last resort
 
 CrowdStrike Falcon API
-└── From functions → use functions-falcon-api instead
-    From workflows → use CrowdStrike auto-auth (no spec needed)
+├── From functions → use functions-falcon-api instead
+├── From workflows → use CrowdStrike auto-auth (no spec needed)
+└── API family FalconPy does not wrap
+    → API integration with oauth2 clientCredentials against /oauth2/token.
+      The Falcon swagger at assets.falcon.*.crowdstrike.com returns AccessDenied
+      without console auth, so a minimal spec written from the product docs
+      is acceptable here — the one case where hand-writing is not a last resort.
 ```
 
 ## Workflow: Download, Adapt, Register
@@ -94,7 +99,7 @@ Foundry's UI import handles large/complex specs. Don't trim or simplify vendor s
 foundry api-integrations create --name "VendorApi" --description "Vendor API" --spec /tmp/VendorApi.yaml --no-prompt
 ```
 
-> **Always include `--description`** with `api-integrations create`. Even with `--no-prompt`, the CLI still interactively prompts for the optional description if omitted, causing `Error: EOF`.
+> **Always include `--description`** with `api-integrations create`. Even with `--no-prompt`, the CLI still interactively prompts for the optional description if omitted, causing `Error: EOF`. The value is capped at **50 characters** (`input must be at most 50 characters long`) — shorter than the 500-character limit other artifacts allow.
 
 **Done.** For most integrations, this is all you need. Validate immediately after registering (`foundry apps validate --no-prompt`).
 
@@ -269,6 +274,8 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 - **Adding `default` to server variables** for dynamic domains. This renders a dropdown instead of a text field.
 - **Splitting domains** into `{subdomain}.vendor.com` instead of `{yourDomain}` for the full domain.
 - **Using `oauth2 authorizationCode`** flow. Foundry only supports `clientCredentials`. The adapt script removes it automatically.
+- **Passing query values as strings or string arrays when the spec says integer.** The platform validates the `request` against the spec's parameter schemas *before* proxying, so `{"params": {"query": {"limit": ["1"]}}}` fails with `400 request failed schema validation: /properties/params/properties/query/...`. Send scalars typed per the spec: `{"params": {"query": {"limit": 1}}}`. See [references/calling-patterns.md](references/calling-patterns.md).
+- **A `--description` over 50 characters.** `api-integrations create` rejects it with `input must be at most 50 characters long`.
 
 ## Reading Guide
 

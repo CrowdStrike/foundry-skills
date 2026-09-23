@@ -73,6 +73,12 @@ foundry functions exec --handler my_handler --ignore-deploy-warning '{"key": "va
 
 The response shows: status code, exec ID, artifact info, and the function's response body. For async functions (202), the CLI automatically polls until the function completes and shows the actual result.
 
+#### Three things `exec` does not tell you
+
+- **`403 app is not installed` from a Falcon platform API call inside the handler.** Deploying is enough for `exec` to reach the function, but any FalconPy / gofalcon call the handler makes against the Falcon platform is authorized against an *installed* app. Until the app has been released (`foundry apps release`) **and** installed from the App Catalog, those calls return `403` with `app is not installed`. That reads like a missing scope but is not one — check install state before touching `auth.scopes`.
+- **`undeployed local changes detected` fires on any file in the function directory.** The comparison covers every file under `functions/<name>/`, including files the deployed handler never imports (a new `tests.yml`, a scratch script, an edited README). If the handler itself is unchanged and the user wants the deployed version, `--ignore-deploy-warning` is the right answer; otherwise deploy.
+- **`exec` can hang after the function has already returned.** Observed with CLI 2.1.1: when the handler returned quickly with a non-2xx `status_code` in its payload, the CLI kept polling for many minutes while a UI calling the same handler got the result in seconds. Wrap the command (`timeout 120 foundry functions exec ...`) and fall back to `foundry functions exec status <exec_id>` using the ID printed in the first lines of output.
+
 #### Supplying request values beyond the body
 
 The positional argument (inline JSON, a file path, `@filename`, or stdin) is the request **body**. A handler can also read headers, query parameters, and a request context object — supply those with flags or a bundled file. **The HTTP method and path always come from the handler's manifest definition — they are NOT set here.** The platform passes these values to the handler without filtering (header names are canonicalized; query and context values are delivered verbatim), so shape them exactly as the handler code reads them.

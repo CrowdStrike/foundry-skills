@@ -72,13 +72,14 @@ foundry knowledge-bases create \
   --no-prompt
 
 # 2. Agent SECOND, referencing the KB by NAME (not id, not path).
+#    Plain json needs no schema. For enforced structure use json_with_schema with
+#    --output-schema pointing at a file named output_schema.json (see below).
 foundry agents create \
   --name "Detection Triage Agent" \
   --description "Triages detections against the runbooks" \
   --system-prompt ./prompts/triage.md \
   --knowledge-bases "Threat Intel Docs" \
-  --output-format json_with_schema \
-  --output-schema /tmp/triage-output.json \
+  --output-format json \
   --expose-charlotte-chat \
   --no-prompt
 ```
@@ -104,26 +105,32 @@ cannot delete knowledge base "Threat Intel Docs": still referenced by agent(s): 
 
 Delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty `agents/` and `knowledge-bases/` parent directories behind; that is harmless. The manifest is saved *before* the directory is removed, so a failed removal reports an orphaned directory by path rather than losing the manifest edit.
 
+`delete` is local-only. The next deploy does **not** reconcile the platform side: the previously deployed agent stays registered under Charlotte AI > AgentWorks as an unpublished orphan, and if you recreate an agent under the same name the console shows two entries — the new one (Published) and the old one (Unpublished). Remove the orphan by hand in Charlotte AI > AgentWorks (or through the agent definition API). An app that lists or matches agents at runtime should filter by name prefix or by the IDs currently in `manifest.yml`, not assume one agent per name. `foundry apps delete` does remove the platform-side agents.
+
 ### The `--system-prompt` value is a path *or* literal text
 
 The CLI tries to read the value as a file path or URL first, and silently falls back to treating it as inline prompt text when that fails. Either way the content is written to `agents/<path>/system_prompt.txt`, always under that exact filename.
 
 Consequence: a typo'd path becomes your system prompt. `--system-prompt ./prmopts/triage.md` produces an agent whose entire instruction set is the string `./prmopts/triage.md`, with no error. **Always read back `agents/<path>/system_prompt.txt` after creating an agent.** Omitting the flag entirely yields a generic default prompt.
 
-Schema files behave differently — they keep their original basename, so `--output-schema /tmp/triage-output.json` lands at `agents/<path>/triage-output.json`.
+Schema files behave differently — they keep their original basename, so `--output-schema /tmp/triage-output.json` lands at `agents/<path>/triage-output.json`. That basename matters: the deploy backend only reads `input_schema.json` and `output_schema.json` (see below).
 
 ### Input and output formats
 
 | Flag | Allowed values | Default | Paired requirement |
 |------|---------------|---------|--------------------|
 | `--input-format` | `text`, `json` | `text` | `json` requires `--input-schema` |
-| `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html` | `text` | `json_with_schema` requires `--output-schema` |
+| `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html` | `text` | `json_with_schema` requires `--output-schema`, and the file **must be named `output_schema.json`** (see below) |
 
 Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_schema` does. Omitting the paired schema is caught late, when the manifest is saved:
 
 ```
 agent "my_agent" input_schema is required when input_format is json
 ```
+
+> **The schema file name is fixed by the backend, not by the manifest (CLI 2.1.1, verified 2026-09-22).** At deploy, the Foundry API ignores the `output_schema:` value and reads a file literally named `output_schema.json` in the agent directory (`input_schema.json` for input). `foundry agents create` keeps whatever basename you pass, so `--output-schema /tmp/triage-output.json` passes `foundry apps validate` and then fails every deploy with `output schema is required when using JSON format`. An inline schema under `output_schema:` fails the same way. Name the source file `output_schema.json` before `agents create`, or rename it under `agents/<path>/` and fix the manifest key.
+>
+> Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors": for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put ranges in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
 
 ## Manifest Structure
 
@@ -142,8 +149,7 @@ ai:
             - api_integrations.VirusTotal.Get_a_file_report
           system_prompt: system_prompt.txt
           input_format: text
-          output_format: json_with_schema
-          output_schema: triage-output.json
+          output_format: json                    # json_with_schema adds output_schema: output_schema.json
           knowledge_bases:
             - Threat Intel Docs                  # by NAME
           exposure:                              # omitted entirely when nothing is exposed
@@ -166,7 +172,6 @@ On disk:
 
 ```
 agents/Detection_Triage_Agent/system_prompt.txt
-agents/Detection_Triage_Agent/triage-output.json
 knowledge-bases/Threat_Intel_Docs/runbook.md
 knowledge-bases/Threat_Intel_Docs/iocs.csv
 ```
@@ -261,6 +266,12 @@ API integrations opt in per operation inside the OpenAPI spec, alongside the wor
 
 No other artifact type supports agent-tool exposure. Functions, workflows, and RTR scripts have no equivalent flag; to let an agent reach a function, expose the function to workflows and have the agent trigger the workflow.
 
+## Invoking an Agent from Code
+
+Charlotte chat and Falcon Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has one thing the API reference does not spell out:
+
+- **`credit_cents_limit` has a floor of `100`.** The field is documented as optional without a minimum; values below `100` are rejected with a `400`. Budget in whole credits.
+
 ## Common Pitfalls
 
 | Symptom | Cause | Fix |
@@ -279,6 +290,12 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 | KB file missing after deploy | `.svg` files are always ignored by the packager | Convert to PNG, or reference it another way |
 | `must be a filename only, not a path` | Subdirectory in a KB `files` entry | Flatten — KB directories cannot nest |
 | Agent cannot call an exposed collection | Exposed but not listed in `tools` | Both sides are required |
+| `output schema is required when using JSON format` at deploy | Schema file not named `output_schema.json`; the backend reads only that fixed name and ignores `output_schema:` in the manifest (CLI 2.1.1) | Rename the file to `output_schema.json` (`input_schema.json` for input) and update the manifest key; `apps validate` does not catch this |
+| Deploy `Failed` with `output schema at root.properties.X uses unsupported schema keyword ...` in App manager "Show errors" | Schema keyword the agent's model provider rejects (`minimum`/`maximum` for Claude on Bedrock) | Drop the keyword and state the constraint in `description`; for OpenAI models also set `additionalProperties: false` on every object and list every property in `required` |
+| `model <id> does not support structured output` at deploy | `json_with_schema` on a model without it (Bedrock Claude and Nemotron, as of 2026-09) | Use `output_format: json` for that agent, or a model that supports it (`openai.gpt-5.5` does) |
+| Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by name prefix or manifest IDs, not by name alone |
+| Deploy fails with `model <id> is not available`, and still fails after setting `model: ""` | Model IDs are CID-specific, and a failed deploy leaves the pinned model on the platform-side agent | Pick an ID from `/agentic-studio/queries/models/v1` in that CID, or remove the agent and create it again |
+| `400` when invoking an agent with `credit_cents_limit` | Value below the undocumented floor | Pass `100` or more |
 
 ## Reading Guide
 
@@ -286,6 +303,9 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 |------|-----------|
 | KB file sourcing, encryption, deploy packaging limits | [references/knowledge-bases.md](references/knowledge-bases.md) |
 | Full field-by-field schema, every validation error string | [references/manifest-schema.md](references/manifest-schema.md) |
+| Product docs: Falcon Foundry AI capabilities overview | [AI Capabilities](https://docs.crowdstrike.com/r/en-US/er9g8gmh/j2c92c94) |
+| Product docs: agents via the CLI | [AI agents (Foundry CLI)](https://docs.crowdstrike.com/r/en-US/er9g8gmh/ce325bab) |
+| Product docs: knowledge bases via the CLI | [Knowledge bases (Foundry CLI)](https://docs.crowdstrike.com/r/en-US/er9g8gmh/d82146c3) |
 
 ## Related Skills
 

@@ -41,6 +41,8 @@ Falcon Foundry Collections are NoSQL document stores with JSON Schema validation
 | Allowed characters | Letters, numbers, spaces, dashes, periods, parentheses, and underscores only |
 | Not allowed | Commas, colons, semicolons, quotes, slashes, or other special characters |
 
+**Check the description against this table before running `collections create`.** The CLI accepts a comma (or any other disallowed character) in `--description` without complaint; the rejection only surfaces later, from `foundry apps validate` or deploy, by which time the collection is already in the manifest and has to be fixed by hand. Write the description with letters, numbers, spaces, dashes, periods, parentheses, and underscores only.
+
 ## Collection Limits
 
 | Resource | Limit |
@@ -290,6 +292,8 @@ def _app_headers() -> dict:
         return {"X-CS-APP-ID": app_id}
     return {}
 
+# Construct inside the handler in a real function — a module-scope client has no request
+# token in Foundry and returns 401 on every call (see functions-development).
 client = CustomStorage(ext_headers=_app_headers())
 
 # Create or update (PutObject = upsert). Pass body as a dict.
@@ -317,6 +321,7 @@ Key points:
 - `CustomStorage(ext_headers=_app_headers())` applies `X-CS-APP-ID` to all requests (needed for local dev; Foundry sets it automatically in production)
 - `PutObject` acts as upsert (creates or overwrites by key). Pass body as a dict.
 - `GetObject` returns bytes directly — decode with `json.loads(response.decode("utf-8"))`
+- **A missing key is not a 404 in FalconPy 1.6.5 and earlier.** The API answers a 404 with an empty body, and FalconPy's error check then calls `.get()` on those bytes, so `GetObject` returns a synthetic `{"status_code": 500, "body": {"errors": [{"message": "'bytes' object has no attribute 'get'"}]}}`. Treat that message as "not found" (see `get_incident` in [python-patterns.md](../functions-development/references/python-patterns.md)) until the fix (falconpy#1509, returns the real 404) is released. Don't go the other way and treat *every* non-bytes reply as missing: a transient 429 or 5xx then reads as "no record", and code that writes the record back erases it.
 - `SearchObjects` returns metadata only, not full objects
 - FQL filters only work on fields marked `x-cs-indexable: true` in the collection schema
 
@@ -365,6 +370,8 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 - **Using JSON Schema newer than draft 7.** Foundry only supports draft 7.
 - **Missing indexes.** Fields used in queries must be marked with `x-cs-indexable: true` or listed in `x-cs-indexable-fields`. Max 10 per collection.
 - **Invalid collection names.** Names must be 5-200 chars, start/end with letter or number, and contain only letters, numbers, and underscores.
+- **Commas or other punctuation in `--description`.** `collections create` accepts them; `foundry apps validate` and deploy reject them. Stick to letters, numbers, spaces, dashes, periods, parentheses, and underscores.
+- **Editing a schema file and redeploying does not change an existing collection.** Writes keep validating against the schema the collection was created with (observed: a new top-level field rejected as `additional properties not allowed` after the schema that declared it was deployed). Ship `"additionalProperties": true` at the top level if fields may be added later, and treat any breaking schema change as a new collection name.
 - **Not configuring workflow share settings.** Set `workflow_integration.system_action: true` for app-only workflow access, or `false` to also expose collections as Falcon Fusion SOAR actions.
 - **Trying to delete collections via CLI.** Collections can only be deleted from the Falcon Foundry UI.
 - **Trying to manage objects via CLI.** Collection CRUD requires the CrowdStrike API or `foundry-js` SDK.
