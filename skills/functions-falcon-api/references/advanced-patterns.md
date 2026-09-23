@@ -70,6 +70,16 @@ if __name__ == '__main__':
     func.run()
 ```
 
+## AgentWorks spans: attributing executions to an agent
+
+Reading an agent's executions/traces is not as simple as filtering by agent id, because the span data does not carry one. Verified against a live CID:
+
+- `/agentic-studio/queries/spans/v1` filters on `span_type`, `trace_id`, `status`, `name`, `duration_ms`, and `start_time` only — there is **no agent-id or version-id filter**.
+- On an `aw_agent` span, the agent lives in `attributes` under dotted keys: `aw_agent.definition.name`, `aw_agent.definition.model`, `aw_agent.definition.tools`, `aw_agent.definition.system_prompt`, `aw_agent.definition.knowledge_base_ids`, plus `aw_agent.invocation_id`. There is **no `aw_agent.agent_id` and no version id** on the span. (A filter like `attributes.aw_agent.agent_id:'...'` matches nothing — it silently returns zero results, not an error.)
+- So to attribute executions to an agent, list recent root spans (`span_type:'aw_agent'`, sort `start_time|desc`) and match `attributes.aw_agent.definition.name` against the agent's name. **Agent names are not unique per CID** — unlike Foundry apps and workflows, AgentWorks does not enforce uniqueness (a real CID had two distinct agents both named "SOC Daily Briefing Agent"), so a name match can be ambiguous and nothing on the span disambiguates it.
+- **Counting executions per agent *version* is not possible from spans** — there is no version id on the span.
+- There is **no endpoint to list invocations by agent**. Invoke (`POST /agentic-studio/entities/agent-invocations/v1`) returns an id and an `ai_trace_id`; poll the id via `.../agent-invocations/v3?id=`. To observe a run's spans, query `trace_id:'<ai_trace_id>'`. The console's Traces page works exactly this way: it lists spans by `span_type` (not by agent) and filters by name.
+
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |
