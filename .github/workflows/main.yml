@@ -77,12 +77,20 @@ jobs:
               echo "WARN: $name ~${approx_tokens} tokens (${pct}% of ${max_tokens} limit)"
             fi
 
+            lines=$(wc -l < "$skill")
+            if [ "$lines" -gt 500 ]; then
+              echo "FAIL: $name ${lines} lines (Anthropic guidance: keep SKILL.md body under 500 lines)"
+              fail=1
+            elif [ "$lines" -gt 450 ]; then
+              echo "WARN: $name ${lines} lines (approaching the 500-line guidance)"
+            fi
+
             desc=$(sed -n 's/^description: *//p' "$skill")
             desc_len=${#desc}
             total_desc_chars=$((total_desc_chars + desc_len))
 
-            if [ "$desc_len" -gt 1536 ]; then
-              echo "FAIL: $name description ${desc_len} chars (max 1536)"
+            if [ "$desc_len" -gt 1024 ]; then
+              echo "FAIL: $name description ${desc_len} chars (Anthropic max 1024)"
               fail=1
             fi
           done
