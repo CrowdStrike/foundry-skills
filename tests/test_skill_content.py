@@ -338,6 +338,20 @@ class TestAIAgentsSkill:
         assert "json_with_schema" in content
         assert "asymmetry" in content.lower()
 
+    def test_schema_filenames_are_fixed(self):
+        """The backend reads only input_schema.json / output_schema.json.
+
+        Any other name deploys with no schema (older CLIs) or fails every
+        manifest load (newer CLIs), so the naming rule and both error strings
+        must stay documented.
+        """
+        content = _read_skill(self.SKILL)
+        assert "input_schema.json" in content
+        assert "output_schema.json" in content
+        assert "output schema is required when using JSON format" in content
+        assert 'output_schema must be "output_schema.json"' in content
+        assert "inline schemas are not read" in _read_skill(self.SCHEMA)
+
     def test_kb_reference_covers_svg_drop(self):
         """.svg KB files pass validation then vanish from the deploy bundle."""
         content = _read_skill(self.KB)
