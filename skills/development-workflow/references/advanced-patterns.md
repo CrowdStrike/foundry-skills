@@ -121,14 +121,16 @@ Use CLI scaffolding commands to generate artifacts. The CLI creates directories,
 # Clone an existing deployed app to local
 foundry apps clone --name "existing-app"
 
-# Sync a deployed version locally. Under --no-prompt, --deployment-version is REQUIRED
-# (otherwise it errors: "flag --deployment-version is required when --no-prompt flag is used").
-foundry apps sync --deployment-version v0.1.0-pre-release --no-prompt
+# Sync a deployed version's files (and the IDs the deploy assigned) into the CURRENT directory.
+# -d . targets the current dir instead of a new subdirectory; --replace-all overwrites existing files.
+# Under --no-prompt, --deployment-version is required, else: "flag --deployment-version is required
+# when --no-prompt flag is used". --app-id selects the app when the manifest's app_id is blank.
+foundry apps sync --deployment-version v0.1.0-pre-release -d . --replace-all --no-prompt
 ```
 
-**Sync writes to a subdirectory.** Like `foundry apps create`, `sync` creates `AppName/` (spaces included) holding the synced app rather than updating the current directory. To refresh the IDs in your working `manifest.yml`, copy the synced manifest back out and remove the subdirectory.
+**`sync`'s target directory defaults to the app name.** Without `-d/--directory` it writes into a new `AppName/` directory (spaces included), which looks like it ignored your project — pass `-d .` (with `--replace-all` when the directory already has files) to sync in place. *(Flags and behavior observed on CLI 2.1.1; run `foundry apps sync --help` to confirm on your version, since CLI behavior changes between releases.)*
 
-**The ID-stripping convention fights local tooling.** If you commit `manifest.yml` with blanked IDs (the `foundry-sample-*` pattern, so the app installs into any CID), local commands still need the real IDs present. `foundry functions exec` fails with `app_id not found in manifest; deploy the app first`, and `foundry apps deploy` needs them to target the existing app instead of creating a new one. Re-fill the IDs from the deployed app before working locally (`foundry apps sync --deployment-version <version> --no-prompt`, then copy the manifest back), and blank them again before committing.
+**The ID-stripping convention fights local tooling.** If you commit `manifest.yml` with blanked IDs (the `foundry-sample-*` pattern, so the app installs into any CID), local commands still need the real IDs present. `foundry functions exec` fails with `app_id not found in manifest; deploy the app first`, and `foundry apps deploy` needs them to target the existing app instead of creating a new one. Re-fill the IDs from the deployed app before working locally — `foundry apps sync --deployment-version <version> -d . --replace-all --no-prompt` overwrites the working copy in place — then blank them again before committing.
 
 ### Development Mode vs Preview Mode
 
