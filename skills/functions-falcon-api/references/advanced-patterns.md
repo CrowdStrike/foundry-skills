@@ -88,6 +88,15 @@ body = falcon.command("Manual", override="GET,/agentic-studio/queries/spans/v1",
 - **Don't match on `aw_agent.definition.name`.** Agent names are not unique per CID (unlike Foundry apps and workflows; a real CID had two distinct agents both named "SOC Daily Briefing Agent"), so a name match can merge two agents' runs.
 - There is **no endpoint to list invocations by agent**. Invoke (`POST /agentic-studio/entities/agent-invocations/v1`) returns an id and an `ai_trace_id`; poll the id via `.../agent-invocations/v3?id=`. To observe a run's spans, query `trace_id:'<ai_trace_id>'`.
 
+## AgentWorks: finding your app's own agents by name
+
+A function that invokes agents its app ships (a judge, a classifier) usually has to resolve them by name, since the manifest's `ai.agents[].id` is the Foundry artifact ID, not the AgentWorks agent ID. Two things make a plain name lookup wrong, both verified in a live CID (2026-09-23):
+
+- **The versions query returns deleted agents.** `/agentic-studio/queries/agent-versions/v1` with `name:'<name>'+is_published:true` still returns the published versions of agents that were deleted, including the ones an earlier install of the same app left behind. Resolving by name then finds two agents per name, or picks a dead one.
+- **The agent record says who owns it.** `/agentic-studio/entities/agents/v2` returns `is_deleted` and `attribution`, for example `{"origin": "foundry", "data": {"foundry_app_id": "<app id>"}}` on an agent a Falcon Foundry app deployed. The deleted leftovers carried the previous app's ID.
+
+So hydrate each candidate's agent record and keep only `not is_deleted` and `attribution.origin == "foundry"`; refuse, rather than guess, if more than one survives. Matching `attribution.data.foundry_app_id` against your own app would be stricter still, but the Python FDK does not expose the function's app ID.
+
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |
