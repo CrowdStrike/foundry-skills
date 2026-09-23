@@ -47,6 +47,7 @@ Function execution fails
 ├── "authorization failed"       → Missing custom-apps:write scope on API client
 ├── "artifact is not deployed"   → Deploy first: foundry apps deploy --no-prompt
 ├── No logs available            → Wait ~5 min, then: foundry functions logs <exec_id> --refresh
+│   └── Still "Log query failed"   → Temporarily return the diagnostic values in the handler's response body, redeploy, exec once, then remove them
 ├── UI page: repeated 404s on /api2/faas-gateway/entities/execution/v1 in the browser console → foundry-js polling for the cloud-function result before it is ready; non-fatal if the data still loads, not a failure
 └── Unexpected response          → Read logs + source, correlate timestamps against handler code
 

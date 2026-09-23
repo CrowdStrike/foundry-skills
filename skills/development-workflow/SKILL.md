@@ -251,7 +251,7 @@ foundry apps list-deployments
 foundry ui run
 ```
 
-**Deploy once, poll with `list-deployments`.** Running `deploy` multiple times creates duplicate deployments and wastes minutes.
+**Deploy once, poll `list-deployments`** for the deployment version `deploy` printed (release numbers differ). Re-deploying duplicates it.
 
 **A `Failed` deployment has no reason in the CLI.** Read it in the console: **App manager > the app > "Show errors (N)"** (per capability). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`; wait, it is not a manifest error.
 
