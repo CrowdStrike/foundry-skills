@@ -105,7 +105,7 @@ cannot delete knowledge base "Threat Intel Docs": still referenced by agent(s): 
 
 Delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty `agents/` and `knowledge-bases/` parent directories behind; that is harmless. The manifest is saved *before* the directory is removed, so a failed removal reports an orphaned directory by path rather than losing the manifest edit.
 
-`delete` is local-only. The next deploy does **not** reconcile the platform side: the previously deployed agent stays registered under Charlotte AI > AgentWorks as an unpublished orphan, and if you recreate an agent under the same name the console shows two entries — the new one (Published) and the old one (Unpublished). Remove the orphan by hand in Charlotte AI > AgentWorks (or through the agent definition API). An app that lists or matches agents at runtime should filter by name prefix or by the IDs currently in `manifest.yml`, not assume one agent per name.
+`delete` is local-only. The next deploy does **not** reconcile the platform side: the previously deployed agent stays registered under Charlotte AI > AgentWorks as an unpublished orphan, and if you recreate an agent under the same name the console shows two entries — the new one (Published) and the old one (Unpublished). Remove the orphan by hand in Charlotte AI > AgentWorks (or through the agent definition API). An app that lists or matches agents at runtime should filter by name prefix or by the IDs currently in `manifest.yml`, not assume one agent per name. `foundry apps delete` does remove the platform-side agents.
 
 ### The `--system-prompt` value is a path *or* literal text
 
@@ -130,7 +130,7 @@ agent "my_agent" input_schema is required when input_format is json
 
 > **The schema file name is fixed by the backend, not by the manifest (CLI 2.1.1, verified 2026-09-22).** At deploy, the Foundry API ignores the `output_schema:` value and reads a file literally named `output_schema.json` in the agent directory (`input_schema.json` for input). `foundry agents create` keeps whatever basename you pass, so `--output-schema /tmp/triage-output.json` passes `foundry apps validate` and then fails every deploy with `output schema is required when using JSON format`. An inline schema under `output_schema:` fails the same way. Name the source file `output_schema.json` before `agents create`, or rename it under `agents/<path>/` and fix the manifest key.
 >
-> Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors": for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`, and put range constraints in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
+> Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors": for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put ranges in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
 
 ## Manifest Structure
 
