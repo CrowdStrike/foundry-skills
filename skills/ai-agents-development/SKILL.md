@@ -149,8 +149,7 @@ ai:
             - api_integrations.VirusTotal.Get_a_file_report
           system_prompt: system_prompt.txt
           input_format: text
-          output_format: json_with_schema
-          output_schema: output_schema.json       # must be this exact basename — see above
+          output_format: json                    # json_with_schema adds output_schema: output_schema.json
           knowledge_bases:
             - Threat Intel Docs                  # by NAME
           exposure:                              # omitted entirely when nothing is exposed
@@ -173,7 +172,6 @@ On disk:
 
 ```
 agents/Detection_Triage_Agent/system_prompt.txt
-agents/Detection_Triage_Agent/output_schema.json
 knowledge-bases/Threat_Intel_Docs/runbook.md
 knowledge-bases/Threat_Intel_Docs/iocs.csv
 ```
@@ -270,7 +268,7 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 
 ## Invoking an Agent from Code
 
-Charlotte chat and Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has one thing the API reference does not spell out:
+Charlotte chat and Falcon Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has one thing the API reference does not spell out:
 
 - **`credit_cents_limit` has a floor of `100`.** The field is documented as optional without a minimum; values below `100` are rejected with a `400`. Budget in whole credits.
 

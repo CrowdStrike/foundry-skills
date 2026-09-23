@@ -168,11 +168,14 @@ def get_incident(client: CustomStorage, incident_id: str) -> Optional[Dict[str, 
     """Retrieve an incident by key. GetObject returns bytes — decode to dict."""
     response = client.GetObject(collection_name=COLLECTION_NAME,
                                 object_key=incident_id)
-    if isinstance(response, dict) and response.get("status_code") == 404:
+    if isinstance(response, (bytes, bytearray)):
+        return json.loads(response.decode("utf-8"))
+    errors = (response.get("body") or {}).get("errors") or []
+    # FalconPy <= 1.6.5 reports a missing key as a synthetic 500 with this message (falconpy#1508)
+    if response.get("status_code") == 404 or any(
+            "'bytes' object has no attribute 'get'" in str(e.get("message")) for e in errors):
         return None
-    if isinstance(response, dict) and response.get("status_code", 200) != 200:
-        raise Exception(f"Failed to get incident: {response.get('errors', [])}")
-    return json.loads(response.decode("utf-8"))
+    raise Exception(f"Failed to get incident: {response.get('status_code')} {errors}")
 
 def delete_incident(client: CustomStorage, incident_id: str) -> bool:
     """Delete an incident by key."""

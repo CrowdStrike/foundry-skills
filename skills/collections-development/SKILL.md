@@ -321,6 +321,7 @@ Key points:
 - `CustomStorage(ext_headers=_app_headers())` applies `X-CS-APP-ID` to all requests (needed for local dev; Foundry sets it automatically in production)
 - `PutObject` acts as upsert (creates or overwrites by key). Pass body as a dict.
 - `GetObject` returns bytes directly — decode with `json.loads(response.decode("utf-8"))`
+- **A missing key is not a 404 in FalconPy 1.6.5 and earlier.** The API answers a 404 with an empty body, and FalconPy's error check then calls `.get()` on those bytes, so `GetObject` returns a synthetic `{"status_code": 500, "body": {"errors": [{"message": "'bytes' object has no attribute 'get'"}]}}`. Treat that message as "not found" (see `get_incident` in [python-patterns.md](../functions-development/references/python-patterns.md)) until the fix (falconpy#1509, returns the real 404) is released. Don't go the other way and treat *every* non-bytes reply as missing: a transient 429 or 5xx then reads as "no record", and code that writes the record back erases it.
 - `SearchObjects` returns metadata only, not full objects
 - FQL filters only work on fields marked `x-cs-indexable: true` in the collection schema
 

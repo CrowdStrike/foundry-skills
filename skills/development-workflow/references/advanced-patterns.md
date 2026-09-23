@@ -130,7 +130,23 @@ foundry apps sync --deployment-version v0.1.0-pre-release -d . --replace-all --n
 
 **`sync`'s target directory defaults to the app name.** Without `-d/--directory` it writes into a new `AppName/` directory (spaces included), which looks like it ignored your project — pass `-d .` (with `--replace-all` when the directory already has files) to sync in place. *(Confirm the exact flags with `foundry apps sync --help`; CLI flags can change between releases.)*
 
-**The ID-stripping convention fights local tooling.** If you commit `manifest.yml` with blanked IDs (the `foundry-sample-*` pattern, so the app installs into any CID), local commands still need the real IDs present. `foundry functions exec` fails with `app_id not found in manifest; deploy the app first`, and `foundry apps deploy` needs them to target the existing app instead of creating a new one. Re-fill the IDs from the deployed app before working locally — `foundry apps sync --deployment-version <version> -d . --replace-all --no-prompt` overwrites the working copy in place — then blank them again before committing.
+**The ID-stripping convention fights local tooling.** If you commit `manifest.yml` with blanked IDs (the `foundry-sample-*` pattern, so the app installs into any CID), local commands still need the real IDs present. `foundry functions exec` fails with `app_id not found in manifest; deploy the app first`, and `foundry apps deploy` needs them to target the existing app instead of creating a new one. Re-fill the IDs from the deployed app before working locally, then blank them again before committing.
+
+Don't sync into the working copy to do it: `-d . --replace-all` replaces **every** file with the deployed version, so any function, UI, or manifest edit that isn't deployed yet is lost. Sync into a scratch directory and copy only the IDs across. Copying the whole synced `manifest.yml` has the same problem for undeployed manifest edits (a changed `model`, a new `ignored` pattern), and the synced file is re-indented besides. The `yq` merge below matches pages by key and functions and agents by name; extend it for other artifact types your app has (extensions, workflows, API integrations):
+
+```bash
+foundry apps sync --app-id <app-id> --deployment-version <version> -d /tmp/app-deployed --replace-all --no-prompt
+S=/tmp/app-deployed/manifest.yml
+yq -i "
+  .app_id = load(\"$S\").app_id |
+  .ui.pages |= with_entries(.key as \$k | .value.id = load(\"$S\").ui.pages[\$k].id) |
+  .ui.navigation.id = load(\"$S\").ui.navigation.id |
+  .functions[] |= (.name as \$n | .id = (load(\"$S\").functions[] | select(.name == \$n) | .id)) |
+  .docs.id = load(\"$S\").docs.id |
+  .ai.agents[] |= (.name as \$n | .id = (load(\"$S\").ai.agents[] | select(.name == \$n) | .id))
+" manifest.yml
+git diff manifest.yml   # only id lines should change
+```
 
 ### Development Mode vs Preview Mode
 

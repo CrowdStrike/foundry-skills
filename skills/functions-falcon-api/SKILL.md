@@ -310,7 +310,7 @@ auth:
 
 ## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
-No FalconPy service class wraps these; use `APIHarnessV2().command("Manual", override="GET,/agentic-studio/...")` with the `charlotte-ai-agent-definition` scopes (`read` for queries and entities, `write` for invocations). The agent invocation API rejects `credit_cents_limit` below 100. Spans expose no agent-id filter, so you cannot query executions by agent id; see [advanced-patterns](references/advanced-patterns.md).
+No FalconPy service class wraps these; use `APIHarnessV2().command("Manual", override="GET,/agentic-studio/...")` with the `charlotte-ai-agent-definition` scopes (`read` for queries and entities, `write` for invocations). The agent invocation API rejects `credit_cents_limit` below 100. To query an agent's executions, filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing); see [advanced-patterns](references/advanced-patterns.md).
 
 ## The 207 Multi-Status Gotcha
 

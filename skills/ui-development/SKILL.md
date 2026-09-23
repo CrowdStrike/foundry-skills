@@ -140,14 +140,10 @@ For theming, dark/light mode switching, and design token values, see [references
 import FalconApi from '@crowdstrike/foundry-js';
 
 const falcon = new FalconApi();
-await falcon.connect();
-
-// Apply Falcon console theme
-const theme = await falcon.theme();
-document.documentElement.classList.add(`sl-theme-${theme}`);
+await falcon.connect();   // also applies the console theme (see below)
 ```
 
-`connect()` also puts `theme-light` or `theme-dark` on `<html>` and swaps it whenever the console sends a new `data` message (which includes theme changes). To follow the console theme live, either listen for `falcon.events.on('data', ...)` or watch the class attribute:
+There is no `falcon.theme()` method. `connect()` puts `theme-light` or `theme-dark` on `<html>` (the value is also in `falcon.data.theme`) and swaps it whenever the console sends a new `data` message, which includes theme changes. `@crowdstrike/falcon-shoelace` styles off those same two classes, so Shoelace components follow the console with no theme code. Only your own CSS that keys off something else needs to react; listen for `falcon.events.on('data', ...)` or watch the class attribute:
 
 ```javascript
 const consoleTheme = () =>

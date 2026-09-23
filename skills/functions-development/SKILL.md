@@ -203,13 +203,13 @@ functions:
     handlers:
       - name: process
         method: POST
-        api_path: "/api/investigations/{id}/evidence"
+        api_path: "/api/investigations/evidence"
       - name: healthcheck
         method: GET
         api_path: "/api/health"
 ```
 
-Handler fields: `name` (identifier), `method` (HTTP verb), `api_path` (route, supports `{param}` placeholders). A single function can expose multiple HTTP endpoints. Function description max 100 characters (alphanumeric only).
+Handler fields: `name`, `method`, `api_path`. One function can expose several endpoints. The Python FDK matches `api_path` exactly (no `{param}` placeholders), so pass IDs in the body or query. Descriptions are length-checked only: 1024 characters per function, 512 per handler.
 
 ### Adding a Handler to an Existing Function
 
