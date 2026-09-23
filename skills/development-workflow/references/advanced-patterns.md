@@ -115,15 +115,20 @@ Use CLI scaffolding commands to generate artifacts. The CLI creates directories,
 | **Import** | Falcon console only (not CLI) | Accepts tar.gz or ZIP |
 | **Export** | Falcon console only (not CLI) | Exports full app package |
 | **Clone** | CLI only: `foundry apps clone` | Creates a local copy of a deployed app |
-| **Sync** | CLI: `foundry apps sync` | Syncs local project with deployed state |
+| **Sync** | CLI: `foundry apps sync` | Pulls a deployed version's files (including the IDs the deploy assigned) into a **new subdirectory named after the app**, not the current directory |
 
 ```bash
 # Clone an existing deployed app to local
 foundry apps clone --name "existing-app"
 
-# Sync local project with deployed state
-foundry apps sync
+# Sync a deployed version locally. Under --no-prompt, --deployment-version is REQUIRED
+# (otherwise it errors: "flag --deployment-version is required when --no-prompt flag is used").
+foundry apps sync --deployment-version v0.1.0-pre-release --no-prompt
 ```
+
+**Sync writes to a subdirectory.** Like `foundry apps create`, `sync` creates `AppName/` (spaces included) holding the synced app rather than updating the current directory. To refresh the IDs in your working `manifest.yml`, copy the synced manifest back out and remove the subdirectory.
+
+**The ID-stripping convention fights local tooling.** If you commit `manifest.yml` with blanked IDs (the `foundry-sample-*` pattern, so the app installs into any CID), local commands still need the real IDs present. `foundry functions exec` fails with `app_id not found in manifest; deploy the app first`, and `foundry apps deploy` needs them to target the existing app instead of creating a new one. Re-fill the IDs from the deployed app before working locally (`foundry apps sync --deployment-version <version> --no-prompt`, then copy the manifest back), and blank them again before committing.
 
 ### Development Mode vs Preview Mode
 
