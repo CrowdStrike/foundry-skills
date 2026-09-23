@@ -113,7 +113,7 @@ The CLI tries to read the value as a file path or URL first, and silently falls 
 
 Consequence: a typo'd path becomes your system prompt. `--system-prompt ./prmopts/triage.md` produces an agent whose entire instruction set is the string `./prmopts/triage.md`, with no error. **Always read back `agents/<path>/system_prompt.txt` after creating an agent.** Omitting the flag entirely yields a generic default prompt.
 
-Schema files behave differently — they keep their original basename, so `--output-schema /tmp/triage-output.json` lands at `agents/<path>/triage-output.json`. That basename is load-bearing: the deploy backend only reads `input_schema.json` and `output_schema.json`, so name the source files exactly that before passing them to the CLI (see below).
+Schema files behave differently — they keep their original basename, so `--output-schema /tmp/triage-output.json` lands at `agents/<path>/triage-output.json`. That basename matters: the deploy backend only reads `input_schema.json` and `output_schema.json` (see below).
 
 ### Input and output formats
 
@@ -128,9 +128,9 @@ Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_s
 agent "my_agent" input_schema is required when input_format is json
 ```
 
-> **The schema file name is fixed by the backend, not by the manifest (CLI 2.1.1, verified 2026-09-22).** At deploy, the Foundry API ignores the `output_schema:` value entirely and reads the schema from a file literally named `output_schema.json` in the agent directory (`input_schema.json` for input). `foundry agents create` keeps whatever basename you pass, so `--output-schema /tmp/triage-output.json` passes `foundry apps validate` and then fails every deploy with `output schema is required when using JSON format`. Pasting the schema inline under `output_schema:` (as a YAML object or a JSON string) fails the same way, because the backend never looks there. Name the source file `output_schema.json` before the create command, or rename it under `agents/<path>/` and set `output_schema: output_schema.json`.
+> **The schema file name is fixed by the backend, not by the manifest (CLI 2.1.1, verified 2026-09-22).** At deploy, the Foundry API ignores the `output_schema:` value and reads the schema from a file literally named `output_schema.json` in the agent directory (`input_schema.json` for input). `foundry agents create` keeps whatever basename you pass, so `--output-schema /tmp/triage-output.json` passes `foundry apps validate` and then fails every deploy with `output schema is required when using JSON format`. An inline schema under `output_schema:` fails the same way. Name the source file `output_schema.json` before the create command, or rename it under `agents/<path>/` and set `output_schema: output_schema.json`.
 >
-> Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors", not in the CLI: for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Keep schemas to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put range constraints in `description`. OpenAI models additionally require `additionalProperties: false` on every object and every property listed in `required`. Plain `json` output needs no schema and skips all of this, at the cost of enforcement.
+> Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors": for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`, and put range constraints in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
 
 ## Manifest Structure
 
