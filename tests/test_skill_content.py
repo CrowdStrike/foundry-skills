@@ -350,7 +350,7 @@ class TestAIAgentsSkill:
         assert "output_schema.json" in content
         assert "output schema is required when using JSON format" in content
         assert 'output_schema must be "output_schema.json"' in content
-        assert "inline schemas are not read" in _read_skill(self.SCHEMA)
+        assert "move the inline schema into" in _read_skill(self.SCHEMA)
 
     def test_workflow_callable_agent_needs_system_action(self):
         """An agent with no exposure flag cannot be called by its own app's workflows.

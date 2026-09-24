@@ -129,7 +129,7 @@ agent "my_agent" input_schema is required when input_format is json
 > **The schema file name is fixed.** The Foundry API reads only `input_schema.json` and `output_schema.json` from the agent directory; any other filename, or an inline schema, is ignored. Name the local source file `output_schema.json` (or `input_schema.json`) before passing it to `--output-schema` (`--input-schema`); download a URL source to a file with that name first. Current CLIs write the schema under that name whatever you pass, and reject any other value on every manifest load, so a wrong name breaks every command in the app:
 >
 > ```
-> agent "my_agent" output_schema must be "output_schema.json"; the Foundry API only reads the schema from agents/my_agent/output_schema.json
+> agent "my_agent" output_schema must be "output_schema.json": rename agents/my_agent/verdict.json to output_schema.json and set output_schema: output_schema.json in manifest.yml
 > ```
 >
 > Older CLIs keep the source name, pass `apps validate`, and fail deploy with `output schema is required when using JSON format`. Either way, put the schema at `agents/<path>/output_schema.json` and set the key to `output_schema.json`.
