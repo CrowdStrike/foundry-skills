@@ -54,7 +54,7 @@ Both artifacts share the CLI's standard validators at create time. These bite co
 | Description characters | Alphanumeric, whitespace, and `: ' [ ] ( ) , . / _ -` |
 | Uniqueness | Agent names unique among agents; KB names unique among KBs |
 
-Knowledge bases are the one asymmetry: the create command enforces the 5-character floor, but the *manifest* validator only requires 1 character and no longer checks the description at all — the AI platform imposes no name restriction, so the CLI deliberately stopped adding one. Practical effect: `--name "kb"` is still rejected by `knowledge-bases create`, while an app whose manifest already carries a short KB name passes `foundry apps validate` instead of being stuck.
+Knowledge bases are the one asymmetry: the create command enforces the 5-character floor, but the *manifest* validator only requires 1 character and no longer checks the description at all. So `--name "kb"` is rejected by `knowledge-bases create`, but a manifest that already carries a short KB name passes `foundry apps validate`.
 
 The on-disk directory is a sanitized form of the name: every character outside `[a-zA-Z0-9-_]` becomes `_`. `--name "Threat Intel Docs"` yields `knowledge-bases/Threat_Intel_Docs/` and records `path: Threat_Intel_Docs`. The manifest resolves files against `path`, never against `name`.
 
@@ -105,7 +105,7 @@ cannot delete knowledge base "Threat Intel Docs": still referenced by agent(s): 
 
 Delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty `agents/` and `knowledge-bases/` parent directories behind; that is harmless. The manifest is saved *before* the directory is removed, so a failed removal reports an orphaned directory by path rather than losing the manifest edit.
 
-`delete` is local-only. The next deploy does **not** reconcile the platform side: the previously deployed agent stays registered under Charlotte AI > AgentWorks as an unpublished orphan, and if you recreate an agent under the same name the console shows two entries — the new one (Published) and the old one (Unpublished). Remove the orphan by hand in Charlotte AI > AgentWorks (or through the agent definition API). An app that lists or matches agents at runtime should filter by name prefix or by the IDs currently in `manifest.yml`, not assume one agent per name. `foundry apps delete` does remove the platform-side agents.
+`delete` is local-only. The next deploy leaves the previously deployed agent in Charlotte AI > AgentWorks as an unpublished orphan, so recreating one under the same name shows two entries. Remove the orphan by hand in the console, and match agents at runtime by the IDs in `manifest.yml`, not by name. `foundry apps delete` does remove the platform-side agents.
 
 ### The `--system-prompt` value is a path *or* literal text
 
@@ -184,13 +184,15 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
 
 `model` and `tools` have **no CLI flags**. `foundry agents create` always writes `model: ""` and omits `tools`. Configuring them means editing `manifest.yml` directly.
 
-> **This is a narrow, explicit exception to the plugin-wide rule against editing `manifest.yml`.** That rule exists because the CLI owns `id`, `path`, `entrypoint`, and scopes — hand-editing those causes doubled paths and broken deploys. It does not apply here, because there is no CLI path to these two fields at all. Edit **only** these keys under `ai.agents[]` (plus a schema key that names the wrong file; see above); leave `id`, `path`, `system_prompt`, and every other artifact's entries alone.
+> **This is a narrow, explicit exception to the plugin-wide rule against editing `manifest.yml`**, which protects the CLI-owned `id`, `path`, `entrypoint`, and scopes. These two fields have no CLI path at all. Edit **only** these keys under `ai.agents[]` (plus a schema key that names the wrong file; see above); leave `id`, `path`, `system_prompt`, and every other artifact's entries alone.
 
 - **`model`** — **never invent a model ID.** There is no client-side list of valid IDs, so anything you make up produces a manifest that validates locally and fails server-side at deploy. Three cases:
   - **Nothing supplied** — leave `""`. The platform default applies.
   - **User named a specific model** — write exactly what they gave you, and tell them it is only checked server-side at deploy. Honoring their choice is correct even if it later fails; guessing a "close enough" ID on their behalf is not.
   - **A value is already there** — leave it alone. Do not blank it out or substitute your own.
 - **`tools`** — a flat list of dotted reference strings, not validated client-side. See below.
+
+**No other tuning knobs exist.** Agents have no temperature or token settings, and knowledge bases have no chunk size, embedding, similarity, or `top_k`; indexing is server-side. Never add such keys to the manifest. Tell the user those settings aren't available.
 
 ## Agent Exposure
 
@@ -204,7 +206,7 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
 
 Three behaviors worth knowing:
 
-- **The block is omitted when nothing is exposed.** Pass no `--expose-*` flag and the agent has no `exposure` key at all — that is correct, not a missing default. An absent block means the same thing as all three set to `false`.
+- **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted (same as all three `false`), and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; the action is already app-scoped, so it stays out of Charlotte chat. Call it from the workflow as that action, not a generic LLM action with the prompt copied inline.
 - **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature to invoke this one. The check runs before any files are written:
 
   ```
