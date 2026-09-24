@@ -1325,6 +1325,24 @@ JSON=$(jq -n --arg cmd "foundry apps create --name='' --no-prompt" \
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "8.18 --name='' (empty) → no confirmation"
 
+# 8.x — agents create: schema files must be named input_schema.json / output_schema.json
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Schema Agent\" --output-format json_with_schema --output-schema /tmp/verdict.json --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "only reads agents/<path>/output_schema.json" "8.s1 agents create with verdict.json → schema filename advisory"
+assert_contains "$OUTPUT" "Confirm the resource name" "8.s1 schema advisory keeps the name confirmation"
+assert_contains "$(echo "$OUTPUT" | jq -r .hookSpecificOutput.hookEventName 2>/dev/null || true)" "PreToolUse" "8.s1 output is a single valid JSON object"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Tool Agent\" --input-format json --input-schema=https://example.com/schemas/request.json --expose-agent-as-tool --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "input-schema points at request.json" "8.s2 URL input schema with another name → advisory"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Good Agent\" --input-format json --input-schema ./schemas/input_schema.json --output-format json_with_schema --output-schema \"./schemas/output_schema.json\" --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s3 correctly named schema files → no schema advisory"
+
 # =============================================
 # Section 9: SessionStart Hook — foundry-session-start.sh
 # =============================================
