@@ -45,8 +45,8 @@ The entire `ai:` block is omitted from the manifest when both lists are empty. T
 - `agent "X" output_schema is required when output_format is json_with_schema`
 - `agent "X" input_schema is required when exposure.agent_as_tool is true`
 - `agent "X" input_schema file "f" ... does not exist` (and the output equivalent)
-- `agent "X" input_schema must be "input_schema.json"; the Foundry API only reads the schema from agents/<path>/input_schema.json` (and the output equivalent)
-- `agent "X" input_schema must be "input_schema.json"; inline schemas are not read by the Foundry API, write the schema to agents/<path>/input_schema.json` (and the output equivalent)
+- `agent "X" input_schema must be "input_schema.json": rename agents/<path>/<file> to input_schema.json and set input_schema: input_schema.json in manifest.yml` (and the output equivalent)
+- `agent "X" input_schema must be "input_schema.json": move the inline schema into agents/<path>/input_schema.json and set input_schema: input_schema.json in manifest.yml` (and the output equivalent)
 - `duplicate agent name "X"`
 - `agent "X" references knowledge base "K" which is not defined in the manifest`
 
