@@ -161,6 +161,8 @@ If a function was created without it, recreate the function. That changes its `w
 ❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
 ```
 
+**Calling the app's own AI agent**: use `id: ai_agents.<agent name>` (the manifest `name`); the agent needs `exposure.workflows.system_action: true`. `apps validate` doesn't resolve it, so check the deploy output. See [workflow-invocation](../ai-agents-development/references/workflow-invocation.md).
+
 > **⚠️ Reading Falcon alerts, detections, or incidents? It depends on whether the workflow already holds the object.** *Enriching* a detection the workflow was triggered on (query by its ID, e.g. `Ngsiem.detection.id = ?detectID`) → Event Query action, go schemaless. *Fetching a population you don't have* ("summarize all high-severity alerts") → source-of-truth API: a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — an Event Query can silently return nothing since NG-SIEM contents are connector-dependent. See [references/event-query-vs-api.md](references/event-query-vs-api.md).
 
 ## Calling API Integration Operations
@@ -237,7 +239,7 @@ The data path follows the pattern: `action_key.API_Integration.Custom_{Integrati
 
 Use Print data as the primary output action. Only add Send email when the user explicitly requests it. In headless/automated runs (`claude -p`), use Print data only — skip Send email entirely since the recipient cannot be prompted.
 
-In interactive mode, when the user requests email, **ask for their email address with the assistant's available input mechanism**. If none exists, ask in chat. Never guess or infer the email from context. The `to` field must contain a real email address — placeholders like `user@example.com` fail at runtime.
+In interactive mode, when the user requests email, **ask for their email address** (with the assistant's input mechanism, or in chat). Never guess or infer it. The `to` field must be a real address — placeholders like `user@example.com` fail at runtime.
 
 ```yaml
     send_email:
