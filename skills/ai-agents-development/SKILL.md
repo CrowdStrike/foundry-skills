@@ -202,11 +202,11 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
 |------|--------------|--------------------|
 | `--expose-charlotte-chat` | `charlotte_chat` | Agent is reachable from Charlotte chat |
 | `--expose-agent-as-tool` | `agent_as_tool` | Agent can be invoked as a tool by other agents |
-| `--expose-workflow-system-action` | `workflows.system_action` | Agent appears as a Fusion action scoped to this app only |
+| `--expose-workflow-system-action` | `workflows.system_action` | Agent is published as an app-scoped Fusion action |
 
 Three behaviors worth knowing:
 
-- **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted (same as all three `false`), and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; the action is already app-scoped, so it stays out of Charlotte chat. Call it from the workflow as that action, not a generic LLM action with the prompt copied inline.
+- **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted (same as all three `false`). For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
 - **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature to invoke this one. The check runs before any files are written:
 
   ```
@@ -274,9 +274,9 @@ No other artifact type supports agent-tool exposure. Functions, workflows, and R
 
 ## Invoking an Agent from Code
 
-Charlotte chat and Falcon Fusion workflows invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has one thing the API reference does not spell out:
+Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an agent for you. Calling the agent definition API yourself (from a function or the UI) has one thing the API reference does not spell out:
 
-- **`credit_cents_limit` has a floor of `100`.** The field is documented as optional without a minimum; values below `100` are rejected with a `400`. Budget in whole credits.
+- **`credit_cents_limit` has an undocumented floor of `100`.** Lower values are rejected with a `400`, so budget in whole credits.
 
 ## Common Pitfalls
 
@@ -309,14 +309,14 @@ Charlotte chat and Falcon Fusion workflows invoke an agent for you. Calling the 
 |------|-----------|
 | KB file sourcing, encryption, deploy packaging limits | [references/knowledge-bases.md](references/knowledge-bases.md) |
 | Full field-by-field schema, every validation error string | [references/manifest-schema.md](references/manifest-schema.md) |
-| Product docs: Falcon Foundry AI capabilities overview | [AI Capabilities](https://docs.crowdstrike.com/r/en-US/er9g8gmh/j2c92c94) |
-| Product docs: agents via the CLI | [AI agents (Foundry CLI)](https://docs.crowdstrike.com/r/en-US/er9g8gmh/ce325bab) |
-| Product docs: knowledge bases via the CLI | [Knowledge bases (Foundry CLI)](https://docs.crowdstrike.com/r/en-US/er9g8gmh/d82146c3) |
+| Product docs: Falcon Foundry AI capabilities overview | [AI Capabilities](https://docs.crowdstrike.com/access?ft:originId=ce325bab) |
+| Product docs: agents via the CLI | [AI agents (Foundry CLI)](https://docs.crowdstrike.com/access?ft:originId=d82146c3) |
+| Product docs: knowledge bases via the CLI | [Knowledge bases (Foundry CLI)](https://docs.crowdstrike.com/access?ft:originId=l69669e4) |
 
 ## Related Skills
 
 - `collections-development` — schema design for collections used as agent tools
 - `api-integrations` — OpenAPI spec work, including `x-cs-operation-config`
-- `workflows-development` — Fusion workflows that invoke an agent exposed via `exposure.workflows`
+- `workflows-development` — Fusion workflows that call the agent as `ai_agents.<agent name>`
 - `security-patterns` — prompt-injection surface review before exposing an agent to Charlotte
 - `debugging-workflows` — deploy and validation failures

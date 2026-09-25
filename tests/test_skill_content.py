@@ -362,6 +362,25 @@ class TestAIAgentsSkill:
         assert "No flag means unreachable, even by your own app" in content
         assert "--expose-workflow-system-action` alone" in content
 
+    def test_app_workflow_calls_agent_by_alias(self):
+        """An app's workflow references its own agent as `ai_agents.<agent name>`.
+
+        Without this, agents guessed `agents.<name>`, hardcoded the per-CID action ID,
+        or fell back to an inline LLM Completion action.
+        """
+        skill = _read_skill(self.SKILL)
+        assert "`ai_agents.<agent name>`" in skill
+        assert "references/workflow-invocation.md" in skill
+        ref = _read_skill("skills/ai-agents-development/references/workflow-invocation.md")
+        assert "id: ai_agents.Triage Agent" in ref
+        assert "is not exposed to workflows; set exposure.workflows.system_action to true" in ref
+        assert "could not be found" in ref
+        assert "invoke_published_agent_external_v1" in ref
+        assert "Don't substitute `Charlotte AI - LLM Completion`" in ref
+        workflows = _read_skill("skills/workflows-development/SKILL.md")
+        assert "id: ai_agents.<agent name>" in workflows
+        assert "../ai-agents-development/references/workflow-invocation.md" in workflows
+
     def test_no_invented_tuning_knobs(self):
         """No temperature, chunk size, similarity, or top_k keys exist to set."""
         content = _read_skill(self.SKILL)
