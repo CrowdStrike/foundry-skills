@@ -8,7 +8,9 @@
 #    the Foundry development workflow skill (non-blocking)
 #
 # The marker file bridges the two hooks since they run at different times.
-# Cleaned up once the Skill tool is invoked.
+# It is scoped to the session, reset on every prompt, and removed after the
+# first reminder (or when the Skill tool is invoked), so one detected prompt
+# produces one reminder instead of one per tool call.
 #
 # Receives JSON on stdin with hook_event_name and event-specific fields.
 # Outputs JSON with additionalContext or permissionDecision.
@@ -18,10 +20,13 @@ set -euo pipefail
 INPUT=$(cat)
 
 HOOK_EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // empty')
-MARKER="/tmp/.foundry-skill-router-active"
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+MARKER="/tmp/.foundry-skill-router-active${SESSION_ID:+-$SESSION_ID}"
 
 case "$HOOK_EVENT" in
   UserPromptSubmit)
+    # Each prompt is classified on its own; never carry a detection forward.
+    rm -f "$MARKER"
     USER_PROMPT=$(echo "$INPUT" | jq -r '.prompt // .user_prompt // empty')
     PROMPT_LOWER=$(echo "$USER_PROMPT" | tr '[:upper:]' '[:lower:]')
 
@@ -200,7 +205,8 @@ case "$HOOK_EVENT" in
         exit 0
       fi
 
-      # Advisory nudge — don't block tools, just remind the model
+      # Advisory nudge, once per detected prompt — don't block tools
+      rm -f "$MARKER"
       jq -n '{
         hookSpecificOutput: {
           hookEventName: "PreToolUse",

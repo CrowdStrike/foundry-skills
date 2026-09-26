@@ -875,6 +875,29 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$HOOK" "$JSON")
 assert_empty "$OUTPUT" "4.4  No marker, Bash → no output"
 
+# 4.5 — Reminder fires once per detected prompt, not on every tool call
+cleanup
+echo "$$" > "$MARKER"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "ls"}}')
+run_hook "$HOOK" "$JSON" >/dev/null
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "4.5  Second tool call → no repeated reminder"
+
+# 4.6 — A new prompt that doesn't match clears a leftover marker
+cleanup
+echo "$$" > "$MARKER"
+JSON=$(jq -n '{hook_event_name: "UserPromptSubmit", prompt: "what time is it"}')
+run_hook "$HOOK" "$JSON" >/dev/null
+assert_marker_not_exists "4.6  Non-matching prompt → leftover marker cleared"
+
+# 4.7 — Another session's marker doesn't leak into this one
+cleanup
+echo "$$" > "$MARKER"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", session_id: "other-session", tool_name: "Bash", tool_input: {command: "ls"}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "4.7  Marker from another session → no reminder"
+rm -f "$MARKER-other-session"
+
 # ---------- Section 5: Superpowers Bridge ----------
 
 printf "\n${BOLD}Section 5: Superpowers Bridge${RESET}\n\n"
