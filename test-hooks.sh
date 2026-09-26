@@ -906,13 +906,14 @@ printf "\n${BOLD}Section 5: Superpowers Bridge${RESET}\n\n"
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "superpowers:brainstorming"}}')
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
-assert_contains "$OUTPUT" "STOP. Do NOT proceed" "5.1  superpowers:brainstorming → redirect"
+assert_contains "$OUTPUT" "stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow" "5.1  superpowers:brainstorming → redirect"
 
 # 5.2 — brainstorming (short form) → redirect
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "brainstorming"}}')
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
-assert_contains "$OUTPUT" "STOP. Do NOT proceed" "5.2  brainstorming (short form) → redirect"
+assert_contains "$OUTPUT" "stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow" "5.2  brainstorming (short form) → redirect"
+assert_contains "$OUTPUT" "For any other task, continue with brainstorming" "5.2  brainstorming redirect is scoped to Foundry work"
 
 # 5.3 — superpowers:writing-plans → advisory
 cleanup

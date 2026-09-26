@@ -24,7 +24,7 @@ case "$SKILL_NAME" in
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "STOP. Do NOT proceed with brainstorming. The Foundry plugin is installed and crowdstrike-falcon-foundry:development-workflow MUST be used instead. It handles requirements gathering, CLI scaffolding, and manifest coordination for Foundry apps. Cancel this brainstorming skill invocation and invoke crowdstrike-falcon-foundry:development-workflow immediately."
+        additionalContext: "FOUNDRY PLUGIN INSTALLED: If this task is Falcon Foundry app development, stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow instead. It handles requirements gathering, CLI scaffolding, and manifest coordination, while brainstorming plans hand-written manifest.yml files that fail to deploy. For any other task, continue with brainstorming."
       }
     }'
     exit 0
