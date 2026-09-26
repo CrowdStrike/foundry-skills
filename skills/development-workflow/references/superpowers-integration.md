@@ -28,7 +28,7 @@ cd app-name
 **Task pattern for API integrations:**
 ```bash
 # Delegate ALL OpenAPI spec work to the api-integrations sub-skill.
-foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/MyApi.yaml
+foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/MyApi.yaml --no-prompt
 ```
 
 **Task pattern for UI pages:**
@@ -41,7 +41,7 @@ foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 **Task pattern for workflows:**
 ```bash
 # Write workflow YAML to /tmp/My_workflow.yml — NOT inside the project directory
-foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml
+foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
 # Edit the project copy at workflows/My_workflow.yml if needed
 ```
 
