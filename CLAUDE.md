@@ -24,24 +24,13 @@ The hook is advisory: it adds context to the tool call but doesn't block or rewr
 
 ## Skills Integration with Claude Code Workflows
 
-**Planning Integration**: For structured planning with review checkpoints, install [superpowers](https://github.com/obra/superpowers) (`superpowers:writing-plans`, `superpowers:executing-plans`). Without superpowers, the orchestrator provides basic planning guidance that accounts for Foundry's 47 capability types and manifest dependencies.
+**Planning Integration**: For structured planning with review checkpoints, install [superpowers](https://github.com/obra/superpowers) (`superpowers:writing-plans`, `superpowers:executing-plans`). Without superpowers, the orchestrator provides basic planning guidance that accounts for Foundry's capability and manifest dependencies.
 
 **Execution Integration**: If superpowers is installed, `superpowers:executing-plans` provides batch execution with review checkpoints between capabilities. Otherwise, use the orchestrator's built-in execution checkpoints.
 
 **Testing Integration**: If superpowers is installed, `superpowers:test-driven-development` enforces RED-GREEN-REFACTOR discipline. Each Foundry sub-skill also has its own capability-specific testing patterns.
 
 **Handoff Integration**: Preserve Foundry-specific CLI state (profiles, authentication, `foundry ui run` status) when handing off between sessions.
-
-## Counter-Rationalizations
-
-The skills enforce discipline to prevent common failures:
-
-| Your Excuse | Reality |
-|-------------|---------|
-| "I have API experience" | Foundry APIs have platform-specific auth, discovery, and error handling |
-| "Time pressure means skip sub-skills" | Sub-skills PREVENT rework that costs 10x more time |
-| "I can learn patterns during implementation" | Learning while implementing = building on wrong assumptions |
-| "Sub-skills are overkill for simple cases" | No Foundry capability is simple - platform complexity is hidden |
 
 ## Essential Skills Commands
 

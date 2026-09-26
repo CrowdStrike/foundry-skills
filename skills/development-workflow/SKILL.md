@@ -299,7 +299,7 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 | Headless/CI setup, env vars, US-GOV-1 | [references/headless-operation.md](references/headless-operation.md) |
 | Superpowers plugin coordination | [references/superpowers-integration.md](references/superpowers-integration.md) |
 | Token management, performance targets | [references/performance-optimization.md](references/performance-optimization.md) |
-| Counter-rationalizations, red flags | [references/counter-rationalizations.md](references/counter-rationalizations.md) |
+| Common wrong turns (CLI vs hand-written files) | [references/counter-rationalizations.md](references/counter-rationalizations.md) |
 | Lifecycle phases, manifest patterns, CLI state, app operations, local e2e runs | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Improving These Skills
