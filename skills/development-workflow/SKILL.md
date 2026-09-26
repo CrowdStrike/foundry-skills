@@ -160,7 +160,7 @@ foundry collections create --name "my_col" --schema /tmp/my_schema.json --descri
 # 3. VALIDATE EARLY — fail fast if specs or schemas are bad
 foundry apps validate --no-prompt
 # If validation fails, STOP. Fix the spec/schema — do not build UI on a broken backend.
-# The adapt script should handle spec issues. If it didn't, improve the script.
+# The adapt script handles known spec issues. If one remains, patch only that spot and tell the user what the script missed.
 
 # 4. Functions
 foundry functions create --name "my-fn" --language python --description "desc" \
@@ -189,7 +189,7 @@ foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 foundry ui extensions create --name "my-ext" --description "desc" --from-template React --sockets "activity.detections.details" --no-prompt
 ```
 
-**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt_spec_for_foundry.py` instead.
+**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Let `adapt_spec_for_foundry.py` fix spec issues; if it misses one, patch only that spot and tell the user what it missed.
 
 ### Step 6: Write Domain-Specific Content
 
