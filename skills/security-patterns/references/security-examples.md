@@ -357,9 +357,9 @@ def get_secure_client():
 # manifest.yml - Environment-specific configurations
 environments:
   development:
-    oauth_scopes: ["alerts:read", "hosts:read"]  # Read-only for dev
+    oauth_scopes: ["alerts:read", "devices:read"]  # Read-only for dev
   production:
-    oauth_scopes: ["alerts:read", "alerts:write", "hosts:read"]  # Minimal required
+    oauth_scopes: ["alerts:read", "alerts:write", "devices:read"]  # Minimal required
 ```
 
 ## Local Development Security
@@ -413,7 +413,7 @@ app:
 # Minimal OAuth scopes
 oauth_scopes:
   - "alerts:read"
-  - "hosts:read"
+  - "devices:read"
 
 # UI Security settings
 ui:

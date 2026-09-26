@@ -53,7 +53,7 @@ Request only the scopes your app needs. Broad scopes like `alerts:*` or `hosts:*
 oauth_scopes:
   - "alerts:read"        # Read alerts — avoid "alerts:write" unless needed
   - "detections:read"    # Read detections
-  - "hosts:read"         # Device information
+  - "devices:read"       # Device information (Hosts API)
 ```
 
 ## Credential Security
@@ -156,7 +156,7 @@ app:
 
 oauth_scopes:
   - "alerts:read"
-  - "hosts:read"
+  - "devices:read"
 
 functions:
   - name: "process-alerts"
