@@ -202,17 +202,15 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 - **Collection schemas** → collections-development
 - **AI agents / knowledge bases** → ai-agents-development
 
-> **⚠️ MANDATORY: Load the relevant sub-skill BEFORE writing any domain-specific code.** Without the sub-skill loaded, you WILL hallucinate incorrect formats and nonexistent APIs. Known failure modes:
+> **Load the relevant sub-skill before writing domain-specific code.** Foundry formats and SDK calls differ from what general knowledge suggests, and these are the failures seen when the sub-skill wasn't loaded:
 >
-> | Writing... | MUST load | Hallucination without it |
+> | Writing... | Load | What goes wrong without it |
 > |---|---|---|
 > | Workflow YAML | `workflows-development` | Invented `definition/node_types/sdk_type` format instead of correct `trigger` + `actions` with `version_constraint` |
 > | Function code calling Falcon APIs | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` instead of FalconPy SDK classes (`from falconpy import Hosts`) |
 > | Function code calling a third-party API (Slack, Jira, PagerDuty, etc.) | `functions-falcon-api` + check `use-cases/` | Invented `falcon.command("createNotification")` or raw HTTP calls instead of `APIIntegrations().execute_command(definition_id="...", operation_id="...")`. The app MUST have an API integration (OpenAPI spec) for the service, then call it from the function via FalconPy `APIIntegrations` class. See foundry-sample-functions-python for reference. |
 > | Function code accessing collections | `collections-development` | Invented REST endpoints for collection CRUD instead of FalconPy `CustomStorage` service class |
 > | AI agent or knowledge base manifest | `ai-agents-development` | Invented `model` values, wrong `tools` reference format, or agents created before the knowledge bases they reference (fails validation) |
->
-> ALWAYS load the sub-skill first. This is not optional.
 
 ### Step 7: Final Build and Deploy
 
