@@ -10,18 +10,17 @@ This plugin includes four hooks that run automatically:
 
 - **SessionStart**: `foundry-session-start.sh` checks CLI version and initializes the Foundry environment
 - **UserPromptSubmit**: `foundry-skill-router.sh` routes user intents to the appropriate skill
-- **PreToolUse (Bash)**: `foundry-cli-guard.sh` validates all Bash commands to ensure Foundry CLI commands include `--no-prompt` and blocks manual directory/file creation for app structure
+- **PreToolUse (Bash)**: `foundry-cli-guard.sh` checks Bash commands and adds advisory context when a Foundry CLI command is missing a required flag such as `--no-prompt`, or when app structure is being created by hand
 - **PreToolUse (Skill)**: `superpowers-foundry-bridge.sh` intercepts `superpowers:brainstorming` and redirects to the Foundry development workflow skill
 
 ## Automated Safety Enforcement
 
-The `foundry-cli-guard.sh` hook automatically validates all Bash commands to ensure:
+The `foundry-cli-guard.sh` hook checks every Bash command and flags:
 
-- Foundry CLI commands always include `--no-prompt` flag (prevents `Error: EOF` failures)
-- Manual directory/file creation for app structure is blocked (prevents invalid manifest.yml)
-- Commands are corrected before execution with clear error messages
+- Foundry CLI commands missing `--no-prompt` (prevents `Error: EOF` failures)
+- Manual directory/file creation for app structure (prevents invalid manifest.yml)
 
-This enforcement runs automatically. You don't need to remember the rules; the hook will catch mistakes before they cause failures.
+The hook is advisory: it adds context to the tool call but doesn't block or rewrite the command, so the command still runs as written. Get the flags right before running.
 
 ## Skills Integration with Claude Code Workflows
 
