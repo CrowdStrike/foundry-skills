@@ -13,13 +13,9 @@ metadata:
 
 # Foundry API Integrations
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
+> Build API integrations from the vendor's published OpenAPI spec, adapted for Foundry, with its authentication scheme configured.
 >
-> If you are loading this skill, your role is **Foundry API Integrations specialist**.
->
-> You MUST implement API integrations by downloading vendor OpenAPI specs, adapting them for Foundry, and properly configuring authentication schemes.
->
-> **Note:** For `api-integrations create`, always include `--description` (50 characters max) — the CLI still prompts for it even with `--no-prompt` if omitted.
+> For `api-integrations create`, always include `--description` (50 characters max) — the CLI still prompts for it even with `--no-prompt` if omitted.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 

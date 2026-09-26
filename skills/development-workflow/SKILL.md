@@ -13,28 +13,13 @@ metadata:
 
 # Foundry Development Workflow
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
+> This skill owns the Foundry development flow. Follow the **App Creation Flow** below from user prompt to running app, scaffold with `foundry apps create` and related CLI commands, delegate capability-specific content to the Foundry sub-skills, and hand-write only what the CLI can't generate (OpenAPI content, workflow logic, UI code).
 >
-> If you are loading this skill, your role is **Foundry app lifecycle orchestrator**.
->
-> **THIS SKILL OWNS THE FOUNDRY DEVELOPMENT FLOW.**
->
-> **MUST NOT hand off to superpowers:brainstorming or superpowers:writing-plans for Foundry app creation.**
-> Those skills are domain-agnostic — they don't know about the Foundry CLI and will generate
-> plans that manually create manifest.yml and boilerplate files. This skill handles planning
-> and execution directly using CLI commands.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. Follow the **App Creation Flow** below to go from user prompt → running app
-> 2. Use `foundry apps create` and related CLI commands for ALL scaffolding
-> 3. Delegate capability-specific content to Foundry sub-skills
-> 4. Hand-write ONLY what the CLI cannot generate (OpenAPI content, workflow logic, UI code)
+> Don't hand Foundry app creation to superpowers:brainstorming or superpowers:writing-plans. They don't know the Foundry CLI and produce plans that hand-write manifest.yml and boilerplate files. They can supplement this flow (TDD discipline, code review), not replace it.
 >
 > **CRITICAL: add `--no-prompt` to every command that accepts it** — without it, interactive prompts cause `Error: EOF`. The `create`, `validate`, `deploy`, `release`, and `delete` commands all accept it (`apps delete` also needs `--force-delete`). Three reject it and fail with `unknown flag`: `foundry version`, `apps list`, and `apps list-deployments`. Verify with `foundry <command> --help`. When a command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
 > **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
->
-> **Superpowers skills MAY supplement** (TDD discipline, code review) but MUST NOT replace this workflow.
 
 This skill coordinates the full Falcon Foundry app lifecycle — from parsing requirements through scaffolding, implementation, and deployment. It delegates capability-specific work to sub-skills that know the platform details.
 

@@ -13,12 +13,6 @@ metadata:
 
 # Foundry Security Patterns
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry security architect**.
->
-> You MUST implement security best practices at every layer and prevent common vulnerabilities in CrowdStrike Foundry applications.
-
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Security patterns for Falcon Foundry app development covering authentication, input validation, UI security, and platform-specific considerations. Foundry apps run on a cybersecurity platform — security is a core requirement.

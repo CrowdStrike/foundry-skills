@@ -13,17 +13,7 @@ metadata:
 
 # Foundry UI Development
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry UI specialist**.
->
-> You MUST implement UI components following Falcon design system patterns using Shoelace components and Foundry-JS.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. Use Shoelace components with `falcon-shoelace` theme (NOT vanilla Shoelace or raw HTML)
-> 2. Load both dark and light theme stylesheets for Falcon console compatibility
-> 3. Coordinate with `foundry ui run` for live development
-> 4. Apply iframe security patterns for all extensions
+> Build UI with Shoelace components using the `falcon-shoelace` theme (not vanilla Shoelace or raw HTML), and load both the dark and light theme stylesheets so it matches the Falcon console. Use `foundry ui run` for live development, and apply the iframe security patterns to every extension.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
