@@ -22,18 +22,22 @@
 #
 # BIAS CONTROL — this is the point of the script, not a detail. Skills can reach an
 # assistant from several places at once (an installed marketplace plugin, symlinks
-# in ~/.agents/skills/, a --plugin-dir flag, an Antigravity plugin directory). If more than one is live, a passing
-# run tells you nothing about which copy was exercised, and a stale installed copy
-# can silently mask your working tree. So before testing, this script:
+# in ~/.agents/skills/, a --plugin-dir flag, an Antigravity plugin directory). If
+# more than one is live, a passing run tells you nothing about which copy was
+# exercised, and a stale installed copy can silently mask your working tree. So
+# before testing, this script:
 #
-#   1. Disables installed Foundry plugins where the assistant supports it
+#   1. Disables installed Foundry plugins where the assistant supports it, and the
+#      sibling Fusion plugin in Antigravity (whose own Foundry plugin is swapped
+#      for the working tree instead, see 3)
 #   2. Moves this repo's symlinks out of ~/.agents/skills/
 #   3. Gives each assistant exactly ONE source pointing at the working tree. For
 #      Antigravity, which only loads plugins from ~/.gemini/config/plugins/, that
 #      means moving the installed copy aside and symlinking this repo in its place
 #
 # Everything is restored on exit, including on Ctrl-C, and a stash orphaned by a run
-# that was killed before it could tidy up is recovered at startup.
+# that was killed before it could tidy up is recovered at startup. The Antigravity
+# swap is delegated to scripts/agy-plugin-swap.sh, tested by test-agy-plugin-swap.sh.
 #
 # Usage:
 #   ./test-assistants.sh                      # test every installed assistant
@@ -45,7 +49,7 @@
 #   ./test-assistants.sh --judge              # judge the last --e2e run, launching nothing
 #   ./test-assistants.sh --expire-token       # delete the cached token first (see below)
 #   ./test-assistants.sh --save results.json  # machine-readable results
-#   ./test-assistants.sh --sequential         # one at a time (default: two groups in parallel)
+#   ./test-assistants.sh --sequential         # one at a time (default: each group in parallel)
 #   ./test-assistants.sh --no-isolate         # skip bias control (not recommended)
 #   ./test-assistants.sh --verbose            # list every plugin and symlink touched
 #
@@ -88,18 +92,22 @@ SKIP=()
 ISOLATE=1
 EXPIRE_TOKEN=0
 VERBOSE=0
-PARALLEL=1   # two groups in parallel; --sequential to disable
+PARALLEL=1   # each group in parallel; --sequential to disable
 LOG_DIR="/tmp/foundry-assistant-test"
 SKILL_HOME="$HOME/.agents/skills"
 STASH="$LOG_DIR/stashed-symlinks"
 CODEX_CACHE_STASH="$LOG_DIR/stashed-codex-cache"
 CODEX_CACHE_ORIGIN="$LOG_DIR/stashed-codex-cache.origin"
-# Antigravity loads plugins only from here, never from ~/.agents/skills.
-AGY_PLUGINS="$HOME/.gemini/config/plugins"
+# Antigravity loads plugins only from ~/.gemini/config/plugins, never from
+# ~/.agents/skills. The swap that points it at this repo lives in its own tested
+# helper; its stash is under ~/.gemini/config, not /tmp, because while a run is in
+# flight it holds the only copy of the installed plugin.
 AGY_NAME="crowdstrike-falcon-foundry"
 AGY_SIBLING="crowdstrike-falcon-fusion"
-# Outside $LOG_DIR so nothing that cleans the logs can take the installed copy with it.
-AGY_STASH="/tmp/foundry-agy-plugin-stash"
+export AGY_SWAP_NAME="$AGY_NAME"
+export AGY_SWAP_REPO="$REPO"
+# shellcheck source=scripts/agy-plugin-swap.sh
+source "$REPO/scripts/agy-plugin-swap.sh"
 
 # The real app-creation prompt, matching the README example and test-skill.sh.
 # It names no `foundry` commands, so an assistant with no skills loaded cannot fake
@@ -208,7 +216,7 @@ while [[ $# -gt 0 ]]; do
     -v|--verbose)   VERBOSE=1; shift ;;
     --sequential)   PARALLEL=0; shift ;;
     --expire-token) EXPIRE_TOKEN=1; shift ;;
-    -h|--help)      sed -n '2,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)      sed -n '2,/--verbose/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
@@ -267,7 +275,6 @@ DISABLED_AGY=()
 STASHED=0
 OURS=()                 # symlinks this script created, so we only ever remove our own
 CODEX_CACHE=""          # moved-aside Codex plugin cache, restored on exit
-AGY_LINKED=0            # 1 while $AGY_PLUGINS/$AGY_NAME is our symlink to this repo
 
 # True if the path is a symlink into this repo — i.e. one of ours, safe to discard.
 points_into_repo() {
@@ -282,7 +289,7 @@ restore() {
   [ ${#DISABLED_AGY[@]} -gt 0 ] && had=1
   [ "$STASHED" -gt 0 ] && had=1
   [ -n "$CODEX_CACHE" ] && had=1
-  [ "$AGY_LINKED" -eq 1 ] && had=1
+  [ "$AGY_SWAP_ACTIVE" -eq 1 ] && had=1
   [ "$had" -eq 0 ] && return 0
 
   head2 "Restoring your setup"
@@ -346,13 +353,12 @@ recover_orphans() {
       fi
     fi
   fi
-  # And for Antigravity: an interrupted run leaves our symlink where the installed
-  # plugin belongs, with the real copy parked in the stash.
-  if [ -d "$AGY_STASH" ]; then
-    [ "$(readlink "$AGY_PLUGINS/$AGY_NAME" 2>/dev/null)" = "$REPO" ] && rm -f "$AGY_PLUGINS/$AGY_NAME"
-    if [ ! -e "$AGY_PLUGINS/$AGY_NAME" ] && mv "$AGY_STASH" "$AGY_PLUGINS/$AGY_NAME"; then
-      recovered=$((recovered+1)); vok "recovered Antigravity plugin $AGY_NAME"
-    fi
+  # And for Antigravity: an interrupted run leaves a symlink where the installed
+  # plugin belongs, with the real copy parked in the helper's stash.
+  if ! agy_recover; then
+    warn "could not recover an Antigravity plugin left by an interrupted run: $AGY_SWAP_ERR"
+  elif [ "$AGY_SWAP_RECOVERED" -eq 1 ]; then
+    recovered=$((recovered+1)); vok "recovered Antigravity plugin $AGY_NAME"
   fi
   [ "$recovered" -gt 0 ] && warn "recovered $recovered item(s) left behind by an interrupted run"
   [ "$kept" -gt 0 ] && warn "$kept stashed symlink(s) left in ${STASH/#$HOME/\~} — something else holds their names"
@@ -405,14 +411,20 @@ isolate() {
       fi
     done < <(echo "$out" | grep -oE '[a-z0-9-]*foundry[a-z0-9-]*' | sort -u)
   fi
-  # Antigravity's own plugin stays enabled: its group swaps the installed copy for a
-  # symlink to this repo. Disable the sibling CrowdStrike plugin instead, or
-  # Antigravity reaches for its skills (it used fusion-skills' copy of a Foundry
-  # skill when this plugin wasn't loaded).
-  if command -v agy >/dev/null 2>&1 && agy plugin list 2>/dev/null | grep -q "\"$AGY_SIBLING\""; then
-    if agy plugin disable "$AGY_SIBLING" >/dev/null 2>&1; then
-      DISABLED_AGY+=("$AGY_SIBLING"); vok "disabled agy plugin $AGY_SIBLING"
-    fi
+  # Antigravity's own plugin stays enabled: its run swaps the installed copy for a
+  # symlink to this repo. Disable any other Foundry-named plugin, and the sibling
+  # CrowdStrike plugin too, or Antigravity reaches for its skills (it used
+  # fusion-skills' copy of a Foundry skill when this plugin wasn't loaded). A plugin
+  # the user already disabled is left alone, so restore doesn't turn it on.
+  if command -v agy >/dev/null 2>&1; then
+    while read -r p; do
+      [ -z "$p" ] || [ "$p" = "$AGY_NAME" ] && continue
+      [ "$(agy_plugin_enabled "$p")" = "false" ] && continue
+      if agy plugin disable "$p" >/dev/null 2>&1; then
+        DISABLED_AGY+=("$p"); vok "disabled agy plugin $p"
+      fi
+    done < <(agy plugin list 2>/dev/null | grep -oE '"name": *"[^"]*"' | sed 's/.*: *"//;s/"//' \
+               | grep -E "foundry|^$AGY_SIBLING\$" | sort -u)
   fi
 
   # Codex has no `plugin disable`, and it loads the plugin cache *and*
@@ -493,31 +505,29 @@ link_repo_skills() {
   done
 }
 # Antigravity has no --plugin-dir and ignores ~/.agents/skills: it loads plugins
-# only from $AGY_PLUGINS. Park the installed copy (move, never delete) and put a
-# symlink to this repo in its place, then undo both afterwards.
+# only from ~/.gemini/config/plugins. Park the installed copy (move, never delete)
+# and put a symlink to this repo in its place, then undo both afterwards. Returns
+# non-zero if the swap couldn't be made, and the caller must then not test
+# Antigravity, since it would be exercising the installed copy.
 link_agy_plugin() {
-  mkdir -p "$AGY_PLUGINS"
-  local path="$AGY_PLUGINS/$AGY_NAME"
-  if [ -e "$path" ] || [ -L "$path" ]; then
-    if [ -e "$AGY_STASH" ] || ! mv "$path" "$AGY_STASH" 2>/dev/null; then
-      warn "could not move the installed Antigravity plugin aside; its result may reflect that copy"
-      return 0
-    fi
-    vok "moved Antigravity plugin $AGY_NAME aside"
+  if ! agy_swap_in; then
+    warn "not testing Antigravity against the installed copy: $AGY_SWAP_ERR"
+    return 1
   fi
-  ln -s "$REPO" "$path" && AGY_LINKED=1
+  vok "linked this repo in as Antigravity plugin $AGY_NAME"
   agy plugin list 2>/dev/null | grep -q "\"$AGY_NAME\"" \
     || warn "$AGY_NAME is not registered with Antigravity; run 'agy plugin install $REPO' once"
-  agy plugin enable "$AGY_NAME" >/dev/null 2>&1 || true
+  return 0
 }
 unlink_agy_plugin() {
-  [ "$AGY_LINKED" -eq 1 ] || return 0
-  local path="$AGY_PLUGINS/$AGY_NAME"
-  [ "$(readlink "$path" 2>/dev/null)" = "$REPO" ] && rm -f "$path"
-  if [ -e "$AGY_STASH" ] && [ ! -e "$path" ]; then
-    mv "$AGY_STASH" "$path" && vok "restored Antigravity plugin $AGY_NAME"
+  [ "$AGY_SWAP_ACTIVE" -eq 1 ] || return 0
+  if agy_swap_out; then
+    vok "restored Antigravity plugin $AGY_NAME"
+    [ -n "$AGY_SWAP_ERR" ] && warn "$AGY_SWAP_ERR"
+  else
+    warn "$AGY_SWAP_ERR"
   fi
-  AGY_LINKED=0
+  return 0
 }
 unlink_repo_skills() {
   # Remove only the symlinks we created. Never touch anything we did not make.
@@ -802,11 +812,13 @@ printf '\n'
 
 RESULTS=(); CATEGORIES=(); FAILURES=0; TESTED=0
 
-# Three groups, because they need different filesystem state and cannot overlap:
-# --plugin-dir assistants run with this repo's symlinks stashed away, Codex needs
-# those same symlinks present, and Antigravity needs this repo symlinked in as its
-# installed plugin. Set the state once per group, run the group in parallel, then
-# move on. Wall clock is the slowest member of each group, summed over the groups.
+# Two groups, because they need OPPOSITE filesystem state and cannot overlap:
+# --plugin-dir assistants run with this repo's symlinks stashed away, while Codex
+# needs those same symlinks present. Antigravity joins the second group: it reads
+# only its own plugin directory, which the first group never touches, so its swap
+# can run alongside Codex's symlinks. Set the state once per group, run the group
+# in parallel, then move on. Wall clock becomes the slowest member of each group
+# instead of the sum of all five.
 # Sets LAUNCHED_PID / LAUNCHED_START. Deliberately NOT echoing them: calling this via
 # $(...) would run it in a subshell that owns the background job, and the parent shell
 # then cannot wait on the pid ("is not a child of this shell").
@@ -883,28 +895,33 @@ report_one() {   # name bin source rc elapsed
   return 0
 }
 
-run_group() {
-  local want_src="$1"
+run_group() {   # source...   (every assistant whose source is one of these)
+  local -a want_srcs=("$@")
   # `local -a x` leaves the array UNSET under set -u; `=()` makes it set-but-empty.
-  local -a g_names=() g_bins=() g_pids=() g_starts=()
+  local -a g_names=() g_bins=() g_srcs=() g_pids=() g_starts=()
   local entry name bin source argv
 
   for entry in "${ASSISTANTS[@]}"; do
     IFS='|' read -r name bin source argv <<< "$entry"
     want "$name" "$bin" || continue
-    [ "$source" = "$want_src" ] || continue
+    [[ " ${want_srcs[*]} " == *" $source "* ]] || continue
     if ! command -v "$bin" >/dev/null 2>&1; then
       printf '  %s%-16s SKIP%s    %s not installed\n' "$DIM" "$name" "$RESET" "$bin"
       RESULTS+=("$name|SKIP|skip|not installed|0|none|")
       continue
     fi
-    g_names+=("$name"); g_bins+=("$bin")
+    # Antigravity is only worth running if the swap put the working tree in place.
+    if [ "$source" = "~/.gemini/config/plugins" ] && ! link_agy_plugin; then
+      printf '  %s%-16s SKIP%s    could not swap in the working tree\n' "$DIM" "$name" "$RESET"
+      RESULTS+=("$name|SKIP|skip|could not swap in the working tree|0|none|")
+      continue
+    fi
+    g_names+=("$name"); g_bins+=("$bin"); g_srcs+=("$source")
   done
   [ ${#g_names[@]} -eq 0 ] && return 0
 
   # Set the filesystem state ONCE for the whole group.
-  [ "$want_src" = "~/.agents/skills" ] && link_repo_skills
-  [ "$want_src" = "~/.gemini/config/plugins" ] && link_agy_plugin
+  [[ " ${g_srcs[*]} " == *" ~/.agents/skills "* ]] && link_repo_skills
   [ "$EXPIRE_TOKEN" -eq 1 ] && rm -f "$HOME/.config/foundry/token.json"
 
   local i
@@ -941,8 +958,8 @@ run_group() {
     done
   done
 
-  [ "$want_src" = "~/.agents/skills" ] && unlink_repo_skills
-  [ "$want_src" = "~/.gemini/config/plugins" ] && unlink_agy_plugin
+  [[ " ${g_srcs[*]} " == *" ~/.agents/skills "* ]] && unlink_repo_skills
+  unlink_agy_plugin
   CHILD_PIDS=()
   return 0
 }
@@ -1113,8 +1130,7 @@ run_judge() {
 declare -a g_rcs=()
 if [ "$JUDGE" -eq 0 ]; then
   run_group "--plugin-dir"
-  run_group "~/.agents/skills"
-  run_group "~/.gemini/config/plugins"
+  run_group "~/.agents/skills" "~/.gemini/config/plugins"
 fi
 
 WALL=$(( $(date +%s) - RUN_START ))
