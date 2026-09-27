@@ -122,13 +122,13 @@ Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_s
 agent "my_agent" input_schema is required when input_format is json
 ```
 
-> **The schema file name is fixed.** The Foundry API reads only `input_schema.json` and `output_schema.json` from the agent directory; any other filename, or an inline schema, is ignored. Name the local source file `output_schema.json` (or `input_schema.json`) before passing it to `--output-schema` (`--input-schema`); download a URL source to a file with that name first. Current CLIs write the schema under that name whatever you pass, and reject any other value on every manifest load, so a wrong name breaks every command in the app:
+> **The schema file name is fixed.** The Foundry API reads only `input_schema.json` and `output_schema.json` from the agent directory, ignoring any other filename or an inline schema. Give the local file passed to `--output-schema` (`--input-schema`) that name first, downloading a URL source if needed. CLIs newer than 2.1.1 write the schema under that name whatever you pass, and reject any other value on every manifest load, so a wrong name breaks every command in the app:
 >
 > ```
 > agent "my_agent" output_schema must be "output_schema.json": rename agents/my_agent/verdict.json to output_schema.json and set output_schema: output_schema.json in manifest.yml
 > ```
 >
-> Older CLIs keep the source name, pass `apps validate`, and fail deploy with `output schema is required when using JSON format`. Either way, put the schema at `agents/<path>/output_schema.json` and set the key to `output_schema.json`.
+> CLI 2.1.1 and earlier keep the source name, pass `apps validate`, and fail deploy with `output schema is required when using JSON format` (verified 2026-09-22). Either way, put the schema at `agents/<path>/output_schema.json` (`input_schema.json`) and set the matching key to that name.
 >
 > Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors": for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put ranges in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
 
@@ -295,7 +295,7 @@ Charlotte chat and Falcon Fusion workflows invoke an agent for you. Calling the 
 | `output_schema must be "output_schema.json"` (or `input_schema ...`) on any command, or `output schema is required when using JSON format` at deploy | Schema file not named `output_schema.json` (`input_schema.json`), or an inline schema | Put the schema at `agents/<path>/output_schema.json` (`input_schema.json`) and set the manifest key to that name |
 | Deploy `Failed` with `output schema at root.properties.X uses unsupported schema keyword ...` in App manager "Show errors" | Schema keyword the agent's model provider rejects (`minimum`/`maximum` for Claude on Bedrock) | Drop the keyword and state the constraint in `description`; for OpenAI models also set `additionalProperties: false` on every object and list every property in `required` |
 | `model <id> does not support structured output` at deploy | `json_with_schema` on a model without it (Bedrock Claude and Nemotron, as of 2026-09) | Use `output_format: json` for that agent, or a model that supports it (`openai.gpt-5.5` does) |
-| Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by name prefix or manifest IDs, not by name alone |
+| Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by the IDs in `manifest.yml`, not by name |
 | Deploy fails with `model <id> is not available`, and still fails after setting `model: ""` | Model IDs are CID-specific, and a failed deploy leaves the pinned model on the platform-side agent | Pick an ID from `/agentic-studio/queries/models/v1` in that CID, or remove the agent and create it again |
 | `400` when invoking an agent with `credit_cents_limit` | Value below the undocumented floor | Pass `100` or more |
 
