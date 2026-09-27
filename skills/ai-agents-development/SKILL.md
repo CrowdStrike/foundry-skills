@@ -202,7 +202,7 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
 
 Three behaviors worth knowing:
 
-- **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted (same as all three `false`). For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
+- **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted (same as all three `false`), and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
 - **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature to invoke this one. The check runs before any files are written:
 
   ```
