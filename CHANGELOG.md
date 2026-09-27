@@ -51,6 +51,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **The skill-router reminder no longer follows you into unrelated sessions.** After a prompt matched Foundry keywords, the router added "Foundry plugin reminder" to every tool call until a skill loaded, and because its marker file was global and never reset, the reminder leaked into later prompts and other sessions, sometimes for days. The marker is now per session, reset on every prompt, and the reminder fires once per detected prompt.
+- **Brainstorming is only redirected for Foundry work.** With the plugin installed, every `superpowers:brainstorming` invocation was told to cancel and switch to `development-workflow`, even in projects unrelated to Foundry. The redirect now applies only when the task is Foundry app development.
+- **`workflows-development` no longer asks for `onError` blocks.** Its opening instructions said to implement `onError` blocks and described built-in retries; Fusion has neither. It now points at conditional routing and action-level flags, matching its Error Handling section.
+- **Hosts API scope corrected to `devices:read`.** `security-patterns` and two references listed `hosts:read`, which isn't a Falcon API scope.
 - **`ignored:` entries are regular expressions.** The `development-workflow` example used globs such as `**/*.test.ts`, which fail `foundry apps validate`; it now uses anchored regexes.
 - **`--system-prompt` silently accepts a bad path.** The CLI tries the value as a file path or URL and falls back to treating it as inline prompt text, so a typo becomes the agent's entire instruction set with no error. The skill tells you to read back `agents/<path>/system_prompt.txt` after every create, and the CLI guard repeats it.
 - **`.svg` files in a knowledge base are silently dropped at deploy.** The packager unconditionally ignores SVGs, so the file passes `foundry apps validate` and then is absent from the bundle — the agent behaves as if it were never added. Documented alongside the shared 25 MB package cap, which a large PDF corpus can exhaust on its own.
