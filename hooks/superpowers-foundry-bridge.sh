@@ -2,12 +2,14 @@
 #
 # superpowers-foundry-bridge.sh
 #
-# PreToolUse hook on the Skill tool. Blocks superpowers:brainstorming and
-# redirects to development-workflow which owns the Foundry dev flow.
-# Advisory context is injected for other superpowers planning skills.
+# PreToolUse hook on the Skill tool. When superpowers:brainstorming is invoked,
+# it advises switching to development-workflow if the task is Foundry app work
+# and continuing with brainstorming otherwise. Advisory context is injected for
+# other superpowers planning skills. It has no project-directory check, so it
+# fires on every matching Skill call and the wording stays conditional.
 #
 # Receives JSON on stdin with tool_input.skill (the skill being invoked).
-# Outputs JSON with decision or additionalContext.
+# Outputs JSON with additionalContext; it never blocks.
 
 set -euo pipefail
 

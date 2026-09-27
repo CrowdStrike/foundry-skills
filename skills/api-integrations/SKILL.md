@@ -233,7 +233,7 @@ For Python (FalconPy), Go (gofalcon), and detailed UI examples, see [references/
 
 **Target: complete an API integration in under 5 minutes.** Download, adapt, register, deploy. That's it.
 
-**Do NOT analyze, debug, or second-guess the spec's auth scheme.** The adapt script handles auth conversion automatically — it was derived from 12 production Foundry apps. Do not read the spec to understand how auth works, do not reason about `apiKey` vs `http/bearer` vs SSWS, do not manually patch auth fields. Just run the adapt script and register. If the adapt script misses something, patch only that spot and tell the user what the script missed — don't rework the rest of the spec.
+**Let the adapt script handle the spec's auth scheme.** It handles auth conversion automatically — it was derived from 12 production Foundry apps. Don't read the spec up front to work out how auth works or reason about `apiKey` vs `http/bearer` vs SSWS; run the adapt script and register. The one exception: if the script's output, the import, or a test call shows it got a specific field wrong (auth fields included), patch only that field and tell the user what the script missed. Don't rework the rest of the spec.
 
 **NEVER use Read or sed on large spec files.** Vendor specs can be 10K-80K+ lines. Reading them into context wastes millions of tokens and slows everything down. Instead:
 
@@ -260,7 +260,7 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 ## Common Pitfalls
 
 - **Reading large spec files into context.** NEVER use Read or sed on vendor specs. They can be tens of thousands of lines. Use `grep` to find line numbers, `python3` to patch specific operations.
-- **Manually analyzing or fixing auth schemes.** Trust the adapt script. Do not read the spec to reason about apiKey vs http/bearer vs SSWS. The adapt script handles auth conversion automatically. If it gets something wrong, patch that field and tell the user what the script missed.
+- **Manually analyzing or fixing auth schemes.** Trust the adapt script. Do not read the spec to reason about apiKey vs http/bearer vs SSWS. The adapt script handles auth conversion automatically. If it demonstrably gets a field wrong, the exception above applies: patch only that field and tell the user what the script missed.
 - **Adding `x-cs-operation-config` when not asked.** Skip it unless the user's prompt explicitly mentions workflows or a UI/workflow needs a specific endpoint. Most integrations work without it.
 - **Writing specs from scratch** when the vendor publishes one. Hand-written specs miss edge cases.
 - **Running spec linters before importing.** Foundry's import handles vendor specs with lint errors. Linting wastes time and tempts trimming.

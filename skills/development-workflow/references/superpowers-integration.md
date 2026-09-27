@@ -13,7 +13,7 @@ When the [superpowers](https://github.com/obra/superpowers) plugin is installed,
 
 ## Safety Net: PreToolUse Hook
 
-A `PreToolUse` hook (`hooks/superpowers-foundry-bridge.sh`) fires whenever a superpowers planning skill is invoked in a Foundry project directory. It injects CLI scaffolding requirements into the planning skill's context. A separate `PreToolUse` hook in `hooks/foundry-skill-router.sh` injects a non-blocking advisory reminder when Foundry development intent is detected.
+A `PreToolUse` hook (`hooks/superpowers-foundry-bridge.sh`) fires whenever a superpowers planning skill is invoked. It has no project-directory check, so the CLI scaffolding requirements it injects are worded to apply only when the task involves Falcon Foundry. A separate `PreToolUse` hook in `hooks/foundry-skill-router.sh` injects a non-blocking advisory reminder when Foundry development intent is detected.
 
 ## What superpowers:writing-plans MUST Do Differently for Foundry
 
