@@ -1383,6 +1383,27 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s3 correctly named schema files → no schema advisory"
 
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Dash Agent\" --input-format json --input-schema --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "Confirm the resource name" "8.s4 --input-schema with no value → hook still runs to the name confirmation"
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s4 flag-shaped value → no schema advisory"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions create --name fn --input-schema request_schema.json --no-prompt && foundry agents create --name \"Chain Agent\" --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s5 function schema in a chained command → no agent schema advisory"
+
+cleanup
+JSON=$(jq -n --arg cmd "foundry agents create --name \"Inline Agent\" --output-format json_with_schema --output-schema '{\"type\": \"object\"}' --no-prompt" '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "output-schema points at an inline schema" "8.s6 inline JSON schema → says inline, not a filename"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Url Agent\" --output-schema https://example.com/output_schema.json?raw=1 --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s7 correctly named URL with a query string → no schema advisory"
+
 # =============================================
 # Section 9: SessionStart Hook — foundry-session-start.sh
 # =============================================
