@@ -515,8 +515,6 @@ link_agy_plugin() {
     return 1
   fi
   vok "linked this repo in as Antigravity plugin $AGY_NAME"
-  agy plugin list 2>/dev/null | grep -q "\"$AGY_NAME\"" \
-    || warn "$AGY_NAME is not registered with Antigravity; run 'agy plugin install $REPO' once"
   return 0
 }
 unlink_agy_plugin() {

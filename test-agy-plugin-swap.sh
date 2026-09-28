@@ -141,6 +141,27 @@ refute "recover reports failure" agy_recover
 expect "reinstalled copy untouched" [ "$(cat "$PATH_/marker")" = "reinstalled" ]
 expect "parked copy kept in the stash" stash_marker_is installed-copy
 
+echo "== a reinstalled copy keeps its flag and the stash keeps its recovery record =="
+build_fixture false yes
+agy_swap_in >/dev/null
+rm -f "$PATH_"; mkdir -p "$PATH_"; echo "reinstalled" > "$PATH_/marker"
+refute "swap_out reports failure" agy_swap_out
+expect "reinstalled copy's flag left enabled" flag_is true
+expect "link target still recorded" [ -f "$AGY_SWAP_STASH/link-target" ]
+expect "prior flag still recorded" [ "$(cat "$AGY_SWAP_STASH/enabled" 2>/dev/null)" = false ]
+rm -rf "$PATH_"
+expect "recover succeeds once the path is free" agy_recover
+expect "installed copy is back in place" installed_back
+expect "flag back to false" flag_is false
+expect "stash removed" no_stash
+
+echo "== a failed enable blocks the swap and puts everything back =="
+build_fixture false yes
+refute "swap_in refuses" env AGY_SWAP_BIN=false bash -c "source '$SCRIPT_DIR/scripts/agy-plugin-swap.sh' && agy_swap_in"
+expect "installed copy is back in place" installed_back
+expect "flag still false" flag_is false
+expect "stash removed" no_stash
+
 echo "== swap_out runs from an INT (Ctrl-C) trap =="
 build_fixture false yes
 cat > "$WORK/int-child.sh" <<CHILD

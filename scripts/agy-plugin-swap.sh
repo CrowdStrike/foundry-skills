@@ -81,7 +81,11 @@ agy_swap_in() {
     agy_swap_out
     return 1
   fi
-  "$AGY_SWAP_BIN" plugin enable "$AGY_SWAP_NAME" >/dev/null 2>&1 || true
+  if ! "$AGY_SWAP_BIN" plugin enable "$AGY_SWAP_NAME" >/dev/null 2>&1; then
+    AGY_SWAP_ERR="could not enable $AGY_SWAP_NAME; run 'agy plugin install $AGY_SWAP_REPO' once"
+    agy_swap_out
+    return 1
+  fi
   return 0
 }
 
@@ -95,11 +99,8 @@ agy_swap_out() {
   if [ -n "$target" ] && [ -L "$path" ] && [ "$(readlink "$path")" = "$target" ]; then
     rm -f "$path"
   fi
-  if [ "$prior" = "false" ]; then
-    "$AGY_SWAP_BIN" plugin disable "$AGY_SWAP_NAME" >/dev/null 2>&1 \
-      || err="could not disable $AGY_SWAP_NAME again"
-  fi
-  rm -f "$st/link-target" "$st/enabled"
+  # Put the installed copy back before touching the flag or the record, so a failure
+  # leaves the stash complete for agy_recover and never flips a replacement's flag.
   if [ -e "$st/plugin" ] || [ -L "$st/plugin" ]; then
     if [ -e "$path" ] || [ -L "$path" ]; then
       AGY_SWAP_ERR="$path is occupied, so the installed copy is still parked at $st/plugin"
@@ -112,6 +113,11 @@ agy_swap_out() {
       return 1
     fi
   fi
+  if [ "$prior" = "false" ]; then
+    "$AGY_SWAP_BIN" plugin disable "$AGY_SWAP_NAME" >/dev/null 2>&1 \
+      || err="could not disable $AGY_SWAP_NAME again"
+  fi
+  rm -f "$st/link-target" "$st/enabled"
   rmdir "$st" "${st%/*}" 2>/dev/null || true
   AGY_SWAP_ACTIVE=0
   AGY_SWAP_ERR="$err"
