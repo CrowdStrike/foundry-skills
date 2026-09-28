@@ -341,7 +341,7 @@ Key considerations:
 - Process in batches of ~10,000 records
 - Call `gc.collect()` between batches to free memory
 - The `humio-auth-proxy:write` scope is required for lookup file uploads (silently fails without it)
-- Lookup files are limited to 50 MB
+- For large or growing lookup files, send only new or changed rows with `update_lookup_file_entries()` instead of re-uploading the whole file
 
 ## LogScale Ingestion
 
