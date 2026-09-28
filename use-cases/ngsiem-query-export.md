@@ -155,7 +155,7 @@ actions:
 
 - **`extrasaction='ignore'`** is critical for CSV conversion. LogScale results contain metadata fields not in your fieldnames list — without this, `DictWriter` raises `ValueError`.
 - **Clean up `/tmp` in `finally` blocks.** Foundry function containers persist `/tmp` across invocations. Leaked files cause disk pressure and stale data.
-- **Lookup file limits:** 10 MB max file size, 5 uploads per 30 seconds. For larger exports, split into multiple files or use collections instead.
+- **Large lookup files:** rebuilding and re-uploading a whole large file on every run is slow and memory-heavy. For large or growing exports, write only new or changed rows in bounded batches and merge them with `NGSIEM.update_lookup_file_entries()` (`update_mode="update"` with key columns). Uploads are also rate limited to 5 per 30 seconds.
 - **`mode="sync"` vs `mode="async"`:** Sync blocks until results return (fast for <10K events). Async returns a job ID for polling (required for large/slow queries).
 - **Scope requirements:** `humio-auth-proxy:read` for queries, `humio-auth-proxy:write` for writing events or uploading files. Add both to manifest permissions.
 - **Workflow "Output files only":** If set to `true`, JSON result fields are empty — downstream actions can only use the CSV file. Set to `false` to preserve both.

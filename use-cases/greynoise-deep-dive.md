@@ -65,16 +65,6 @@ del batch_data, rows_to_write
 gc.collect()
 ```
 
-### File size guard (lookup upload limit is 50 MB)
-
-```python
-file_size = os.path.getsize(output_path)
-logger.info(f"CSV file size: {file_size} bytes ({file_size / 1024 / 1024:.2f} MB)")
-if file_size > 47_000_000:  # buffer below 50 MB limit
-    logger.warning("File size > 47MB, stopping processing")
-    break
-```
-
 ### Upload lookup file via FalconPy
 
 ```python
@@ -82,6 +72,26 @@ ngsiem = NGSIEM()
 response = ngsiem.upload_file(lookup_file=output_path, repository=repository)
 logger.info(f"API response: {response}")
 ```
+
+### Update large lookup files incrementally
+
+Once a lookup file exists, send only new or changed rows and let Falcon Next-Gen SIEM merge them on
+a key column, rather than rebuilding and re-uploading the whole file on every run:
+
+```python
+with open(output_path, "rb") as f:
+    response = ngsiem.update_lookup_file_entries(
+        search_domain=repository,
+        filename=os.path.basename(output_path),
+        file=f.read(),
+        update_mode="update",   # "append" when creating the file
+        key_columns="ip",
+        ignore_case="false",
+    )
+```
+
+The [Anomali ThreatStream sample](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream)
+uses this pattern for its IOC lookup files.
 
 ### Manifest: extended function resources and required scope
 
@@ -125,7 +135,7 @@ curl --request POST --url http://localhost:<port>/ \
 
 ## Gotchas
 
-- **Lookup file upload limit is 50 MB**, not what the console displays. Add a file size guard at ~47 MB to leave buffer. This limit may increase in the future.
+- **Keep large lookup files incremental.** Rebuilding and re-uploading a large file on every run is slow and memory-heavy. Write rows in bounded batches and use `update_lookup_file_entries()` to merge new or changed rows instead of replacing the file.
 - **Memory is capped at 1024 MB**. Process API responses in batches (e.g., 10K records), write to CSV immediately, then delete the batch and run `gc.collect()`.
 - **Max execution time is 900 seconds**. Budget time across API fetch, CSV write, and upload. Log progress to track where time is spent.
 - **`humio-auth-proxy:write` scope is required** for `NGSIEM.upload_file()`. Missing this scope causes silent upload failures (function reports success, but no lookup file appears).

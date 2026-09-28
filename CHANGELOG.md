@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
+- **Incremental updates for large lookup files** — `functions-development` and the GreyNoise and Next-Gen SIEM export use cases no longer state a lookup file size limit. They recommend writing new or changed rows in bounded batches and merging them with `NGSIEM.update_lookup_file_entries()` instead of rebuilding and re-uploading the whole file.
 - **`development-workflow` dependency order** is now Collections → Functions → Knowledge bases → Agents → Workflows → UI, with scaffolding commands for both new capabilities in Step 5.
 - **A narrow carve-out to the "never edit manifest.yml" rule.** `ai.agents[].model` and `.tools` have no CLI flags — `agents create` always writes `model: ""` and omits `tools`. Editing the manifest is the only way to set them. Both the orchestrator and the new skill scope the exception to those two keys so it does not erode the rule that protects `id`, `path`, and `entrypoint`. Agent `exposure` is explicitly *not* part of the carve-out; it has flags.
 - **Knowledge base name and description validation is asymmetric.** The manifest validator now accepts a one-character KB name and no longer checks the description at all — the AI platform imposes no restriction, so the CLI stopped adding one. The `kb create` flag validators still enforce name 5–100 and description 3–500, so the looser rules only surface for a manifest you inherit or hand-write.
