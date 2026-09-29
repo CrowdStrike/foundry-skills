@@ -417,3 +417,32 @@ class TestCrossSkillConsistency:
             content = _read_skill(skill)
             assert "--input-schema" in content or "--wf-expose" in content, \
                 f"{skill} should reference the creation-time flags"
+
+
+# ── FalconPy Alerts.get_alerts_v2 keyword ───────────────────────────────────
+
+
+class TestGetAlertsV2Keyword:
+    """get_alerts_v2 builds its body from composite_ids only.
+
+    FalconPy rejects ids= for this method with a 400 before sending the
+    request, so every example must pass composite_ids. Mocked tests hide the
+    difference unless they assert the call's arguments.
+    """
+
+    def test_no_example_passes_ids(self):
+        offenders = []
+        for dirpath, _, files in os.walk(os.path.join(_ROOT, "skills")):
+            for name in files:
+                if not name.endswith(".md"):
+                    continue
+                path = os.path.join(dirpath, name)
+                with open(path) as f:
+                    for lineno, line in enumerate(f, 1):
+                        if "get_alerts_v2(ids=" in line:
+                            offenders.append(f"{os.path.relpath(path, _ROOT)}:{lineno}")
+        assert not offenders, f"get_alerts_v2 must use composite_ids=: {offenders}"
+
+    def test_mock_example_asserts_composite_ids(self):
+        content = _read_skill("skills/functions-falcon-api/SKILL.md")
+        assert "get_alerts_v2.assert_called_once_with(composite_ids=" in content

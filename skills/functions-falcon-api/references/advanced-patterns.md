@@ -72,9 +72,9 @@ if __name__ == '__main__':
 
 ## AgentWorks: route-to-method map
 
-Every route below was verified from a deployed function (2026-09-23) against FalconPy 1.6.5, the current PyPI release:
+Every route below was verified from a deployed function:
 
-| Route | FalconPy 1.6.5 |
+| Route | FalconPy method |
 |---|---|
 | `GET /agentic-studio/queries/spans/v1` | `Spans().queries_spans_v1(filter=, sort=, limit=, offset=)` |
 | `GET /agentic-studio/entities/spans/v1` | `Spans().entities_spans_v1(ids=)` |
@@ -84,9 +84,8 @@ Every route below was verified from a deployed function (2026-09-23) against Fal
 | `GET /agentic-studio/entities/models/v1` | `Models().entities_models_v1(ids=)` |
 | `POST /agentic-studio/entities/agent-invocations/v1` | `AgentInvocation().invoke_published_agent_external_v1(body=)` |
 | `GET /agentic-studio/entities/agent-invocations/v3` | `AgentInvocation().get_agent_invocation_v3(id=)` (singular `id`) |
-| `GET /agentic-studio/queries/agents/v2`, `/entities/agents/v2` | No class; `APIHarnessV2().command("Manual", override="GET,<route>", parameters=...)` |
-
-An `Agents` service class for the agent-record routes is in development in FalconPy but not yet released. When a release ships it, check its method names and prefer it over the `override` call.
+| `GET /agentic-studio/queries/agents/v2` | `Agents().query_studio_agents(filter=, sort=, limit=, offset=)` |
+| `GET /agentic-studio/entities/agents/v2` | `Agents().get_studio_agents(ids=)` |
 
 ## AgentWorks spans: attributing executions to an agent
 
@@ -113,7 +112,7 @@ response = spans.queries_spans_v1(filter=flt, sort="start_time|desc", limit=3)
 A function that invokes agents its app ships (a judge, a classifier) usually has to resolve them by name, since the manifest's `ai.agents[].id` is the Foundry artifact ID, not the AgentWorks agent ID. Two things make a plain name lookup wrong, both verified in a live CID (2026-09-23):
 
 - **The versions query returns deleted agents.** `AgentVersions().query_agent_versions_v1(filter="name:'<name>'+is_published:true")` still returns the published versions of agents that were deleted, including the ones an earlier install of the same app left behind. Resolving by name then finds two agents per name, or picks a dead one.
-- **The agent record says who owns it.** `/agentic-studio/entities/agents/v2` returns `is_deleted` and `attribution`, for example `{"origin": "foundry", "data": {"foundry_app_id": "<app id>"}}` on an agent a Falcon Foundry app deployed. The deleted leftovers carried the previous app's ID. FalconPy 1.6.5 has no class for this endpoint; call it with `APIHarnessV2().command("Manual", override="GET,/agentic-studio/entities/agents/v2", parameters={"ids": agent_ids})`.
+- **The agent record says who owns it.** `/agentic-studio/entities/agents/v2` returns `is_deleted` and `attribution`, for example `{"origin": "foundry", "data": {"foundry_app_id": "<app id>"}}` on an agent a Falcon Foundry app deployed. The deleted leftovers carried the previous app's ID. Read it with `Agents().get_studio_agents(ids=agent_ids)`.
 
 So hydrate each candidate's agent record and keep only `not is_deleted` and `attribution.origin == "foundry"`; refuse, rather than guess, if more than one survives. Matching `attribution.data.foundry_app_id` against your own app would be stricter still, but the Python FDK does not expose the function's app ID.
 
@@ -154,11 +153,11 @@ def enrich_host_context(request: Request, config, logger) -> Response:
 
     # Get detections (via Alerts API with product filter)
     detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'detections'", limit=10).get("body", {}).get("resources", [])
-    detections = alerts_api.get_alerts_v2(ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
+    detections = alerts_api.get_alerts_v2(composite_ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
 
     # Get all alerts (includes detections + cases)
     alert_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
-    alerts = alerts_api.get_alerts_v2(ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
+    alerts = alerts_api.get_alerts_v2(composite_ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
 
     return Response(body={"host": host, "detections": detections, "alerts": alerts}, code=200)
 ```

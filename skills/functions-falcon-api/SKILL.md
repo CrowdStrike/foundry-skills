@@ -68,7 +68,7 @@ def get_alerts(request: Request, config: Union[Dict[str, Any], None], logger: Lo
     if not alert_ids:
         return Response(body={"alerts": []}, code=200)
 
-    details_response = falcon.get_alerts_v2(ids=alert_ids)
+    details_response = falcon.get_alerts_v2(composite_ids=alert_ids)
     if details_response["status_code"] != 200:
         return Response(body={"error": "Failed to fetch alert details"}, code=500)
 
@@ -158,7 +158,7 @@ def get_detections(request: Request, config, logger) -> Response:
     if not alert_ids:
         return Response(body={"detections": []}, code=200)
 
-    details = falcon.get_alerts_v2(ids=alert_ids)
+    details = falcon.get_alerts_v2(composite_ids=alert_ids)
     if details["status_code"] != 200:
         return Response(body={"error": "Failed to get details"}, code=500)
 
@@ -223,7 +223,6 @@ def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
     "now") or epoch-millisecond integers.
     """
     payload = {"queryString": query_string, "start": start, "end": end, "isLive": False}
-    # Must be search=, not body= — see the keyword gotcha below.
     started = ngsiem.start_search(repository=REPO, search=payload)
 
     if not isinstance(started, dict) or started.get("status_code", 500) >= 300:
@@ -272,11 +271,9 @@ if __name__ == '__main__':
     func.run()
 ```
 
-### The `search=` Keyword Gotcha
+### `start_search` Arguments and Responses
 
-**Use `search=`.** It works on every FalconPy version. `body=` was silently ignored before 1.6.5 ([falconpy#1491](https://github.com/CrowdStrike/falconpy/issues/1491), fixed in [#1497](https://github.com/CrowdStrike/falconpy/pull/1497)). Since FalconPy is unpinned, `search=` is the safe default.
-
-Response keys are asymmetric: `start_search` renames its payload to `resources` (read `started["resources"]["id"]`), while `get_search_status` does not (read `status["body"]`).
+Pass the query to `start_search` as `search=`, as in the example above. Response keys are asymmetric: `start_search` renames its payload to `resources` (read `started["resources"]["id"]`), while `get_search_status` does not (read `status["body"]`).
 
 ### The "search-all" Repository Gotcha
 
@@ -306,7 +303,7 @@ auth:
 
 ## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
-Use the `Spans`, `AgentInvocation`, `AgentVersions`, and `Models` classes with the `charlotte-ai-agent-definition` scopes (`read`; `write` to invoke and poll). FalconPy 1.6.5 has no class for agent records (`/agentic-studio/entities/agents/v2`); use `APIHarnessV2` with `override`. Filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing). Route-to-method map: [advanced-patterns](references/advanced-patterns.md).
+Use the `Agents`, `Spans`, `AgentInvocation`, `AgentVersions`, and `Models` classes with the `charlotte-ai-agent-definition` scopes (`read`; `write` to invoke and poll). Filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing). Route-to-method map: [advanced-patterns](references/advanced-patterns.md).
 
 ## The 207 Multi-Status Gotcha
 
@@ -346,6 +343,8 @@ def test_get_alerts_success():
         response = get_alerts(request, None, Mock())
         assert response.code == 200
         assert len(response.body["alerts"]) == 1
+        # get_alerts_v2 reads only composite_ids; ids= fails with a 400 before any request is sent
+        mock_falcon.get_alerts_v2.assert_called_once_with(composite_ids=["alert-001", "alert-002"])
 ```
 
 ## Local Testing
