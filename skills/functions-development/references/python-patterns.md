@@ -171,9 +171,7 @@ def get_incident(client: CustomStorage, incident_id: str) -> Optional[Dict[str, 
     if isinstance(response, (bytes, bytearray)):
         return json.loads(response.decode("utf-8"))
     errors = (response.get("body") or {}).get("errors") or []
-    # FalconPy <= 1.6.5 reports a missing key as a synthetic 500 with this message (falconpy#1508)
-    if response.get("status_code") == 404 or any(
-            "'bytes' object has no attribute 'get'" in str(e.get("message")) for e in errors):
+    if response.get("status_code") == 404:
         return None
     raise Exception(f"Failed to get incident: {response.get('status_code')} {errors}")
 

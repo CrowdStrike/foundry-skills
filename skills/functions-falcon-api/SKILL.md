@@ -310,7 +310,7 @@ auth:
 
 ## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
-Use the `Spans`, `AgentInvocation`, `AgentVersions`, and `Models` classes with the `charlotte-ai-agent-definition` scopes (`read`; `write` to invoke and poll). FalconPy 1.6.5 has no class for agent records (`/agentic-studio/entities/agents/v2`); use `APIHarnessV2` with `override`. Filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing). Route-to-method map: [advanced-patterns](references/advanced-patterns.md).
+Use the `Agents`, `Spans`, `AgentInvocation`, `AgentVersions`, and `Models` classes with the `charlotte-ai-agent-definition` scopes (`read`; `write` to invoke and poll). Filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing). Route-to-method map: [advanced-patterns](references/advanced-patterns.md).
 
 ## The 207 Multi-Status Gotcha
 
