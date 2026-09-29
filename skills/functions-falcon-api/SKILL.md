@@ -72,7 +72,7 @@ def get_alerts(request: Request, config: Union[Dict[str, Any], None], logger: Lo
     if not alert_ids:
         return Response(body={"alerts": []}, code=200)
 
-    details_response = falcon.get_alerts_v2(ids=alert_ids)
+    details_response = falcon.get_alerts_v2(composite_ids=alert_ids)
     if details_response["status_code"] != 200:
         return Response(body={"error": "Failed to fetch alert details"}, code=500)
 
@@ -162,7 +162,7 @@ def get_detections(request: Request, config, logger) -> Response:
     if not alert_ids:
         return Response(body={"detections": []}, code=200)
 
-    details = falcon.get_alerts_v2(ids=alert_ids)
+    details = falcon.get_alerts_v2(composite_ids=alert_ids)
     if details["status_code"] != 200:
         return Response(body={"error": "Failed to get details"}, code=500)
 
@@ -348,6 +348,8 @@ def test_get_alerts_success():
         response = get_alerts(request, None, Mock())
         assert response.code == 200
         assert len(response.body["alerts"]) == 1
+        # FalconPy ignores ids= here and sends an empty body; only composite_ids is read
+        mock_falcon.get_alerts_v2.assert_called_once_with(composite_ids=["alert-001", "alert-002"])
 ```
 
 ## Local Testing

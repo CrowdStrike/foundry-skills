@@ -60,6 +60,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Handler routing and description limits** — the function manifest example used `path:` instead of `api_path`, `api_path` doesn't support `{param}` placeholders, and descriptions are limited to 1024 characters for a function and 512 for a handler.
 - **foundry-js from the asset CDN** — only version 0.20.0 is served, so `ui-development`'s blueprint reference now shows vendoring the npm build when a page needs a newer version.
 - **The Detection Triage Agent example** now uses the same output format in its create command, manifest, and file listing.
+- **`Alerts.get_alerts_v2` examples passed `ids=`**, which FalconPy ignores for that method, so the request went out with an empty body and returned no alerts. `functions-falcon-api` and `functions-development` now pass `composite_ids=`, and the mocked test example asserts the keyword, since a mock that doesn't check arguments hides the mistake.
 
 ## [1.5.0] - 2026-08-19
 

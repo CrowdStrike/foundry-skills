@@ -153,11 +153,11 @@ def enrich_host_context(request: Request, config, logger) -> Response:
 
     # Get detections (via Alerts API with product filter)
     detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'detections'", limit=10).get("body", {}).get("resources", [])
-    detections = alerts_api.get_alerts_v2(ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
+    detections = alerts_api.get_alerts_v2(composite_ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
 
     # Get all alerts (includes detections + cases)
     alert_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
-    alerts = alerts_api.get_alerts_v2(ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
+    alerts = alerts_api.get_alerts_v2(composite_ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
 
     return Response(body={"host": host, "detections": detections, "alerts": alerts}, code=200)
 ```

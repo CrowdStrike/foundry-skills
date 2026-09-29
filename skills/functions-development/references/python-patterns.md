@@ -71,7 +71,7 @@ def fetch_alerts(falcon: Alerts, limit: int) -> List[Dict[str, Any]]:
         return []
 
     # Get full alert details
-    details_response = falcon.get_alerts_v2(ids=alert_ids)
+    details_response = falcon.get_alerts_v2(composite_ids=alert_ids)
 
     if details_response["status_code"] != 200:
         raise Exception("Failed to fetch alert details")
