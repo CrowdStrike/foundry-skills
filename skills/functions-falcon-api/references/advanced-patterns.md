@@ -72,9 +72,9 @@ if __name__ == '__main__':
 
 ## AgentWorks: route-to-method map
 
-Every route below was verified from a deployed function against FalconPy 1.6.6, the current PyPI release:
+Every route below was verified from a deployed function:
 
-| Route | FalconPy 1.6.6 |
+| Route | FalconPy method |
 |---|---|
 | `GET /agentic-studio/queries/spans/v1` | `Spans().queries_spans_v1(filter=, sort=, limit=, offset=)` |
 | `GET /agentic-studio/entities/spans/v1` | `Spans().entities_spans_v1(ids=)` |
