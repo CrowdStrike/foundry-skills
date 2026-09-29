@@ -8,20 +8,25 @@
 #    the Foundry development workflow skill (non-blocking)
 #
 # The marker file bridges the two hooks since they run at different times.
-# Cleaned up once the Skill tool is invoked.
+# It is scoped to the session, reset on every prompt, and removed after the
+# first reminder (or when the Skill tool is invoked), so one detected prompt
+# produces one reminder instead of one per tool call.
 #
 # Receives JSON on stdin with hook_event_name and event-specific fields.
-# Outputs JSON with additionalContext or permissionDecision.
+# Outputs JSON with additionalContext or permissionDecision (deny blocks the call).
 
 set -euo pipefail
 
 INPUT=$(cat)
 
 HOOK_EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // empty')
-MARKER="/tmp/.foundry-skill-router-active"
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+MARKER="/tmp/.foundry-skill-router-active${SESSION_ID:+-$SESSION_ID}"
 
 case "$HOOK_EVENT" in
   UserPromptSubmit)
+    # Each prompt is classified on its own; never carry a detection forward.
+    rm -f "$MARKER"
     USER_PROMPT=$(echo "$INPUT" | jq -r '.prompt // .user_prompt // empty')
     PROMPT_LOWER=$(echo "$USER_PROMPT" | tr '[:upper:]' '[:lower:]')
 
@@ -54,9 +59,6 @@ case "$HOOK_EVENT" in
     fi
 
     if [ "$FOUNDRY_MATCH" = true ]; then
-      # Write marker so PreToolUse hook knows to inject advisory context
-      echo "$$" > "$MARKER"
-
       # Standalone Fusion workflow? Advise the sibling plugin instead of
       # steering into app scaffolding. Without this the classifier is never
       # consulted at runtime and the agent tends to quietly author the workflow
@@ -83,6 +85,10 @@ case "$HOOK_EVENT" in
           exit 0
         fi
       fi
+
+      # Write marker so PreToolUse hook knows to inject advisory context. Only
+      # on this path: after a Fusion redirect, a Foundry nudge would contradict it.
+      echo "$$" > "$MARKER"
 
       jq -n '{
         hookSpecificOutput: {
@@ -114,8 +120,8 @@ case "$HOOK_EVENT" in
               jq -n --arg output "$ADAPT_OUTPUT" --arg requirements "$PLUGIN_ROOT/requirements.txt" '{
                 hookSpecificOutput: {
                   hookEventName: "PreToolUse",
-                  decision: "block",
-                  reason: ("BLOCKED: OpenAPI adaptation failed:\n" + $output + "\n\nInstall the required Python packages, then retry:\npython3 -m pip install -r " + $requirements)
+                  permissionDecision: "deny",
+                  permissionDecisionReason: ("BLOCKED: OpenAPI adaptation failed:\n" + $output + "\n\nInstall the required Python packages, then retry:\npython3 -m pip install -r " + $requirements)
                 }
               }'
               exit 0
@@ -126,8 +132,8 @@ case "$HOOK_EVENT" in
                 jq -n --arg output "$ADAPT_OUTPUT" '{
                   hookSpecificOutput: {
                     hookEventName: "PreToolUse",
-                    decision: "block",
-                    reason: ("BLOCKED: spec has structural issues that require manual fixes:\n" + $output + "\n\nBoth exposure flags must be nested under their own key:\n\nx-cs-operation-config:\n  workflow:\n    name: operationId\n    description: What this operation does\n    expose_to_workflow: true\n    system: false\n  agent_tools:\n    name: operation_name\n    description: What this operation does\n    expose_to_agent: true")
+                    permissionDecision: "deny",
+                    permissionDecisionReason: ("BLOCKED: spec has structural issues that require manual fixes:\n" + $output + "\n\nBoth exposure flags must be nested under their own key:\n\nx-cs-operation-config:\n  workflow:\n    name: operationId\n    description: What this operation does\n    expose_to_workflow: true\n    system: false\n  agent_tools:\n    name: operation_name\n    description: What this operation does\n    expose_to_agent: true")
                   }
                 }'
                 exit 0
@@ -147,8 +153,8 @@ case "$HOOK_EVENT" in
             jq -n --arg script "$ADAPT_SCRIPT" '{
               hookSpecificOutput: {
                 hookEventName: "PreToolUse",
-                decision: "block",
-                reason: ("BLOCKED: adapt_spec_for_foundry.py not found at " + $script + ". This script is required to validate OpenAPI specs before import.")
+                permissionDecision: "deny",
+                permissionDecisionReason: ("BLOCKED: adapt_spec_for_foundry.py not found at " + $script + ". This script is required to validate OpenAPI specs before import.")
               }
             }'
             exit 0
@@ -200,7 +206,8 @@ case "$HOOK_EVENT" in
         exit 0
       fi
 
-      # Advisory nudge — don't block tools, just remind the model
+      # Advisory nudge, once per detected prompt — don't block tools
+      rm -f "$MARKER"
       jq -n '{
         hookSpecificOutput: {
           hookEventName: "PreToolUse",

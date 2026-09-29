@@ -2,8 +2,8 @@
 #
 # foundry-cli-guard.sh
 #
-# PreToolUse hook that enforces --no-prompt on all Foundry CLI commands,
-# blocks manual directory/file creation that should use the CLI, and
+# PreToolUse hook that flags Foundry CLI commands missing --no-prompt,
+# flags manual directory/file creation that should use the CLI, and
 # reminds Claude to confirm resource names with the user before creating.
 #
 # Prevents common failures:

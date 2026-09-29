@@ -353,13 +353,12 @@ def get_secure_client():
 
 ## Multi-Environment Security
 
+The manifest declares scopes once, in `auth.scopes`; it has no per-environment scope settings. Declare the minimum the production app needs, and keep broader test-only scopes out of the committed manifest.
+
 ```yaml
-# manifest.yml - Environment-specific configurations
-environments:
-  development:
-    oauth_scopes: ["alerts:read", "hosts:read"]  # Read-only for dev
-  production:
-    oauth_scopes: ["alerts:read", "alerts:write", "hosts:read"]  # Minimal required
+# manifest.yml
+auth:
+  scopes: ["alerts:read", "alerts:write", "devices:read"]  # Minimal required
 ```
 
 ## Local Development Security
@@ -411,9 +410,10 @@ app:
   version: "1.0.0"
 
 # Minimal OAuth scopes
-oauth_scopes:
-  - "alerts:read"
-  - "hosts:read"
+auth:
+  scopes:
+    - "alerts:read"
+    - "devices:read"
 
 # UI Security settings
 ui:
@@ -468,7 +468,8 @@ collections:
 
 ```yaml
 # Too broad OAuth scopes
-oauth_scopes: ["*:*", "alerts:*", "hosts:*"]
+auth:
+  scopes: ["*:*", "alerts:*", "devices:*"]
 
 # Insecure CSP
 csp: "default-src *; script-src * 'unsafe-eval' 'unsafe-inline'"

@@ -34,7 +34,7 @@ foundry profile active
 
 Use CLI scaffolding commands to generate artifacts. The CLI creates directories, copies files, and updates manifest.yml with generated IDs. **Write spec/schema files to `/tmp/` first** — the CLI copies them into the project. Hand-write only what the CLI cannot generate (workflow YAML content, OpenAPI spec JSON, UI component code, collection schema JSON, Foundry-specific OpenAPI annotations like `x-cs-operation-config`).
 
-> **Note:** OAuth scopes are auto-managed by the platform for CLI-created artifacts. Do NOT manually add scopes like `api-integrations:read` to `manifest.yml` — Foundry handles permissions for its own artifacts automatically. Only use `foundry auth scopes add` for additional Falcon Platform API scopes (e.g., `hosts:read`, `detects:read`) not covered by the scaffolded capabilities.
+> **Note:** OAuth scopes are auto-managed by the platform for CLI-created artifacts. Do NOT manually add scopes like `api-integrations:read` to `manifest.yml` — Foundry handles permissions for its own artifacts automatically. Only use `foundry auth scopes add` for additional Falcon Platform API scopes (e.g., `devices:read`, `detects:read`) not covered by the scaffolded capabilities.
 
 ### Phase 3: Development
 - **MANDATORY sub-skill delegation** for all capability development

@@ -13,12 +13,6 @@ metadata:
 
 # Foundry Security Patterns
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry security architect**.
->
-> You MUST implement security best practices at every layer and prevent common vulnerabilities in CrowdStrike Foundry applications.
-
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Security patterns for Falcon Foundry app development covering authentication, input validation, UI security, and platform-specific considerations. Foundry apps run on a cybersecurity platform — security is a core requirement.
@@ -53,13 +47,15 @@ Only use `foundry auth scopes add` for Falcon Platform API scopes needed by func
 
 ### Minimal Scope Principle
 
-Request only the scopes your app needs. Broad scopes like `alerts:*` or `hosts:*` increase the blast radius if the app is compromised.
+Request only the scopes your app needs. Broad scopes like `alerts:*` or `devices:*` increase the blast radius if the app is compromised.
 
 ```yaml
-oauth_scopes:
-  - "alerts:read"        # Read alerts — avoid "alerts:write" unless needed
-  - "detections:read"    # Read detections
-  - "hosts:read"         # Device information
+# manifest.yml
+auth:
+  scopes:
+    - "alerts:read"      # Read alerts — avoid "alerts:write" unless needed
+    - "detects:read"     # Read detections
+    - "devices:read"     # Device information (Hosts API)
 ```
 
 ## Credential Security
@@ -160,9 +156,10 @@ For the full `SecureConsoleMessaging` class, see [references/security-examples.m
 app:
   name: "my-security-app"
 
-oauth_scopes:
-  - "alerts:read"
-  - "hosts:read"
+auth:
+  scopes:
+    - "alerts:read"
+    - "devices:read"
 
 functions:
   - name: "process-alerts"

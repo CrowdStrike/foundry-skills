@@ -349,9 +349,10 @@ Ingest custom data into Falcon LogScale for querying in Falcon Next-Gen SIEM.
 
 Required manifest scopes:
 ```yaml
-oauth_scopes:
-  - "app-logs:read"
-  - "app-logs:write"
+auth:
+  scopes:
+    - "app-logs:read"
+    - "app-logs:write"
 ```
 
 ### Service Class Pattern (Recommended)

@@ -13,12 +13,6 @@ metadata:
 
 # Foundry Collections Development
 
-> **SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry data modeling specialist**.
->
-> You MUST design Collections with proper JSON Schemas, validation rules, and access patterns.
-
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Falcon Foundry Collections are NoSQL document stores with JSON Schema validation. They provide persistent storage for app data with CRUD operations, FQL queries, and schema enforcement.

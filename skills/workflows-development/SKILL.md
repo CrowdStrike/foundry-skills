@@ -13,20 +13,11 @@ metadata:
 
 # Foundry Workflows Development
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry workflow automation specialist**.
->
-> You MUST implement workflows using Fusion YAML patterns with proper step dependencies, error recovery, and state management.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. Use Fusion YAML syntax for ALL workflow definitions
-> 2. Validate step dependencies before workflow execution
-> 3. Implement onError blocks for every multi-step workflow
+> Write every workflow definition in Fusion YAML, validate step dependencies before running it, and handle failures with conditional routing and action-level flags ([Error Handling](#error-handling)) — Fusion has no `onError` blocks and no built-in retry.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
-Falcon Foundry Workflows are YAML-defined automation units executed by the Falcon Fusion engine. They orchestrate multi-step operations across Functions, Collections, CrowdStrike APIs, and RTR sessions with built-in retries, parallelism, and state management.
+Falcon Foundry Workflows are YAML-defined automation units executed by the Falcon Fusion engine. They orchestrate multi-step operations across Functions, Collections, CrowdStrike APIs, and RTR sessions with parallelism and state management.
 
 ## Prerequisites
 

@@ -13,11 +13,7 @@ metadata:
 
 # Foundry AI Agents and Knowledge Bases
 
-> **SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry AI agent specialist**.
->
-> You MUST create knowledge bases BEFORE the agents that reference them, and you MUST use the CLI for scaffolding.
+> Create knowledge bases before the agents that reference them, and scaffold both with the CLI.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 

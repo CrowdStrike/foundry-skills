@@ -13,11 +13,7 @@ metadata:
 
 # Falcon API Integration in Functions
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Falcon API integration specialist for Foundry functions**.
->
-> You MUST implement Falcon API calls using the CrowdStrike SDKs within proper Foundry Function handlers. Authentication is automatic when using the FDK handler pattern.
+> Call Falcon APIs through the CrowdStrike SDKs inside Foundry function handlers. Authentication is automatic with the FDK handler pattern.
 >
 > The FalconPy `Detects` class is **removed**. Do not import it. Use `Alerts` for detection queries.
 

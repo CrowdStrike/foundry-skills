@@ -2,12 +2,14 @@
 #
 # superpowers-foundry-bridge.sh
 #
-# PreToolUse hook on the Skill tool. Blocks superpowers:brainstorming and
-# redirects to development-workflow which owns the Foundry dev flow.
-# Advisory context is injected for other superpowers planning skills.
+# PreToolUse hook on the Skill tool. When superpowers:brainstorming is invoked,
+# it advises switching to development-workflow if the task is Foundry app work
+# and continuing with brainstorming otherwise. Advisory context is injected for
+# other superpowers planning skills. It has no project-directory check, so it
+# fires on every matching Skill call and the wording stays conditional.
 #
 # Receives JSON on stdin with tool_input.skill (the skill being invoked).
-# Outputs JSON with decision or additionalContext.
+# Outputs JSON with additionalContext; it never blocks.
 
 set -euo pipefail
 
@@ -24,7 +26,7 @@ case "$SKILL_NAME" in
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "STOP. Do NOT proceed with brainstorming. The Foundry plugin is installed and crowdstrike-falcon-foundry:development-workflow MUST be used instead. It handles requirements gathering, CLI scaffolding, and manifest coordination for Foundry apps. Cancel this brainstorming skill invocation and invoke crowdstrike-falcon-foundry:development-workflow immediately."
+        additionalContext: "FOUNDRY PLUGIN INSTALLED: If this task is Falcon Foundry app development, stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow instead. It handles requirements gathering, CLI scaffolding, and manifest coordination, while brainstorming plans hand-written manifest.yml files that fail to deploy. For any other task, continue with brainstorming."
       }
     }'
     exit 0

@@ -356,7 +356,7 @@ paths:
           description: OK
 EOF
 OUTPUT=$(run_spec_hook "/tmp/test-spec-3-8.yaml")
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.8  flat expose_to_workflow with vars → BLOCK (fallback)"
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.8  flat expose_to_workflow with vars → BLOCK (fallback)"
 
 # 3.8b — flat expose_to_workflow WITHOUT variables (static URL) → BLOCK via fallback
 cleanup
@@ -379,7 +379,7 @@ cat > /tmp/test-spec-3-8b.json <<'EOF'
 }
 EOF
 OUTPUT=$(run_spec_hook "/tmp/test-spec-3-8b.json")
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.8b flat expose_to_workflow (static URL) → BLOCK (fallback)"
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.8b flat expose_to_workflow (static URL) → BLOCK (fallback)"
 assert_contains "$OUTPUT" "Must be nested under a" "3.8b error message explains fix"
 
 # 3.9 — nested workflow: key → ALLOW
@@ -448,7 +448,7 @@ EOF
 chmod +x /tmp/foundry-test-fake-bin/python3
 OUTPUT=$(PATH="/tmp/foundry-test-fake-bin:$PATH" run_spec_hook "/tmp/test-spec-3-10b.json")
 rm -rf /tmp/foundry-test-fake-bin
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.10b adapter dependency failure → BLOCK"
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10b adapter dependency failure → BLOCK"
 assert_contains "$OUTPUT" "python3 -m pip install -r" "3.10b dependency failure includes install command"
 
 # 3.11 — JSON spec: default without enum → auto-fixed
@@ -498,7 +498,7 @@ cat > /tmp/test-spec-3-13.json <<'EOF'
 }
 EOF
 OUTPUT=$(run_spec_hook "/tmp/test-spec-3-13.json")
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.13 JSON: flat expose_to_workflow (static URL) → BLOCK"
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.13 JSON: flat expose_to_workflow (static URL) → BLOCK"
 
 # 3.14 — JSON spec: nested workflow key (static URL) → ALLOW
 cleanup
@@ -875,6 +875,45 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$HOOK" "$JSON")
 assert_empty "$OUTPUT" "4.4  No marker, Bash → no output"
 
+# 4.5 — Reminder fires once per detected prompt, not on every tool call
+cleanup
+echo "$$" > "$MARKER"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "ls"}}')
+run_hook "$HOOK" "$JSON" >/dev/null
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "4.5  Second tool call → no repeated reminder"
+
+# 4.6 — A new prompt that doesn't match clears a leftover marker
+cleanup
+echo "$$" > "$MARKER"
+JSON=$(jq -n '{hook_event_name: "UserPromptSubmit", prompt: "what time is it"}')
+run_hook "$HOOK" "$JSON" >/dev/null
+assert_marker_not_exists "4.6  Non-matching prompt → leftover marker cleared"
+
+# 4.7 — Another session's marker doesn't leak into this one
+cleanup
+rm -f "$MARKER-other-session" "$MARKER-this-session"
+echo "$$" > "$MARKER-other-session"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", session_id: "this-session", tool_name: "Bash", tool_input: {command: "ls"}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "4.7  Marker from another session → no reminder"
+assert_contains "$([ -f "$MARKER-other-session" ] && echo present)" "present" "4.7  Other session's marker left alone"
+rm -f "$MARKER-other-session"
+
+# 4.8 — Same-session round trip: the prompt writes the scoped marker and the
+# next tool call in that session reads it
+cleanup
+rm -f "$MARKER-rt-session"
+JSON=$(jq -n '{hook_event_name: "UserPromptSubmit", session_id: "rt-session", prompt: "Create a Foundry app with a UI extension that lists detections"}')
+CLAUDE_PLUGIN_ROOT="$(pwd)" run_hook "$HOOK" "$JSON" >/dev/null
+assert_contains "$([ -f "$MARKER-rt-session" ] && echo present)" "present" "4.8  Prompt with session_id → scoped marker written"
+assert_marker_not_exists "4.8  Prompt with session_id → unscoped marker not written"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", session_id: "rt-session", tool_name: "Bash", tool_input: {command: "ls"}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "Foundry plugin reminder" "4.8  Same session's tool call → reminder"
+assert_contains "$([ -f "$MARKER-rt-session" ] || echo gone)" "gone" "4.8  Reminder consumes the scoped marker"
+rm -f "$MARKER-rt-session"
+
 # ---------- Section 5: Superpowers Bridge ----------
 
 printf "\n${BOLD}Section 5: Superpowers Bridge${RESET}\n\n"
@@ -883,13 +922,14 @@ printf "\n${BOLD}Section 5: Superpowers Bridge${RESET}\n\n"
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "superpowers:brainstorming"}}')
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
-assert_contains "$OUTPUT" "STOP. Do NOT proceed" "5.1  superpowers:brainstorming → redirect"
+assert_contains "$OUTPUT" "stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow" "5.1  superpowers:brainstorming → redirect"
 
 # 5.2 — brainstorming (short form) → redirect
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "brainstorming"}}')
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
-assert_contains "$OUTPUT" "STOP. Do NOT proceed" "5.2  brainstorming (short form) → redirect"
+assert_contains "$OUTPUT" "stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow" "5.2  brainstorming (short form) → redirect"
+assert_contains "$OUTPUT" "For any other task, continue with brainstorming" "5.2  brainstorming redirect is scoped to Foundry work"
 
 # 5.3 — superpowers:writing-plans → advisory
 cleanup
@@ -1472,11 +1512,15 @@ rm -rf "$FAKE_BIN" "$ENV_TMP"
 
 printf "\n${BOLD}10. Fusion redirect wiring${RESET}\n"
 
+cleanup
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a Falcon Fusion workflow — no Foundry app, no UI, no functions. When a critical detection fires, contain the host and post to Slack. Use actions that already exist in my CID."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
 assert_contains "$OUTPUT" "STANDALONE FUSION WORKFLOW DETECTED" "10.1  standalone fusion prompt → redirect advisory"
 assert_contains "$OUTPUT" "crowdstrike-falcon-fusion" "10.2  advisory names the plugin"
 assert_contains "$OUTPUT" "Naming the plugin is required output" "10.3  advisory makes naming mandatory"
 assert_not_contains "$OUTPUT" "IMMEDIATELY invoke" "10.4  does not also steer into app scaffolding"
+# The redirect must not leave a marker behind, or the first tool call would get
+# a Foundry reminder that contradicts it.
+assert_marker_not_exists "10.4  redirect → no marker for a later Foundry reminder"
 
 # A genuine app request must NOT be redirected — guards against over-reach.
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a Foundry app with a UI extension and a workflow that shows detections."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)

@@ -13,13 +13,9 @@ metadata:
 
 # Foundry Functions Development
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry serverless functions specialist**.
->
 > **Loading this skill is NOT a command to do anything.** It only equips you with function-development knowledge. Do NOT run any `foundry functions` command (especially `exec`, `test`, or a deploy) just because the skill loaded — wait for the user's actual request, and if their intent isn't clear yet, ask what they'd like to do. Never execute, test, or deploy a function unprompted.
 >
-> When you DO implement or modify functions, you MUST use proper CrowdStrike SDK patterns, structured error handling, and Collection integration:
+> When you implement or modify functions:
 > 1. Use CrowdStrike SDKs (gofalcon/falconpy) for ALL API interactions
 > 2. Implement structured JSON responses with proper status codes
 > 3. Apply input validation before processing any request
