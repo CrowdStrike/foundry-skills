@@ -425,9 +425,9 @@ class TestCrossSkillConsistency:
 class TestGetAlertsV2Keyword:
     """get_alerts_v2 builds its body from composite_ids only.
 
-    FalconPy ignores ids= for this method and sends an empty body, so every
-    example must pass composite_ids. Mocked tests hide the difference unless
-    they assert the call's arguments.
+    FalconPy rejects ids= for this method with a 400 before sending the
+    request, so every example must pass composite_ids. Mocked tests hide the
+    difference unless they assert the call's arguments.
     """
 
     def test_no_example_passes_ids(self):

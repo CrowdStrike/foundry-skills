@@ -227,7 +227,6 @@ def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
     "now") or epoch-millisecond integers.
     """
     payload = {"queryString": query_string, "start": start, "end": end, "isLive": False}
-    # Must be search=, not body= — see the keyword gotcha below.
     started = ngsiem.start_search(repository=REPO, search=payload)
 
     if not isinstance(started, dict) or started.get("status_code", 500) >= 300:
@@ -348,7 +347,7 @@ def test_get_alerts_success():
         response = get_alerts(request, None, Mock())
         assert response.code == 200
         assert len(response.body["alerts"]) == 1
-        # FalconPy ignores ids= here and sends an empty body; only composite_ids is read
+        # get_alerts_v2 reads only composite_ids; ids= fails with a 400 before any request is sent
         mock_falcon.get_alerts_v2.assert_called_once_with(composite_ids=["alert-001", "alert-002"])
 ```
 
