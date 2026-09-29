@@ -35,6 +35,8 @@ jobs:
         run: |
           source .venv/bin/activate
           ./test-hooks.sh
+      - name: Run Antigravity swap tests
+        run: ./test-agy-plugin-swap.sh
 
   validate:
     runs-on: ubuntu-latest
