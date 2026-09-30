@@ -391,13 +391,15 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
     echo "  ✅ Did not replace server variable defaults"
   fi
 
-  # Check if the OpenAPI spec was Read into context (token waste)
+  # Check if the OpenAPI spec was Read into context (token waste). Only count
+  # paths inside this run's app; skills/api-integrations/SKILL.md also matches
+  # a bare 'api-integrations/' and is a normal skill load, not a spec read.
   SPEC_READS=0
   SPEC_READ_FILES=""
   if [ -s "$BASE_DIR/run-$i.log" ]; then
     SPEC_READ_FILES=$(grep '"type":"assistant"' "$BASE_DIR/run-$i.log" 2>/dev/null | \
       jq -r '.message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
-      grep -E 'api-integrations/' || true)
+      grep -E "/run-${i}/.*/api-integrations/" || true)
     if [ -n "$SPEC_READ_FILES" ]; then
       SPEC_READS=$(echo "$SPEC_READ_FILES" | wc -l | tr -d ' ')
     fi
@@ -734,7 +736,7 @@ for i in $(seq 1 $RUNS); do
   # Count spec file reads as anti-pattern (token waste)
   SPEC_READ_COUNT=$(grep '"type":"assistant"' "$LOG_FILE" 2>/dev/null | \
     jq -r '.message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
-    grep -c 'api-integrations/' 2>/dev/null || echo "0")
+    grep -cE "/run-${i}/.*/api-integrations/" 2>/dev/null || true)
   if [ "$SPEC_READ_COUNT" -gt 0 ] 2>/dev/null; then
     AP_COUNT=$((AP_COUNT + SPEC_READ_COUNT))
   fi
