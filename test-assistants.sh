@@ -450,11 +450,13 @@ isolate() {
     fi
   done
 
-  # Copilot and Cursor cannot disable, only uninstall — too destructive to do
-  # automatically. Warn instead, since --plugin-dir should win anyway.
+  # Copilot and Cursor can only uninstall, not disable, an installed plugin — too
+  # destructive to do automatically. It doesn't matter: --plugin-dir takes precedence,
+  # so the run still loads this repo's skills (confirmed by the per-assistant source
+  # and skills paths in the summary). Note it as expected, not as a warning.
   if command -v copilot >/dev/null 2>&1 && copilot plugin list 2>/dev/null | grep -qi foundry; then
-    warn "copilot has a Foundry plugin installed and cannot disable it"
-    info "--plugin-dir should take precedence; uninstall manually for a fully clean run"
+    ok "copilot has a Foundry plugin installed — expected; --plugin-dir overrides it, so this run stays isolated"
+    info "uninstall it only if you want a fully clean environment; not required"
   fi
 
   # Symlinks in ~/.agents/skills pointing into THIS repo. These are live, so they
