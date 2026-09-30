@@ -145,6 +145,9 @@ MATCH_PROMPTS=(
   "CREATE A FOUNDRY APP"
   "add a foundry workflow and ui page"
   "debug the foundry function error"
+  "Can you make me a Foundry app that integrates with ServiceNow?"
+  "I need a Foundry app with a Python function"
+  "connect the OpenRouter API to a Foundry app"
 )
 
 MATCH_NAMES=(
@@ -158,6 +161,9 @@ MATCH_NAMES=(
   "1.8  uppercase input"
   "1.9  multiple nouns"
   "1.10 debug verb"
+  "1.11 make verb (make me a foundry app)"
+  "1.12 need verb (I need a foundry app)"
+  "1.13 verb five words from noun (connect ... foundry app)"
 )
 
 for i in "${!MATCH_PROMPTS[@]}"; do
@@ -184,6 +190,7 @@ NO_MATCH_PROMPTS=(
   "foundry is interesting"
   "fix the orchestrator so it stops loading the skill for every falcon foundry mention"
   "the orchestrator we build in step 3 hands off to the foundry app later"
+  "I want the router to stay quiet when a prompt only mentions falcon foundry"
 )
 
 NO_MATCH_NAMES=(
@@ -196,6 +203,7 @@ NO_MATCH_NAMES=(
   "2.7  no action verb (is interesting)"
   "2.8  verb far from noun (fix ... falcon foundry)"
   "2.9  verb far from noun (build ... foundry app)"
+  "2.10 intent verb far from noun (want ... falcon foundry)"
 )
 
 for i in "${!NO_MATCH_PROMPTS[@]}"; do
