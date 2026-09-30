@@ -19,14 +19,22 @@ trigger:
 actions:
     run_triage_agent:
         id: ai_agents.Triage Agent
+        next:
+            - print_triage
         properties:
             input: ${data['alert_summary']}
+        version_constraint: ~1
+    print_triage:
+        id: aadbf530e35fc452a032f5f8acaaac2a
+        properties:
+            text_data: ${data['run_triage_agent.response']}
         version_constraint: ~1
 output_fields: []
 ```
 
 - **The agent needs `exposure.workflows.system_action: true`** (`--expose-workflow-system-action`). Pass that flag alone for an agent used only by this app's automations; it stays out of Charlotte chat.
 - **Pass the prompt as `input`.** The published agent action takes `input` (string) and an optional `credit_limit` (int32, the most Charlotte AI credits the invocation may use), not `prompt`. Check with `foundry workflows actions view --name "<agent name>" --no-prompt` once the agent has been deployed.
+- **Read the reply as `${data['<action key>.response']}`.** The action's output is a required `response` string plus `_reference_links` (an array of `display`/`url` objects). There is no `.output` segment, unlike most platform actions. `foundry workflows actions view --name "<agent name>" --no-prompt --output-schema` shows the output once the agent has been deployed, so deploying the agent before writing the workflow avoids guessing.
 - **Use `version_constraint: ~1`, not `~0`.** Unlike `functions.` and `api_integrations.` actions, the published agent action carries a version (`"version": 1` in `actions view`), so it follows the `workflows-development` rule for versioned actions. `~0` matches no published version and deploy fails with `(2018) Action was not found`.
 - **The name match is case-insensitive** and may contain spaces or dots. Use the manifest `name`, not the `path`, the artifact `id`, or an `agents.` prefix.
 - **The alias is portable.** It resolves to `<agent UUID without dashes>_<CID>`, which differs in every CID and on every reinstall, so never hardcode that ID. Exported apps and workflows saved in App Builder carry the alias, not the resolved ID.
