@@ -338,6 +338,37 @@ class TestAIAgentsSkill:
         assert "json_with_schema" in content
         assert "asymmetry" in content.lower()
 
+    def test_schema_filenames_are_fixed(self):
+        """The backend reads only input_schema.json / output_schema.json.
+
+        Any other name deploys with no schema (older CLIs) or fails every
+        manifest load (newer CLIs), so the naming rule and both error strings
+        must stay documented.
+        """
+        content = _read_skill(self.SKILL)
+        assert "input_schema.json" in content
+        assert "output_schema.json" in content
+        assert "output schema is required when using JSON format" in content
+        assert 'output_schema must be "output_schema.json"' in content
+        assert "move the inline schema into" in _read_skill(self.SCHEMA)
+
+    def test_workflow_callable_agent_needs_system_action(self):
+        """An agent with no exposure flag cannot be called by its own app's workflows.
+
+        Agents read "no flag" as "internal to the app" and fell back to a generic
+        LLM action with the prompt copied inline.
+        """
+        content = _read_skill(self.SKILL)
+        assert "No flag means unreachable, even by your own app" in content
+        assert "--expose-workflow-system-action` alone" in content
+
+    def test_no_invented_tuning_knobs(self):
+        """No temperature, chunk size, similarity, or top_k keys exist to set."""
+        content = _read_skill(self.SKILL)
+        assert "No other tuning knobs exist" in content
+        for knob in ("temperature", "chunk size", "similarity", "`top_k`"):
+            assert knob in content, f"must name the nonexistent {knob} knob"
+
     def test_kb_reference_covers_svg_drop(self):
         """.svg KB files pass validation then vanish from the deploy bundle."""
         content = _read_skill(self.KB)

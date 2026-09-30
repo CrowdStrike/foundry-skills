@@ -116,7 +116,7 @@ if echo "$COMMAND" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
       jq -n '{
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
-          additionalContext: "--expose-agent-as-tool requires --input-schema. An agent callable by other agents must declare its input signature, and the CLI rejects the command outright: --input-schema is required when --expose-agent-as-tool is set. Add --input-format json --input-schema /path/to/schema.json, or drop the exposure flag."
+          additionalContext: "--expose-agent-as-tool requires --input-schema. An agent callable by other agents must declare its input signature, and the CLI rejects the command outright: --input-schema is required when --expose-agent-as-tool is set. Add --input-format json --input-schema /path/to/input_schema.json, or drop the exposure flag."
         }
       }'
       exit 0
@@ -129,6 +129,31 @@ if echo "$COMMAND" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
   if echo "$COMMAND" | grep -qF -- '--knowledge-bases'; then
     PENDING_REMINDER="Build order reminder: every name passed to --knowledge-bases must ALREADY exist in manifest.yml under ai.knowledge_bases, and must be the knowledge base name (not its id or path). Otherwise this fails with: agent \"X\" references knowledge base \"K\" which is not defined in the manifest. Run foundry knowledge-bases create first. Also note --system-prompt falls back to treating its value as inline prompt text when the path cannot be read, so verify agents/<path>/system_prompt.txt after creating."
   fi
+  # The deploy backend reads only input_schema.json / output_schema.json from the
+  # agent directory. CLIs newer than 2.1.1 rename the file on create; 2.1.1 and
+  # earlier keep the source basename, which validates and then fails deploy.
+  # Same advice for both.
+  # Read flags from the agents create segment only, so a chained
+  # `foundry functions create --input-schema ...` isn't mistaken for the agent's.
+  AGENT_CMD=$(echo "$COMMAND" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' | grep -E 'foundry\s+agents\b.*\bcreate\b' | head -1 || true)
+  for SCHEMA_FLAG in input output; do
+    SCHEMA_VAL=$(echo "$AGENT_CMD" | grep -oE -- "--${SCHEMA_FLAG}-schema[= ]+(\"[^\"]*\"|'[^']*'|[^ ]+)" | head -1 | sed -E "s/^--${SCHEMA_FLAG}-schema[= ]+//" | tr -d "\"'" || true)
+    # Empty or another flag means the value was left off; the CLI reports that itself.
+    case "$SCHEMA_VAL" in ''|-*) continue ;; esac
+    WANT="${SCHEMA_FLAG}_schema.json"
+    case "$SCHEMA_VAL" in
+      '{'*|'['*) GOT="an inline schema" ;;
+      */) GOT="a directory" ;;
+      *)
+        SCHEMA_FILE="${SCHEMA_VAL%%[?#]*}"
+        SCHEMA_FILE="${SCHEMA_FILE##*/}"
+        [ "$SCHEMA_FILE" = "$WANT" ] && continue
+        GOT="$SCHEMA_FILE"
+        ;;
+    esac
+    SCHEMA_NOTE="--${SCHEMA_FLAG}-schema points at ${GOT}, but the deploy backend only reads agents/<path>/${WANT}. Save the schema as a local file named ${WANT} (download it first if it is a URL) and pass that path, so the agent deploys with any CLI version."
+    PENDING_REMINDER="${PENDING_REMINDER:+$PENDING_REMINDER }$SCHEMA_NOTE"
+  done
 fi
 
 # Check for foundry ui extensions create without --sockets
@@ -196,7 +221,7 @@ if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
     # Extract resource name from --name flag (multiple syntax forms)
     RESOURCE_NAME=""
     if echo "$COMMAND" | grep -qE -- '--name[= ]'; then
-      RESOURCE_NAME=$(echo "$COMMAND" | grep -oE -- '--name[= ]+("[^"]*"|'"'"'[^'"'"']*'"'"'|[^ ]+)' | head -1 | sed 's/^--name[= ]*//' | tr -d "\"'")
+      RESOURCE_NAME=$(echo "$COMMAND" | grep -oE -- '--name[= ]+("[^"]*"|'"'"'[^'"'"']*'"'"'|[^ ]+)' | head -1 | sed 's/^--name[= ]*//' | tr -d "\"'" || true)
     fi
     # Only fire if we extracted a real name (not empty, not a flag)
     if [ -n "$RESOURCE_NAME" ] && ! echo "$RESOURCE_NAME" | grep -qE '^-'; then
