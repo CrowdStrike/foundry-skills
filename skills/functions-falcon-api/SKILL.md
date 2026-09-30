@@ -379,7 +379,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
-| `Spans`, `AgentInvocation`, `AgentVersions`, `Models`; `APIHarnessV2` for agent records | AgentWorks | `charlotte-ai-agent-definition:read`, `:write` | Endpoints verified on EU-1 |
+| `Agents`, `Spans`, `AgentInvocation`, `AgentVersions`, `Models` | AgentWorks | `charlotte-ai-agent-definition:read`, `:write` | Endpoints verified on EU-1 |
 
 **Go functions (gofalcon) require the same scopes.** The table above uses FalconPy class/method names, but the underlying Falcon API scopes are identical regardless of SDK. If your Go function calls the RTR admin API, declare `real-time-response-admin:write`. If it manages incidents, declare `incidents:read`, `incidents:write`.
 
