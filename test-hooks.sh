@@ -182,6 +182,8 @@ NO_MATCH_PROMPTS=(
   "the building has a foundry"
   "I'm running the tests"
   "foundry is interesting"
+  "fix the orchestrator so it stops loading the skill for every falcon foundry mention"
+  "the orchestrator we build in step 3 hands off to the foundry app later"
 )
 
 NO_MATCH_NAMES=(
@@ -192,6 +194,8 @@ NO_MATCH_NAMES=(
   "2.5  'building' as noun, not verb"
   "2.6  no foundry noun"
   "2.7  no action verb (is interesting)"
+  "2.8  verb far from noun (fix ... falcon foundry)"
+  "2.9  verb far from noun (build ... foundry app)"
 )
 
 for i in "${!NO_MATCH_PROMPTS[@]}"; do
@@ -1180,6 +1184,32 @@ cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions create --name myfunc --language python --no-prompt"}}')
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.30 functions create with --no-prompt → pass (regression)"
+
+# 6.31-6.35 — Foundry CLI text that isn't a Foundry command → no advisory
+GUARD_NON_CLI_NAMES=(
+  "6.31 git commit -m mentioning foundry apps create → pass"
+  "6.32 git commit heredoc mentioning foundry functions exec → pass"
+  "6.33 grep for a quoted foundry command → pass"
+  "6.34 echo of foundry text, then a real foundry login → pass"
+)
+GUARD_NON_CLI_CMDS=(
+  'git commit -m "Fix orchestrator so foundry apps create runs first"'
+  "$(printf 'git commit -m "$(cat <<'"'"'EOF'"'"'\nRun foundry functions exec after deploy\nEOF\n)"')"
+  "grep -rn 'foundry apps create' skills/"
+  'echo "foundry apps create --name x"; foundry login'
+)
+for i in "${!GUARD_NON_CLI_CMDS[@]}"; do
+  cleanup
+  JSON=$(jq -n --arg c "${GUARD_NON_CLI_CMDS[$i]}" '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+  OUTPUT=$(run_hook "$GUARD" "$JSON")
+  assert_empty "$OUTPUT" "${GUARD_NON_CLI_NAMES[$i]}"
+done
+
+# 6.35 — A real foundry command after cd, with env vars, still gets checked
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "cd my-app && FOO=1 foundry apps validate"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.35 cd && env foundry apps validate → advisory"
 
 # =============================================
 # Section 7: Skill Description Validation

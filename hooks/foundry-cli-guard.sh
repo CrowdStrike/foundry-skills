@@ -42,6 +42,21 @@ fi
 
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
+# The parts of COMMAND that actually invoke the Foundry CLI: heredoc bodies and
+# quoted strings are blanked, the rest is split on ; & | ( ) ` and newlines, and
+# only pieces whose first word is `foundry` are kept. Subcommand checks match
+# against this, so `git commit -m "... foundry apps create ..."` doesn't trigger them.
+FOUNDRY_CMDS=$(printf '%s' "$COMMAND" | jq -Rrs "$(cat <<'JQ'
+gsub("<<-?[[:space:]]*[\"']?(?<w>[A-Za-z_][A-Za-z0-9_]*)[\"']?[^\n]*\n(?:.*?\n)??[[:space:]]*\\k<w>(?=[[:space:]]|\\)|$)"; ""; "s")
+| gsub("\"(?:\\\\.|[^\"\\\\])*\""; "\"\"")
+| gsub("'[^']*'"; "''")
+| [splits("[\n;&|()`]+")
+   | sub("^[[:space:]]*(?:[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*"; "")
+   | select(test("^(?:[^[:space:]]*/)?foundry(?:[[:space:]]|$)"))]
+| join("\n")
+JQ
+)")
+
 # Set by reminders that must not short-circuit a later, more important advisory.
 # Whichever advisory fires next prepends it; if none does, it is flushed at the end.
 PENDING_REMINDER=""
@@ -53,7 +68,7 @@ PENDING_REMINDER=""
 #   knowledge-bases create/delete (alias: kb), ui pages create, ui extensions create,
 #   rtr-scripts create, profile create/delete
 #   functions exec (incl. exec list / exec status), functions logs, functions test
-if echo "$COMMAND" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
   # Check if --no-prompt is missing
   if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
     jq -n '{
@@ -69,7 +84,7 @@ fi
 # Check for foundry apps deploy without --change-type
 # Omitting --change-type causes a 500 error (server-side panic) because the
 # Foundry API requires a change_type field in deploy requests.
-if echo "$COMMAND" | grep -qE 'foundry\s+apps\s+deploy\b'; then
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\s+deploy\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--change-type'; then
     jq -n '{
       hookSpecificOutput: {
@@ -93,7 +108,7 @@ fi
 # Check for foundry knowledge-bases create without --files
 # A knowledge base must ship at least one file. With --no-prompt the CLI rejects
 # the command outright: "flag --files is required when --no-prompt flag is used".
-if echo "$COMMAND" | grep -qE 'foundry\s+(knowledge-bases|kb)\b.*\bcreate\b'; then
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+(knowledge-bases|kb)\b.*\bcreate\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--files'; then
     jq -n '{
       hookSpecificOutput: {
@@ -108,7 +123,7 @@ fi
 # Check for foundry agents create referencing knowledge bases — order matters.
 # The agent create command validates KB references against the manifest and fails
 # the whole command if the KB does not exist yet.
-if echo "$COMMAND" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
   # --expose-agent-as-tool requires --input-schema: a calling agent needs the
   # callee's signature. Rejected before any files are written.
   if echo "$COMMAND" | grep -qF -- '--expose-agent-as-tool'; then
@@ -158,7 +173,7 @@ fi
 
 # Check for foundry ui extensions create without --sockets
 # Omitting --sockets launches an interactive picker that hangs with Error: EOF.
-if echo "$COMMAND" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--sockets'; then
     jq -n '{
       hookSpecificOutput: {
@@ -196,7 +211,7 @@ fi
 # always launches an interactive Select() prompt. Adding --no-prompt is still
 # correct (for when the bug is fixed), but the real workaround is
 # the workflow skill's bundled action_search.py, which queries the API directly.
-if echo "$COMMAND" | grep -qE 'foundry\s+workflows\s+(actions|triggers)\s+view\b'; then
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+workflows\s+(actions|triggers)\s+view\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
     jq -n '{
       hookSpecificOutput: {
@@ -217,7 +232,7 @@ fi
 if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
   RESOURCE_CREATE_RE='foundry\s+(apps|functions|collections|workflows|api-integrations|rtr-scripts|agents|knowledge-bases|kb)\b.*\bcreate\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'
   RESOURCE_DELETE_RE='foundry\s+(agents|knowledge-bases|kb)\b.*\bdelete\b'
-  if echo "$COMMAND" | grep -qE "$RESOURCE_CREATE_RE|$RESOURCE_DELETE_RE"; then
+  if echo "$FOUNDRY_CMDS" | grep -qE "$RESOURCE_CREATE_RE|$RESOURCE_DELETE_RE"; then
     # Extract resource name from --name flag (multiple syntax forms)
     RESOURCE_NAME=""
     if echo "$COMMAND" | grep -qE -- '--name[= ]'; then
@@ -225,7 +240,7 @@ if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
     fi
     # Only fire if we extracted a real name (not empty, not a flag)
     if [ -n "$RESOURCE_NAME" ] && ! echo "$RESOURCE_NAME" | grep -qE '^-'; then
-      if echo "$COMMAND" | grep -qE "$RESOURCE_DELETE_RE"; then
+      if echo "$FOUNDRY_CMDS" | grep -qE "$RESOURCE_DELETE_RE"; then
         jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
           hookSpecificOutput: {
             hookEventName: "PreToolUse",

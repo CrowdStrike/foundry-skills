@@ -34,14 +34,25 @@ case "$HOOK_EVENT" in
 
     # Require an action verb + Foundry noun to detect real development intent.
     # "create a foundry app" triggers; "if we were in a foundry app" does not.
+    # The verb and noun must be at most three words apart, so a prompt that
+    # fixes one thing and mentions Falcon Foundry later in the sentence doesn't match.
     VERBS="create|build|deploy|release|scaffold|add|update|fix|debug|configure"
     NOUNS="foundry app|foundry function|foundry collection|foundry workflow|foundry ui|foundry page|foundry api|falcon foundry|falcon app|crowdstrike app|foundry extension|foundry agent|foundry knowledge base"
+    GAP="([[:space:]]+[^[:space:]]+){0,3}[[:space:]]+"
 
-    if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b.*(${NOUNS})"; then
+    if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b${GAP}(${NOUNS})"; then
       FOUNDRY_MATCH=true
-    elif echo "$PROMPT_LOWER" | grep -qE "(${NOUNS}).*\b(${VERBS})\b"; then
+    elif echo "$PROMPT_LOWER" | grep -qE "(${NOUNS})${GAP}(${VERBS})\b"; then
       # Also catch "foundry app ... deploy" word order
       FOUNDRY_MATCH=true
+    fi
+
+    # A verb anywhere in the prompt is enough to ask the Fusion classifier,
+    # which only redirects standalone Fusion work: "Create a Falcon Fusion
+    # workflow, no Foundry app" puts the verb far from the noun.
+    LOOSE_MATCH=false
+    if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b.*(${NOUNS})|(${NOUNS}).*\b(${VERBS})\b"; then
+      LOOSE_MATCH=true
     fi
 
     # Explicit CLI commands always trigger
@@ -58,7 +69,7 @@ case "$HOOK_EVENT" in
       FOUNDRY_MATCH=true
     fi
 
-    if [ "$FOUNDRY_MATCH" = true ]; then
+    if [ "$FOUNDRY_MATCH" = true ] || [ "$LOOSE_MATCH" = true ]; then
       # Standalone Fusion workflow? Advise the sibling plugin instead of
       # steering into app scaffolding. Without this the classifier is never
       # consulted at runtime and the agent tends to quietly author the workflow
@@ -85,6 +96,8 @@ case "$HOOK_EVENT" in
           exit 0
         fi
       fi
+
+      [ "$FOUNDRY_MATCH" = true ] || exit 0
 
       # Write marker so PreToolUse hook knows to inject advisory context. Only
       # on this path: after a Fusion redirect, a Foundry nudge would contradict it.
