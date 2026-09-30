@@ -377,6 +377,7 @@ class TestAIAgentsSkill:
         assert "version_constraint: ~1" in ref
         assert "version_constraint: ~0" not in ref
         assert "(2018) Action was not found" in ref
+        assert "text_data: ${data['run_triage_agent.response']}" in ref
         assert "is not exposed to workflows; set exposure.workflows.system_action to true" in ref
         assert "could not be found" in ref
         assert "invoke_published_agent_external_v1" in ref
@@ -384,6 +385,7 @@ class TestAIAgentsSkill:
         workflows = _read_skill("skills/workflows-development/SKILL.md")
         assert "id: ai_agents.<agent name>" in workflows
         assert "`version_constraint: ~1`" in workflows
+        assert "${data['action_key.response']}" in workflows
         assert "../ai-agents-development/references/workflow-invocation.md" in workflows
 
     def test_no_invented_tuning_knobs(self):
