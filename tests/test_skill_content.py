@@ -373,12 +373,17 @@ class TestAIAgentsSkill:
         assert "references/workflow-invocation.md" in skill
         ref = _read_skill("skills/ai-agents-development/references/workflow-invocation.md")
         assert "id: ai_agents.Triage Agent" in ref
+        assert "input: ${data['alert_summary']}" in ref
+        assert "version_constraint: ~1" in ref
+        assert "version_constraint: ~0" not in ref
+        assert "(2018) Action was not found" in ref
         assert "is not exposed to workflows; set exposure.workflows.system_action to true" in ref
         assert "could not be found" in ref
         assert "invoke_published_agent_external_v1" in ref
         assert "Don't substitute `Charlotte AI - LLM Completion`" in ref
         workflows = _read_skill("skills/workflows-development/SKILL.md")
         assert "id: ai_agents.<agent name>" in workflows
+        assert "`version_constraint: ~1`" in workflows
         assert "../ai-agents-development/references/workflow-invocation.md" in workflows
 
     def test_no_invented_tuning_knobs(self):

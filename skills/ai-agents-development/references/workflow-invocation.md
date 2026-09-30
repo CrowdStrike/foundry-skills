@@ -20,13 +20,14 @@ actions:
     run_triage_agent:
         id: ai_agents.Triage Agent
         properties:
-            prompt: ${data['alert_summary']}
-        version_constraint: ~0
+            input: ${data['alert_summary']}
+        version_constraint: ~1
 output_fields: []
 ```
 
 - **The agent needs `exposure.workflows.system_action: true`** (`--expose-workflow-system-action`). Pass that flag alone for an agent used only by this app's automations; it stays out of Charlotte chat.
-- **`version_constraint: ~0`** follows the `workflows-development` rule for app-defined actions without a `semantic_version`, the same as `functions.` and `api_integrations.` actions.
+- **Pass the prompt as `input`.** The published agent action takes `input` (string) and an optional `credit_limit` (int32, the most Charlotte AI credits the invocation may use), not `prompt`. Check with `foundry workflows actions view --name "<agent name>" --no-prompt` once the agent has been deployed.
+- **Use `version_constraint: ~1`, not `~0`.** Unlike `functions.` and `api_integrations.` actions, the published agent action carries a version (`"version": 1` in `actions view`), so it follows the `workflows-development` rule for versioned actions. `~0` matches no published version and deploy fails with `(2018) Action was not found`.
 - **The name match is case-insensitive** and may contain spaces or dots. Use the manifest `name`, not the `path`, the artifact `id`, or an `agents.` prefix.
 - **The alias is portable.** It resolves to `<agent UUID without dashes>_<CID>`, which differs in every CID and on every reinstall, so never hardcode that ID. Exported apps and workflows saved in App Builder carry the alias, not the resolved ID.
 - **`foundry apps validate` doesn't resolve action IDs**, so check the deploy output:
@@ -36,6 +37,8 @@ output_fields: []
 | `referenced AI agent "X" is not exposed to workflows; set exposure.workflows.system_action to true` | Set the exposure flag and redeploy |
 | `referenced AI agent 'X' could not be found` | Use the agent's manifest `name` |
 | `action with <id> does not exist` (code 2015) for an `ai_agents.` alias | This cloud's Foundry API predates alias support; use the function fallback below |
+| `(2018) Action was not found, please select a new action.` | `version_constraint` is `~0`; set it to `~1`. If that deploy still fails, see the next row |
+| `Dependent artifact failed (400)` naming a workflow version that already failed | An earlier failed workflow artifact blocks every later deploy of this app, even after the YAML is fixed. Recreate the app; see **NEVER Delete and Recreate Workflows** in `workflows-development` |
 
 **Don't substitute `Charlotte AI - LLM Completion`** (`bdfecafafdb44919a458fcf51d6b93a7_98dec86072334d24b37dd798098cfd63`) with the agent's prompt copied into it. That drops the agent's knowledge bases, tools, model, and output schema, and leaves the agent unused.
 
