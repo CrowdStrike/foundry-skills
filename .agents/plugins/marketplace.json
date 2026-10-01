@@ -9,7 +9,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/CrowdStrike/foundry-skills.git",
-        "ref": "v1.5.0"
+        "ref": "v1.6.0"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
