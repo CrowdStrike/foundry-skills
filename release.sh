@@ -408,14 +408,7 @@ main() {
   printf "Review and edit the notes at https://github.com/CrowdStrike/foundry-skills/releases,\n"
   printf "then click Publish when ready.\n\n"
 
-  printf "${BLUE}Step 8: Update Anthropic Plugin Marketplace${RESET}\n"
-  printf "\nAfter publishing the GitHub release, notify Anthropic of the new tag and SHA:\n"
-  printf "  Tag: v${NEXT_VERSION}\n"
-  printf "  SHA: \$(git rev-parse v${NEXT_VERSION})\n\n"
-  printf "Anthropic handles the marketplace pin bump internally. Do not open PRs to\n"
-  printf "anthropics/claude-plugins-official or re-submit through the plugin submission form.\n\n"
-
-  printf "${BLUE}Step 9: Update OpenAI Plugins Directory${RESET}\n"
+  printf "${BLUE}Step 8: Update OpenAI Plugins Directory${RESET}\n"
   printf "\nAfter publishing the GitHub release, build and verify the skills-only bundle:\n"
   printf "  ./release.sh --bundle v${NEXT_VERSION}\n\n"
   printf "That archives only what the skills need, checks it against the portal's\n"
@@ -424,6 +417,21 @@ main() {
   printf "  https://platform.openai.com/plugins\n\n"
   printf "Submit the new version for review, then publish it after approval. The public\n"
   printf "Plugins Directory uses reviewed snapshots rather than the repository marketplace ref.\n\n"
+
+  printf "${BLUE}Step 9: Update Cursor Marketplace${RESET}\n"
+  printf "\nCursor manually reviews verified plugins before re-indexing, so a new release\n"
+  printf "isn't picked up on its own. Email marketplace-publishing@cursor.com with the\n"
+  printf "release link and ask them to re-index crowdstrike-falcon-foundry:\n"
+  printf "  https://github.com/CrowdStrike/foundry-skills/releases/tag/v${NEXT_VERSION}\n\n"
+
+  printf "${BLUE}Step 10: Update awesome-copilot${RESET}\n"
+  printf "\nThe awesome-copilot listing pins a version and commit SHA. Open a PR to\n"
+  printf "github/awesome-copilot that updates the crowdstrike-falcon-foundry entry in both\n"
+  printf "plugins/external.json and .github/plugin/marketplace.json:\n"
+  printf "  version: ${NEXT_VERSION}\n"
+  printf "  ref:     v${NEXT_VERSION}\n"
+  printf "  sha:     \$(git rev-parse v${NEXT_VERSION}^{commit})\n\n"
+  printf "See \"Updating listed external plugins via PR\" in their CONTRIBUTING.md.\n\n"
   printf "${GREEN}Done.${RESET}\n"
 }
 

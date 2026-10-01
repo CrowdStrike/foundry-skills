@@ -2,10 +2,10 @@
 
 # Falcon Foundry Skills
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/CrowdStrike/foundry-skills/releases/tag/v1.5.0)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue)](https://github.com/CrowdStrike/foundry-skills/releases/tag/v1.6.0)
 [![CI](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml)
 
-AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, and collections — all scaffolded with the Foundry CLI and deployed to the Falcon console.
+AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, collections, AI agents, and knowledge bases — all scaffolded with the Foundry CLI and deployed to the Falcon console.
 
 ## Getting Started
 
@@ -169,6 +169,8 @@ foundry ui extensions create --name "X" --from-template React --sockets "activit
 foundry functions create --name "X" --language python --no-prompt              # Add function
 foundry collections create --name "X" --schema /tmp/schema.json --no-prompt   # Add collection
 foundry workflows create --name "X" --spec /tmp/workflow.yaml --no-prompt     # Add workflow
+foundry knowledge-bases create --name "X" --description "desc" --files /tmp/doc.md --no-prompt  # Add knowledge base
+foundry agents create --name "X" --description "desc" --system-prompt /tmp/prompt.md --expose-charlotte-chat --no-prompt  # Add AI agent
 foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
 foundry apps release                                             # Release to catalog
 ```
@@ -209,7 +211,7 @@ caffeinate -i ./run-ab-test.sh --fresh 5
 ./test-hooks.sh
 ```
 
-Unit tests for the three hook scripts (skill router, superpowers bridge, CLI guard). Fast, no API calls, no Foundry CLI needed. Run after any hook change.
+Unit tests for the four hook scripts (skill router, superpowers bridge, CLI guard, session start). Fast, no API calls, no Foundry CLI needed. Run after any hook change.
 
 ### Skill test (single run)
 
@@ -291,7 +293,7 @@ gh release create v<version> --target main --title "v<version>" --generate-notes
 
 This generates release notes from merged PRs and saves them as a draft. Review and edit the notes at [github.com/CrowdStrike/foundry-skills/releases](https://github.com/CrowdStrike/foundry-skills/releases), then click **Publish** when ready.
 
-After publishing the release, notify Anthropic of the new tag and SHA so they can update the marketplace pin. Do not open PRs to `anthropics/claude-plugins-official` or re-submit through the plugin submission form.
+After publishing the release, update the marketplaces that pin a snapshot. Build and upload the OpenAI skills-only bundle with `./release.sh --bundle v<version>`, email the Cursor marketplace team to re-index the listing, and open a PR to [github/awesome-copilot](https://github.com/github/awesome-copilot) that bumps the `version`, `ref`, and `sha` of the `crowdstrike-falcon-foundry` entry. `release.sh` prints the exact steps when it finishes.
 
 ## Cross-Plugin: Fusion Workflows
 
