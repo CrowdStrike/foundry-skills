@@ -43,10 +43,13 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Validate hooks.json
-        run: python -m json.tool hooks/hooks.json > /dev/null
+        run: |
+          python -m json.tool hooks/hooks.json > /dev/null
+          python -m json.tool hooks/hooks-cursor.json > /dev/null
       - name: Validate plugin.json
         run: |
           python -m json.tool .claude-plugin/plugin.json > /dev/null
+          python -m json.tool .cursor-plugin/plugin.json > /dev/null
           python -m json.tool plugin.json > /dev/null
       - name: Validate SKILL.md frontmatter
         run: |
@@ -162,6 +165,13 @@ jobs:
           codex_plugin_version=$(jq -r '.version' .codex-plugin/plugin.json)
           if [ "$codex_plugin_version" != "$plugin_version" ]; then
             echo "FAIL: .codex-plugin/plugin.json version '$codex_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
+            fail=1
+          fi
+
+          # Cursor manifest must match plugin.json
+          cursor_plugin_version=$(jq -r '.version' .cursor-plugin/plugin.json)
+          if [ "$cursor_plugin_version" != "$plugin_version" ]; then
+            echo "FAIL: .cursor-plugin/plugin.json version '$cursor_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
             fail=1
           fi
 

@@ -70,13 +70,13 @@ This prompt exercises the full skill set — API integration, workflow, and UI:
 
 ### How plugin skill routing works
 
-Repository-backed installs in Claude Code and Codex include hooks that ensure the right skills get used. Codex requires reviewing and trusting bundled hooks through `/hooks` before they run:
+Repository-backed installs in Claude Code, Codex, and Cursor include hooks that ensure the right skills get used. Codex requires reviewing and trusting bundled hooks through `/hooks` before they run. Cursor loads them from `.cursor-plugin/plugin.json`:
 
 1. **`UserPromptSubmit` hook** — Matches an action verb paired with a Foundry noun — e.g., "create a foundry app". Explicit CLI commands and skill requests also trigger it.
 
 2. **`PreToolUse` hook** — When Foundry intent is detected, injects a non-blocking advisory reminder to use the Foundry workflow skill. The assistant can still use all tools normally. The one exception is `foundry api-integrations create`, which is blocked when the OpenAPI spec can't be adapted for Falcon Foundry. In Claude Code, calls to `superpowers:brainstorming` get advice to switch to the Foundry workflow skill when the task is Foundry app work.
 
-3. **`PreToolUse` hook (CLI guard)** — Checks Bash commands and flags Foundry CLI commands missing the `--no-prompt` flag (prevents `Error: EOF` failures) and manual directory creation for app structure (prevents invalid `manifest.yml`). It's advisory: it adds guidance to the tool call rather than blocking it, and you'll only see it when it catches a problem.
+3. **`PreToolUse` hook (CLI guard)** — Checks shell commands and flags Foundry CLI commands missing the `--no-prompt` flag (prevents `Error: EOF` failures) and manual directory creation for app structure (prevents invalid `manifest.yml`). It's advisory: it adds guidance to the tool call rather than blocking it, and you'll only see it when it catches a problem. Cursor's shell tool is `Shell`; the guard treats that the same as Claude's `Bash`.
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
 

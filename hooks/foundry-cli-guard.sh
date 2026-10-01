@@ -25,9 +25,15 @@
 
 set -euo pipefail
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/host-output.sh"
+
 INPUT=$(cat)
 
 HOOK_EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // empty')
+case "$HOOK_EVENT" in
+  preToolUse) HOOK_EVENT=PreToolUse ;;
+esac
 
 if [ "$HOOK_EVENT" != "PreToolUse" ]; then
   exit 0
@@ -35,8 +41,8 @@ fi
 
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 
-# Only validate Bash commands
-if [ "$TOOL_NAME" != "Bash" ]; then
+# Claude's shell tool is Bash. Cursor's is Shell.
+if [ "$TOOL_NAME" != "Bash" ] && [ "$TOOL_NAME" != "Shell" ]; then
   exit 0
 fi
 
@@ -71,12 +77,7 @@ PENDING_REMINDER=""
 if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
   # Check if --no-prompt is missing
   if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, functions exec/logs/test) run non-interactively in coding assistants and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
-      }
-    }'
+    emit_advisory "PreToolUse" "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, functions exec/logs/test) run non-interactively in coding assistants and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
     exit 0
   fi
 fi
@@ -86,21 +87,11 @@ fi
 # Foundry API requires a change_type field in deploy requests.
 if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\s+deploy\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--change-type'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --change-type. Foundry apps deploy requires --change-type and --change-log to avoid a 500 error. Add both flags before retrying. Example: foundry apps deploy --change-type Patch --change-log \"description of changes\" --no-prompt"
-      }
-    }'
+    emit_advisory "PreToolUse" "The command is missing --change-type. Foundry apps deploy requires --change-type and --change-log to avoid a 500 error. Add both flags before retrying. Example: foundry apps deploy --change-type Patch --change-log \"description of changes\" --no-prompt"
     exit 0
   fi
   if ! echo "$COMMAND" | grep -qF -- '--change-log'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --change-log. Foundry apps deploy requires --change-type and --change-log. Add both flags before retrying. Example: foundry apps deploy --change-type Patch --change-log \"description of changes\" --no-prompt"
-      }
-    }'
+    emit_advisory "PreToolUse" "The command is missing --change-log. Foundry apps deploy requires --change-type and --change-log. Add both flags before retrying. Example: foundry apps deploy --change-type Patch --change-log \"description of changes\" --no-prompt"
     exit 0
   fi
 fi
@@ -110,12 +101,7 @@ fi
 # the command outright: "flag --files is required when --no-prompt flag is used".
 if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+(knowledge-bases|kb)\b.*\bcreate\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--files'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --files. A knowledge base must contain at least one file, and the CLI rejects knowledge-bases create with --no-prompt and no --files. Pass local paths or HTTP(S) URLs, comma-separated. Example: foundry knowledge-bases create --name \"Runbook Docs\" --description \"desc\" --files ./runbook.md,./iocs.csv --no-prompt"
-      }
-    }'
+    emit_advisory "PreToolUse" "The command is missing --files. A knowledge base must contain at least one file, and the CLI rejects knowledge-bases create with --no-prompt and no --files. Pass local paths or HTTP(S) URLs, comma-separated. Example: foundry knowledge-bases create --name \"Runbook Docs\" --description \"desc\" --files ./runbook.md,./iocs.csv --no-prompt"
     exit 0
   fi
 fi
@@ -128,12 +114,7 @@ if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+agents\b.*\bcreate\b'; then
   # callee's signature. Rejected before any files are written.
   if echo "$COMMAND" | grep -qF -- '--expose-agent-as-tool'; then
     if ! echo "$COMMAND" | grep -qF -- '--input-schema'; then
-      jq -n '{
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          additionalContext: "--expose-agent-as-tool requires --input-schema. An agent callable by other agents must declare its input signature, and the CLI rejects the command outright: --input-schema is required when --expose-agent-as-tool is set. Add --input-format json --input-schema /path/to/input_schema.json, or drop the exposure flag."
-        }
-      }'
+      emit_advisory "PreToolUse" "--expose-agent-as-tool requires --input-schema. An agent callable by other agents must declare its input signature, and the CLI rejects the command outright: --input-schema is required when --expose-agent-as-tool is set. Add --input-format json --input-schema /path/to/input_schema.json, or drop the exposure flag."
       exit 0
     fi
   fi
@@ -175,12 +156,7 @@ fi
 # Omitting --sockets launches an interactive picker that hangs with Error: EOF.
 if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--sockets'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --sockets. Without it, the CLI launches an interactive socket picker that will hang with Error: EOF. Run `foundry ui extensions list-sockets` to see available sockets. Example: foundry ui extensions create --name \"my-ext\" --from-template React --sockets \"activity.detections.details\" --no-prompt"
-      }
-    }'
+    emit_advisory "PreToolUse" "The command is missing --sockets. Without it, the CLI launches an interactive socket picker that will hang with Error: EOF. Run \`foundry ui extensions list-sockets\` to see available sockets. Example: foundry ui extensions create --name \"my-ext\" --from-template React --sockets \"activity.detections.details\" --no-prompt"
     exit 0
   fi
   # Validate --sockets value against known valid socket IDs
@@ -195,12 +171,7 @@ if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; th
       fi
     done
     if [ "$IS_VALID" = "false" ]; then
-      jq -n --arg val "$SOCKET_VAL" '{
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          additionalContext: ("Invalid socket ID: \"" + $val + "\". Run `foundry ui extensions list-sockets` for available sockets. Known IDs: activity.detections.details, identity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, ngsiem.workbench.details, workflows.executions.execution.details.")
-        }
-      }'
+      emit_advisory "PreToolUse" "Invalid socket ID: \"${SOCKET_VAL}\". Run \`foundry ui extensions list-sockets\` for available sockets. Known IDs: activity.detections.details, identity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, ngsiem.workbench.details, workflows.executions.execution.details."
       exit 0
     fi
   fi
@@ -213,12 +184,7 @@ fi
 # the workflow skill's bundled action_search.py, which queries the API directly.
 if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+workflows\s+(actions|triggers)\s+view\b'; then
   if ! echo "$COMMAND" | grep -qF -- '--no-prompt'; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --no-prompt. The CLI currently ignores this flag for actions/triggers view (known bug), but add it anyway. If the command fails or hangs, use the bundled action_search.py from workflows-development instead — it queries the API directly and works in headless environments."
-      }
-    }'
+    emit_advisory "PreToolUse" "The command is missing --no-prompt. The CLI currently ignores this flag for actions/triggers view (known bug), but add it anyway. If the command fails or hangs, use the bundled action_search.py from workflows-development instead — it queries the API directly and works in headless environments."
     exit 0
   fi
 fi
@@ -241,20 +207,16 @@ if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
     # Only fire if we extracted a real name (not empty, not a flag)
     if [ -n "$RESOURCE_NAME" ] && ! echo "$RESOURCE_NAME" | grep -qE '^-'; then
       if echo "$FOUNDRY_CMDS" | grep -qE "$RESOURCE_DELETE_RE"; then
-        jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
-          hookSpecificOutput: {
-            hookEventName: "PreToolUse",
-            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the deletion with the user before running this. You are about to delete the Foundry AI artifact \"\($name)\", which removes its manifest entry AND its entire directory from disk. There is no undo and no `edit` command to fall back on. Ask the user to confirm first, unless they already explicitly asked to delete this exact artifact.")
-          }
-        }'
+        CONFIRM_MSG="STOP — Confirm the deletion with the user before running this. You are about to delete the Foundry AI artifact \"${RESOURCE_NAME}\", which removes its manifest entry AND its entire directory from disk. There is no undo and no \`edit\` command to fall back on. Ask the user to confirm first, unless they already explicitly asked to delete this exact artifact."
       else
-        jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
-          hookSpecificOutput: {
-            hookEventName: "PreToolUse",
-            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"\($name)\". Ask the user to confirm the name and description BEFORE running this command. If the user already explicitly confirmed this exact name in this conversation, proceed.")
-          }
-        }'
+        CONFIRM_MSG="STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"${RESOURCE_NAME}\". Ask the user to confirm the name and description BEFORE running this command. If the user already explicitly confirmed this exact name in this conversation, proceed."
       fi
+      if [ -n "$PENDING_REMINDER" ]; then
+        CONFIRM_MSG="${PENDING_REMINDER}
+
+${CONFIRM_MSG}"
+      fi
+      emit_advisory "PreToolUse" "$CONFIRM_MSG"
       exit 0
     fi
   fi
@@ -271,24 +233,14 @@ FORBIDDEN_PATTERNS=(
 
 for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
   if echo "$COMMAND" | grep -qE "$pattern"; then
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "Manual creation of Foundry app structure detected. Use the Foundry CLI instead — it generates manifest.yml with correct schema version, app ID, and auth context. Run: foundry apps create --name \"app-name\" --no-prompt"
-      }
-    }'
+    emit_advisory "PreToolUse" "Manual creation of Foundry app structure detected. Use the Foundry CLI instead — it generates manifest.yml with correct schema version, app ID, and auth context. Run: foundry apps create --name \"app-name\" --no-prompt"
     exit 0
   fi
 done
 
 # Nothing else fired — emit a parked reminder on its own, if there is one.
 if [ -n "$PENDING_REMINDER" ]; then
-  jq -n --arg ctx "$PENDING_REMINDER" '{
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      additionalContext: $ctx
-    }
-  }'
+  emit_advisory "PreToolUse" "$PENDING_REMINDER"
   exit 0
 fi
 

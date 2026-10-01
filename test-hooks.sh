@@ -194,6 +194,20 @@ assert_contains "$OUTPUT" "load and follow the crowdstrike-falcon-foundry:develo
 assert_not_contains "$OUTPUT" "Skill tool" "1.14 Codex event → no Claude-only Skill tool wording"
 rm -f "$MARKER-codex-session"
 
+# Cursor names the prompt hook beforeSubmitPrompt, sends conversation_id, and
+# only injects top-level additional_context.
+cleanup
+JSON=$(jq -n '{
+  hook_event_name: "beforeSubmitPrompt",
+  conversation_id: "cursor-conv",
+  prompt: "I need a Falcon Foundry app"
+}')
+OUTPUT=$(CURSOR_PLUGIN_ROOT="$(pwd)" run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "\"additional_context\"" "1.15 Cursor event → additional_context"
+assert_not_contains "$OUTPUT" "hookSpecificOutput" "1.15 Cursor event → no Claude hookSpecificOutput"
+assert_contains "$OUTPUT" "load and follow the crowdstrike-falcon-foundry:development-workflow skill" "1.15 Cursor event → skill routing"
+rm -f "$MARKER-cursor-conv"
+
 # ---------- Section 2: UserPromptSubmit — Should NOT Match ----------
 
 printf "\n${BOLD}Section 2: UserPromptSubmit — Should NOT Match${RESET}\n\n"
@@ -1244,6 +1258,14 @@ JSON=$(jq -n --arg c 'echo `foundry apps validate`' '{hook_event_name: "PreToolU
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_contains "$OUTPUT" "missing --no-prompt" "6.36 backtick command substitution → advisory"
 
+# 6.37 — Cursor's shell tool is Shell, and its advisories use additional_context.
+cleanup
+JSON=$(jq -n '{hook_event_name: "preToolUse", tool_name: "Shell", tool_input: {command: "foundry apps validate"}}')
+OUTPUT=$(CURSOR_PLUGIN_ROOT="$(pwd)" run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.37 Cursor Shell tool → advisory"
+assert_contains "$OUTPUT" "\"additional_context\"" "6.37 Cursor Shell tool → additional_context"
+assert_not_contains "$OUTPUT" "hookSpecificOutput" "6.37 Cursor Shell tool → no Claude hookSpecificOutput"
+
 # =============================================
 # Section 7: Skill Description Validation
 # =============================================
@@ -1655,6 +1677,15 @@ OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry 
   HOME="$CODEX_HOME" PLUGIN_ROOT="$(pwd)" CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
 assert_contains "$OUTPUT" "already installed" "10.11 Codex config → sibling recognized as installed"
 rm -rf "$CODEX_HOME"
+
+# Cursor marketplace installs live in the plugin cache, not Claude's registry
+# or Codex's config.toml.
+CURSOR_HOME=$(mktemp -d)
+mkdir -p "$CURSOR_HOME/.cursor/plugins/cache/cursor-public/crowdstrike-falcon-fusion"
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$CURSOR_HOME" PLUGIN_ROOT="$(pwd)" CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_contains "$OUTPUT" "already installed" "10.12 Cursor plugin cache → sibling recognized as installed"
+rm -rf "$CURSOR_HOME"
 
 # A bare Fusion request (no Foundry noun) is not this router's business — the
 # crowdstrike-falcon-fusion plugin's own router matches "build a Fusion workflow"

@@ -46,7 +46,7 @@ CrowdStrike Falcon API
 
 ## Workflow: Download, Adapt, Register
 
-**Always follow this order.** Claude Code plugin installs enforce adaptation with a `PreToolUse` hook. Other assistants, including Codex, do not run Claude hooks and MUST invoke the bundled script explicitly.
+**Always follow this order.** Claude Code, Codex, Copilot CLI, and Cursor enforce adaptation with a hook when that host loads this plugin's hooks. Antigravity CLI and a skill-symlink install do not, and MUST invoke the bundled script explicitly.
 
 ### 1. Download the vendor's spec
 
@@ -101,7 +101,7 @@ foundry api-integrations create --name "VendorApi" --description "Vendor API" --
 
 Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose operations to workflows, or a UI extension / workflow in the app needs a specific endpoint. See [Expose Operations to Workflows](#expose-operations-to-workflows) below.
 
-**Claude Code safety net:** The plugin hook runs `adapt_spec_for_foundry.py` automatically if step 2 is missed. Do not assume that protection exists in Codex, Copilot CLI, Cursor, or other assistants.
+**Hook safety net:** When the host runs this plugin's hooks (Claude Code, Codex, Copilot CLI, and Cursor), the hook runs `adapt_spec_for_foundry.py` automatically if step 2 is missed. Cursor's shell tool is `Shell`; the hook treats that the same as `Bash`. Antigravity CLI and other assistants that do not load the hooks must run the script themselves.
 
 ## Authentication Configuration
 

@@ -17,14 +17,23 @@
 
 set -euo pipefail
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/host-output.sh"
+
 INPUT=$(cat)
 
 HOOK_EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // empty')
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+# Cursor names these beforeSubmitPrompt and preToolUse, and sends conversation_id.
+case "$HOOK_EVENT" in
+  beforeSubmitPrompt) HOOK_EVENT=UserPromptSubmit ;;
+  preToolUse) HOOK_EVENT=PreToolUse ;;
+esac
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // .conversation_id // empty')
 MARKER="/tmp/.foundry-skill-router-active${SESSION_ID:+-$SESSION_ID}"
 
 # Best-effort cross-host check. Claude Code records installed plugins in JSON;
-# Codex records enabled marketplace plugins in config.toml.
+# Codex records enabled marketplace plugins in config.toml; Antigravity in
+# config.json; Cursor keeps a marketplace install in its plugin cache.
 plugin_is_enabled() {
   local plugin="$1"
   if [ -f "$HOME/.claude/plugins/installed_plugins.json" ] &&
@@ -38,6 +47,23 @@ plugin_is_enabled() {
        in_plugin && /^enabled[[:space:]]*=[[:space:]]*true[[:space:]]*$/ { found = 1 }
        END { exit found ? 0 : 1 }
      ' "$HOME/.codex/config.toml" 2>/dev/null; then
+    return 0
+  fi
+  if [ -d "$HOME/.gemini/config/plugins/$plugin" ]; then
+    if [ ! -f "$HOME/.gemini/config/config.json" ] || ! python3 -c '
+import json, os, sys
+try:
+    c = json.load(open(os.path.expanduser("~/.gemini/config/config.json")))
+    if c.get("plugins", {}).get(sys.argv[1], {}).get("enabled") is False:
+        sys.exit(1)
+except Exception:
+    pass
+sys.exit(0)
+' "$plugin" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  if [ -d "$HOME/.cursor/plugins/cache/cursor-public/$plugin" ]; then
     return 0
   fi
   return 1
@@ -101,16 +127,11 @@ case "$HOOK_EVENT" in
         if echo "$VERDICT" | grep -q '"redirect": true'; then
           # If the sibling plugin is already enabled, say "use it" rather than
           # "install it". Mirrors fusion-skills' fusion-foundry-bridge.sh.
-          FUSION_HINT="Advise the crowdstrike-falcon-fusion plugin — install it from the plugin browser (/plugins in Codex; /plugin install crowdstrike-falcon-fusion in Claude Code), or see https://github.com/CrowdStrike/fusion-skills."
+          FUSION_HINT="Advise the crowdstrike-falcon-fusion plugin — install it from the plugin browser (/plugins in Codex; /plugin install crowdstrike-falcon-fusion in Claude Code; /add-plugin crowdstrike-falcon-fusion in Cursor; agy plugin install https://github.com/CrowdStrike/fusion-skills in Antigravity), or see https://github.com/CrowdStrike/fusion-skills."
           if plugin_is_enabled "crowdstrike-falcon-fusion"; then
             FUSION_HINT="The crowdstrike-falcon-fusion plugin is already installed — hand off to its workflows skill."
           fi
-          jq -n --arg hint "$FUSION_HINT" '{
-            hookSpecificOutput: {
-              hookEventName: "UserPromptSubmit",
-              additionalContext: ("STANDALONE FUSION WORKFLOW DETECTED: this request looks like a trigger plus actions that already exist in the CID — no UI, function, collection, or API integration to build. It does NOT need a Foundry app. " + $hint + " Do NOT scaffold a Foundry app. Naming the plugin is required output — declining to scaffold is only half the redirect, and hand-writing the workflow YAML yourself defeats the purpose since that plugin discovers real action IDs, validates against the platform schema, and imports to the CID. This detection is advisory: if the request genuinely needs an app capability built, proceed with crowdstrike-falcon-foundry:development-workflow instead.")
-            }
-          }'
+          emit_advisory "UserPromptSubmit" "STANDALONE FUSION WORKFLOW DETECTED: this request looks like a trigger plus actions that already exist in the CID — no UI, function, collection, or API integration to build. It does NOT need a Foundry app. ${FUSION_HINT} Do NOT scaffold a Foundry app. Naming the plugin is required output — declining to scaffold is only half the redirect, and hand-writing the workflow YAML yourself defeats the purpose since that plugin discovers real action IDs, validates against the platform schema, and imports to the CID. This detection is advisory: if the request genuinely needs an app capability built, proceed with crowdstrike-falcon-foundry:development-workflow instead."
           exit 0
         fi
       fi
@@ -121,12 +142,7 @@ case "$HOOK_EVENT" in
       # on this path: after a Fusion redirect, a Foundry nudge would contradict it.
       echo "$$" > "$MARKER"
 
-      jq -n '{
-        hookSpecificOutput: {
-          hookEventName: "UserPromptSubmit",
-          additionalContext: "FOUNDRY PLUGIN DETECTED: This prompt involves Falcon Foundry development. Do NOT enter plan mode. Immediately load and follow the crowdstrike-falcon-foundry:development-workflow skill. That skill handles requirements gathering, clarifying questions, CLI scaffolding, and sub-skill delegation."
-        }
-      }'
+      emit_advisory "UserPromptSubmit" "FOUNDRY PLUGIN DETECTED: This prompt involves Falcon Foundry development. Do NOT enter plan mode. Immediately load and follow the crowdstrike-falcon-foundry:development-workflow skill. That skill handles requirements gathering, clarifying questions, CLI scaffolding, and sub-skill delegation."
       exit 0
     fi
     ;;
@@ -135,7 +151,8 @@ case "$HOOK_EVENT" in
     TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 
     # Auto-adapt OpenAPI spec before allowing api-integrations create
-    if [ "$TOOL_NAME" = "Bash" ]; then
+    # Cursor's shell tool is Shell. Claude's is Bash.
+    if [ "$TOOL_NAME" = "Bash" ] || [ "$TOOL_NAME" = "Shell" ]; then
       TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
       if echo "$TOOL_INPUT" | grep -q 'foundry api-integrations create'; then
         # Extract the spec file path from --spec flag
@@ -148,46 +165,43 @@ case "$HOOK_EVENT" in
           # Run the adapt script automatically to fix known issues
           if [ -f "$ADAPT_SCRIPT" ]; then
             if ! ADAPT_OUTPUT=$(python3 "$ADAPT_SCRIPT" "$SPEC_FILE" 2>&1); then
-              jq -n --arg output "$ADAPT_OUTPUT" --arg requirements "$PLUGIN_ROOT/requirements.txt" '{
-                hookSpecificOutput: {
-                  hookEventName: "PreToolUse",
-                  permissionDecision: "deny",
-                  permissionDecisionReason: ("BLOCKED: OpenAPI adaptation failed:\n" + $output + "\n\nInstall the required Python packages, then retry:\npython3 -m pip install -r " + $requirements)
-                }
-              }'
+              emit_deny "PreToolUse" "BLOCKED: OpenAPI adaptation failed:
+${ADAPT_OUTPUT}
+
+Install the required Python packages, then retry:
+python3 -m pip install -r ${PLUGIN_ROOT}/requirements.txt"
               exit 0
             fi
             if [ -n "$ADAPT_OUTPUT" ]; then
               # Check for validation-only warnings (block, don't auto-fix)
               if echo "$ADAPT_OUTPUT" | grep -qE 'expose_to_(workflow|agent).*directly under'; then
-                jq -n --arg output "$ADAPT_OUTPUT" '{
-                  hookSpecificOutput: {
-                    hookEventName: "PreToolUse",
-                    permissionDecision: "deny",
-                    permissionDecisionReason: ("BLOCKED: spec has structural issues that require manual fixes:\n" + $output + "\n\nBoth exposure flags must be nested under their own key:\n\nx-cs-operation-config:\n  workflow:\n    name: operationId\n    description: What this operation does\n    expose_to_workflow: true\n    system: false\n  agent_tools:\n    name: operation_name\n    description: What this operation does\n    expose_to_agent: true")
-                  }
-                }'
+                emit_deny "PreToolUse" "BLOCKED: spec has structural issues that require manual fixes:
+${ADAPT_OUTPUT}
+
+Both exposure flags must be nested under their own key:
+
+x-cs-operation-config:
+  workflow:
+    name: operationId
+    description: What this operation does
+    expose_to_workflow: true
+    system: false
+  agent_tools:
+    name: operation_name
+    description: What this operation does
+    expose_to_agent: true"
                 exit 0
               fi
               # Check if it made auto-fixes
               if echo "$ADAPT_OUTPUT" | grep -qE '(Stripped protocol|Removed default|Added bearerFormat|Removed .*oauth2|Removed duplicate param|Removed security)'; then
-                jq -n --arg output "$ADAPT_OUTPUT" '{
-                  hookSpecificOutput: {
-                    hookEventName: "PreToolUse",
-                    additionalContext: ("adapt_spec_for_foundry.py automatically fixed the spec before import:\n" + $output + "\nProceeding with the corrected spec.")
-                  }
-                }'
+                emit_advisory "PreToolUse" "adapt_spec_for_foundry.py automatically fixed the spec before import:
+${ADAPT_OUTPUT}
+Proceeding with the corrected spec."
                 exit 0
               fi
             fi
           else
-            jq -n --arg script "$ADAPT_SCRIPT" '{
-              hookSpecificOutput: {
-                hookEventName: "PreToolUse",
-                permissionDecision: "deny",
-                permissionDecisionReason: ("BLOCKED: adapt_spec_for_foundry.py not found at " + $script + ". This script is required to validate OpenAPI specs before import.")
-              }
-            }'
+            emit_deny "PreToolUse" "BLOCKED: adapt_spec_for_foundry.py not found at ${ADAPT_SCRIPT}. This script is required to validate OpenAPI specs before import."
             exit 0
           fi
         fi
@@ -200,12 +214,7 @@ case "$HOOK_EVENT" in
       CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // empty')
       if echo "$FILE_PATH" | grep -qiE '\.(yaml|yml|json)$'; then
         if echo "$CONTENT" | head -20 | grep -qiE '^openapi:|"openapi"'; then
-          jq -n '{
-            hookSpecificOutput: {
-              hookEventName: "PreToolUse",
-              additionalContext: "WARNING: You are writing an OpenAPI spec from scratch. Most vendors publish official OpenAPI specs on GitHub or their developer portal. Download the real spec with gh or curl instead of hand-writing one — vendor specs include all endpoints, correct schemas, and proper auth configuration. A hand-written spec will be incomplete and may have wrong schemas. Search GitHub for the vendor name + openapi/swagger spec."
-            }
-          }'
+          emit_advisory "PreToolUse" "WARNING: You are writing an OpenAPI spec from scratch. Most vendors publish official OpenAPI specs on GitHub or their developer portal. Download the real spec with gh or curl instead of hand-writing one — vendor specs include all endpoints, correct schemas, and proper auth configuration. A hand-written spec will be incomplete and may have wrong schemas. Search GitHub for the vendor name + openapi/swagger spec."
           exit 0
         fi
       fi
@@ -218,12 +227,7 @@ case "$HOOK_EVENT" in
       NEW_STRING=$(echo "$INPUT" | jq -r '.tool_input.new_string // empty')
       if echo "$FILE_PATH" | grep -qF 'manifest.yml'; then
         if echo "$OLD_STRING$NEW_STRING" | grep -qE '\bentrypoint:|\bpath:.*ui/(pages|extensions)/'; then
-          jq -n '{
-            hookSpecificOutput: {
-              hookEventName: "PreToolUse",
-              additionalContext: "STOP: Do NOT edit path or entrypoint in manifest.yml. The CLI sets these correctly during scaffolding. The full path format (e.g., ui/extensions/my-ext/src/dist/index.html) is correct — it is NOT a doubled path. Shortening entrypoint to src/dist/index.html will break the app. If you have a path-related deploy error, fix vite.config.js (root and base) instead."
-            }
-          }'
+          emit_advisory "PreToolUse" "STOP: Do NOT edit path or entrypoint in manifest.yml. The CLI sets these correctly during scaffolding. The full path format (e.g., ui/extensions/my-ext/src/dist/index.html) is correct — it is NOT a doubled path. Shortening entrypoint to src/dist/index.html will break the app. If you have a path-related deploy error, fix vite.config.js (root and base) instead."
           exit 0
         fi
       fi
@@ -239,12 +243,7 @@ case "$HOOK_EVENT" in
 
       # Advisory nudge, once per detected prompt — don't block tools
       rm -f "$MARKER"
-      jq -n '{
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          additionalContext: "Foundry plugin reminder: Consider invoking crowdstrike-falcon-foundry:development-workflow skill for Foundry development tasks. It handles CLI scaffolding, manifest coordination, and sub-skill delegation."
-        }
-      }'
+      emit_advisory "PreToolUse" "Foundry plugin reminder: Consider invoking crowdstrike-falcon-foundry:development-workflow skill for Foundry development tasks. It handles CLI scaffolding, manifest coordination, and sub-skill delegation."
       exit 0
     fi
     ;;

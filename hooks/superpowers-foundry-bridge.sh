@@ -13,6 +13,9 @@
 
 set -euo pipefail
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/host-output.sh"
+
 INPUT=$(cat)
 
 SKILL_NAME=$(echo "$INPUT" | jq -r '.tool_input.skill // empty')
@@ -23,12 +26,7 @@ SKILL_NAME=$(echo "$INPUT" | jq -r '.tool_input.skill // empty')
 # available skills list. deny is 100% reliable but shows ugly duplicate errors.
 case "$SKILL_NAME" in
   superpowers:brainstorming|brainstorming)
-    jq -n '{
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: "FOUNDRY PLUGIN INSTALLED: If this task is Falcon Foundry app development, stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow instead. It handles requirements gathering, CLI scaffolding, and manifest coordination, while brainstorming plans hand-written manifest.yml files that fail to deploy. For any other task, continue with brainstorming."
-      }
-    }'
+    emit_advisory "PreToolUse" "FOUNDRY PLUGIN INSTALLED: If this task is Falcon Foundry app development, stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow instead. It handles requirements gathering, CLI scaffolding, and manifest coordination, while brainstorming plans hand-written manifest.yml files that fail to deploy. For any other task, continue with brainstorming."
     exit 0
     ;;
 esac
@@ -42,14 +40,7 @@ case "$SKILL_NAME" in
 FOUNDRY PLUGIN INSTALLED: If this task involves Falcon Foundry, invoke crowdstrike-falcon-foundry:development-workflow BEFORE this skill. That skill owns Foundry app creation — it uses CLI commands (foundry apps create, foundry api-integrations create, etc.) that generate manifest.yml and wire up capability IDs correctly. Hand-writing manifest.yml or workflow YAML without the CLI causes deploy failures.
 FOUNDRY_CONTEXT
     )
-    jq -n \
-      --arg ctx "$CONTEXT" \
-      '{
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          additionalContext: $ctx
-        }
-      }'
+    emit_advisory "PreToolUse" "$CONTEXT"
     exit 0
     ;;
 esac
