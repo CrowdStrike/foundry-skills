@@ -326,7 +326,7 @@ Key points:
 - `CustomStorage(ext_headers=_app_headers())` applies `X-CS-APP-ID` to all requests (needed for local dev; Foundry sets it automatically in production)
 - `PutObject` acts as upsert (creates or overwrites by key). Pass body as a dict.
 - `GetObject` returns bytes directly — decode with `json.loads(response.decode("utf-8"))`
-- **A missing key returns a 404** (see `get_incident` in [python-patterns.md](../functions-development/references/python-patterns.md)). Only a 404 means missing; don't treat *every* non-bytes reply that way: a transient 429 or 5xx then reads as "no record", and code that writes the record back erases it.
+- **A missing key returns a 404** (see `get_incident` in the `functions-development` skill's `references/python-patterns.md`). Only a 404 means missing; don't treat *every* non-bytes reply that way: a transient 429 or 5xx then reads as "no record", and code that writes the record back erases it.
 - `SearchObjects` returns metadata only, not full objects
 - `ListObjects` returns keys (alphabetical) in `body.resources` and takes `start`/`end` keys. Pass the last key as the next `start` and stop only on an empty batch — stopping when a page is shorter than `limit` ends early if the service caps page size
 - **List before you read.** Calling `GetObject` on every *candidate* key (most of them misses) is slow; list the keys once and read only the ones that exist. In one app, that cut a 519-item page load from about 25 s to about 7 s
