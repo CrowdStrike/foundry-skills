@@ -265,7 +265,7 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 - **Writing specs from scratch** when the vendor publishes one. Hand-written specs miss edge cases.
 - **Running spec linters before importing.** Foundry's import handles vendor specs with lint errors. Linting wastes time and tempts trimming.
 - **Trimming vendor specs.** Keep the full spec. Foundry handles large specs and unused operations gracefully.
-- **Skipping `adapt_spec_for_foundry.py`.** Only Claude Code plugin installs run the automatic hook. Other assistants must invoke the bundled helper. The script converts unsupported auth schemes and fixes server URLs that would otherwise block saving in the Falcon console.
+- **Skipping `adapt_spec_for_foundry.py`.** Only hosts that load this plugin's hooks (Claude Code, Codex, Copilot CLI, and Cursor plugin installs) run it automatically. Antigravity CLI and skill-symlink installs must invoke the bundled helper. The script converts unsupported auth schemes and fixes server URLs that would otherwise block saving in the Falcon console.
 - **Including `https://` in server URLs** with variables. The Falcon console adds the protocol separately.
 - **Adding `default` to server variables** for dynamic domains. This renders a dropdown instead of a text field.
 - **Splitting domains** into `{subdomain}.vendor.com` instead of `{yourDomain}` for the full domain.

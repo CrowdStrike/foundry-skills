@@ -1251,6 +1251,19 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_contains "$OUTPUT" "missing --no-prompt" "6.35 cd && env foundry apps validate → advisory"
 
+# 6.38 — A quoted --no-prompt in another command does not satisfy a real foundry command
+cleanup
+JSON=$(jq -n --arg c 'git commit -m "add --no-prompt to the docs" && foundry apps validate' '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.38 quoted --no-prompt elsewhere → advisory"
+
+# 6.39 — Name confirmation reads --name from the foundry command, not a commit message
+cleanup
+JSON=$(jq -n --arg c 'git commit -m "use --name decoy" && foundry apps create --name real --no-prompt' '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "named \\\"real\\\"" "6.39 name confirmation uses the foundry --name"
+assert_not_contains "$OUTPUT" "decoy" "6.39 name confirmation ignores the commit message"
+
 # 6.36 — Legacy backtick command substitution is split without making the hook
 # script itself syntactically invalid.
 cleanup
@@ -1694,6 +1707,21 @@ OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","turn_id":"codex-turn","pro
 assert_not_contains "$OUTPUT" "already installed" "10.13 Codex disabled sibling ignores Claude registry"
 assert_contains "$OUTPUT" "/plugins in Codex" "10.13 Codex disabled sibling names the Codex install"
 rm -rf "$BOTH_HOME"
+
+# A nested table under a disabled plugin is not the plugin's own enabled flag.
+NESTED_HOME=$(mktemp -d)
+mkdir -p "$NESTED_HOME/.codex"
+cat > "$NESTED_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-fusion@openai-api-curated"]
+enabled = false
+
+[plugins."crowdstrike-falcon-fusion@openai-api-curated".mcp_servers.example]
+enabled = true
+EOF
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","turn_id":"codex-turn","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$NESTED_HOME" "$HOOK" 2>&1)
+assert_not_contains "$OUTPUT" "already installed" "10.14 Codex nested enabled table → not installed"
+rm -rf "$NESTED_HOME"
 
 # Cursor marketplace installs live in the plugin cache, not Claude's registry
 # or Codex's config.toml.
