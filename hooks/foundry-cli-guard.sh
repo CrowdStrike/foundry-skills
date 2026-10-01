@@ -50,7 +50,7 @@ FOUNDRY_CMDS=$(printf '%s' "$COMMAND" | jq -Rrs "$(cat <<'JQ'
 gsub("<<-?[[:space:]]*[\"']?(?<w>[A-Za-z_][A-Za-z0-9_]*)[\"']?[^\n]*\n(?:.*?\n)??[[:space:]]*\\k<w>(?=[[:space:]]|\\)|$)"; ""; "s")
 | gsub("\"(?:\\\\.|[^\"\\\\])*\""; "\"\"")
 | gsub("'[^']*'"; "''")
-| [splits("[\n;&|()`]+")
+| [splits("[\n;&|()\\x60]+")
    | sub("^[[:space:]]*(?:[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*"; "")
    | select(test("^(?:[^[:space:]]*/)?foundry(?:[[:space:]]|$)"))]
 | join("\n")
@@ -74,7 +74,7 @@ if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release
     jq -n '{
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
-        additionalContext: "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, functions exec/logs/test) run non-interactively in Claude Code and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
+        additionalContext: "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, functions exec/logs/test) run non-interactively in coding assistants and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
       }
     }'
     exit 0
@@ -244,14 +244,14 @@ if [ "${FOUNDRY_SKIP_NAME_CONFIRM:-}" != "1" ]; then
         jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
           hookSpecificOutput: {
             hookEventName: "PreToolUse",
-            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the deletion with the user before running this. You are about to delete the Foundry AI artifact \"\($name)\", which removes its manifest entry AND its entire directory from disk. There is no undo and no `edit` command to fall back on. Use AskUserQuestion to confirm first, unless the user has already explicitly asked to delete this exact artifact.")
+            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the deletion with the user before running this. You are about to delete the Foundry AI artifact \"\($name)\", which removes its manifest entry AND its entire directory from disk. There is no undo and no `edit` command to fall back on. Ask the user to confirm first, unless they already explicitly asked to delete this exact artifact.")
           }
         }'
       else
         jq -n --arg name "$RESOURCE_NAME" --arg pre "$PENDING_REMINDER" '{
           hookSpecificOutput: {
             hookEventName: "PreToolUse",
-            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"\($name)\". Use AskUserQuestion to confirm the name and description are what the user wants BEFORE running this command. If the user has already explicitly confirmed this exact name in this conversation, proceed.")
+            additionalContext: ((if $pre == "" then "" else $pre + "\n\n" end) + "STOP — Confirm the resource name with the user before creating. You are about to create a Foundry resource named \"\($name)\". Ask the user to confirm the name and description BEFORE running this command. If the user already explicitly confirmed this exact name in this conversation, proceed.")
           }
         }'
       fi

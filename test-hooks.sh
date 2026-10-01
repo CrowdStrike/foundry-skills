@@ -19,6 +19,9 @@ HOOK="./hooks/foundry-skill-router.sh"
 BRIDGE="./hooks/superpowers-foundry-bridge.sh"
 GUARD="./hooks/foundry-cli-guard.sh"
 MARKER="/tmp/.foundry-skill-router-active"
+TEST_TMP_DIR=$(mktemp -d)
+TEST_SPEC_PREFIX="$TEST_TMP_DIR/test-spec"
+trap 'rm -rf "$TEST_TMP_DIR"' EXIT
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -29,7 +32,7 @@ RESET='\033[0m'
 
 cleanup() {
   rm -f "$MARKER"
-  rm -f /tmp/test-spec-*.yaml /tmp/test-spec-*.json
+  rm -f "${TEST_SPEC_PREFIX}"-*.yaml "${TEST_SPEC_PREFIX}"-*.json
   unset FOUNDRY_SKIP_NAME_CONFIRM 2>/dev/null || true
 }
 
@@ -121,7 +124,7 @@ run_hook() {
 }
 
 # Run the spec-adaptation hook for a given spec file path.
-# Usage: OUTPUT=$(run_spec_hook "/tmp/test-spec-3-1.yaml")
+# Usage: OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-1.yaml")
 run_spec_hook() {
   local spec_path="$1"
   local json
@@ -176,6 +179,21 @@ for i in "${!MATCH_PROMPTS[@]}"; do
   assert_marker_exists "${MATCH_NAMES[$i]}: creates marker"
 done
 
+# Codex sends the same event fields plus turn_id and permission_mode. The hook
+# output should route by skill name without telling Codex to use Claude's Skill tool.
+cleanup
+JSON=$(jq -n '{
+  hook_event_name: "UserPromptSubmit",
+  session_id: "codex-session",
+  turn_id: "codex-turn",
+  permission_mode: "default",
+  prompt: "I need a Falcon Foundry app"
+}')
+OUTPUT=$(PLUGIN_ROOT="$(pwd)" CLAUDE_PLUGIN_ROOT="$(pwd)" run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "load and follow the crowdstrike-falcon-foundry:development-workflow skill" "1.14 Codex event → assistant-neutral skill routing"
+assert_not_contains "$OUTPUT" "Skill tool" "1.14 Codex event → no Claude-only Skill tool wording"
+rm -f "$MARKER-codex-session"
+
 # ---------- Section 2: UserPromptSubmit — Should NOT Match ----------
 
 printf "\n${BOLD}Section 2: UserPromptSubmit — Should NOT Match${RESET}\n\n"
@@ -222,7 +240,7 @@ printf "\n${BOLD}Section 3: PreToolUse — OpenAPI Spec Auto-Adaptation${RESET}\
 
 # 3.1 — default without enum → auto-fixed by adapt script
 cleanup
-cat > /tmp/test-spec-3-1.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-1.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -235,13 +253,13 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-1.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-1.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.1  default without enum → auto-fixed"
 assert_contains "$OUTPUT" "Removed default" "3.1  reports default removal"
 
 # 3.2 — default WITH enum → ALLOW (no changes needed)
 cleanup
-cat > /tmp/test-spec-3-2.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-2.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -257,12 +275,12 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-2.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-2.yaml")
 assert_empty "$OUTPUT" "3.2  default WITH enum → ALLOW (no changes)"
 
 # 3.3 — description only (no default) → ALLOW
 cleanup
-cat > /tmp/test-spec-3-3.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-3.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -274,12 +292,12 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-3.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-3.yaml")
 assert_empty "$OUTPUT" "3.3  description only (no default) → ALLOW"
 
 # 3.4 — https:// with variables → auto-fixed by adapt script
 cleanup
-cat > /tmp/test-spec-3-4.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-4.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -291,13 +309,13 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-4.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-4.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.4  https:// with variables → auto-fixed"
 assert_contains "$OUTPUT" "Stripped protocol" "3.4  reports protocol stripping"
 
 # 3.5 — no protocol with variables → ALLOW
 cleanup
-cat > /tmp/test-spec-3-5.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-5.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -309,12 +327,12 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-5.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-5.yaml")
 assert_empty "$OUTPUT" "3.5  no protocol with variables → ALLOW"
 
 # 3.6 — enum in parameter schema but NOT in servers → auto-fixed (default removed)
 cleanup
-cat > /tmp/test-spec-3-6.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-6.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -337,7 +355,7 @@ paths:
               - active
               - inactive
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-6.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-6.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.6  enum in params but not servers → auto-fixed"
 
 # 3.7 — non-existent spec file → ALLOW (passthrough)
@@ -347,7 +365,7 @@ assert_empty "$OUTPUT" "3.7  non-existent spec file → ALLOW (passthrough)"
 
 # 3.8 — flat expose_to_workflow with variables → BLOCK via fallback (adapt doesn't fix x-cs-operation-config)
 cleanup
-cat > /tmp/test-spec-3-8.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-8.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -367,12 +385,12 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-8.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-8.yaml")
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.8  flat expose_to_workflow with vars → BLOCK (fallback)"
 
 # 3.8b — flat expose_to_workflow WITHOUT variables (static URL) → BLOCK via fallback
 cleanup
-cat > /tmp/test-spec-3-8b.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-8b.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -390,13 +408,13 @@ cat > /tmp/test-spec-3-8b.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-8b.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-8b.json")
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.8b flat expose_to_workflow (static URL) → BLOCK (fallback)"
 assert_contains "$OUTPUT" "Must be nested under a" "3.8b error message explains fix"
 
 # 3.9 — nested workflow: key → ALLOW
 cleanup
-cat > /tmp/test-spec-3-9.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-9.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -420,12 +438,12 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-9.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-9.yaml")
 assert_empty "$OUTPUT" "3.9  nested workflow: key → ALLOW"
 
 # 3.10 — no expose_to_workflow at all → ALLOW
 cleanup
-cat > /tmp/test-spec-3-10.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-10.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -443,12 +461,12 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-10.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10.yaml")
 assert_empty "$OUTPUT" "3.10 no expose_to_workflow → ALLOW"
 
 # 3.10b — adapter dependency failure → BLOCK with install instructions
 cleanup
-cat > /tmp/test-spec-3-10b.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-10b.json" <<'EOF'
 {"openapi":"3.0.0","info":{"title":"Test","version":"1.0"},"paths":{}}
 EOF
 mkdir -p /tmp/foundry-test-fake-bin
@@ -458,14 +476,14 @@ echo "ModuleNotFoundError: No module named 'yaml'" >&2
 exit 1
 EOF
 chmod +x /tmp/foundry-test-fake-bin/python3
-OUTPUT=$(PATH="/tmp/foundry-test-fake-bin:$PATH" run_spec_hook "/tmp/test-spec-3-10b.json")
+OUTPUT=$(PATH="/tmp/foundry-test-fake-bin:$PATH" run_spec_hook "${TEST_SPEC_PREFIX}-3-10b.json")
 rm -rf /tmp/foundry-test-fake-bin
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10b adapter dependency failure → BLOCK"
 assert_contains "$OUTPUT" "python3 -m pip install -r" "3.10b dependency failure includes install command"
 
 # 3.11 — JSON spec: default without enum → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-11.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-11.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -473,12 +491,12 @@ cat > /tmp/test-spec-3-11.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-11.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-11.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.11 JSON: default without enum → auto-fixed"
 
 # 3.12 — JSON spec: https:// with variables → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-12.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-12.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -486,12 +504,12 @@ cat > /tmp/test-spec-3-12.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-12.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-12.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.12 JSON: https:// with variables → auto-fixed"
 
 # 3.13 — JSON spec: flat expose_to_workflow (static URL) → BLOCK via fallback
 cleanup
-cat > /tmp/test-spec-3-13.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-13.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -509,12 +527,12 @@ cat > /tmp/test-spec-3-13.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-13.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-13.json")
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.13 JSON: flat expose_to_workflow (static URL) → BLOCK"
 
 # 3.14 — JSON spec: nested workflow key (static URL) → ALLOW
 cleanup
-cat > /tmp/test-spec-3-14.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-14.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -537,12 +555,12 @@ cat > /tmp/test-spec-3-14.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-14.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-14.json")
 assert_empty "$OUTPUT" "3.14 JSON: nested workflow key (static URL) → ALLOW"
 
 # 3.15 — oauth2 authorizationCode flow → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-15.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-15.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -565,13 +583,13 @@ cat > /tmp/test-spec-3-15.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-15.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-15.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.15 oauth2 authorizationCode → auto-fixed"
 assert_contains "$OUTPUT" "Removed" "3.15 reports oauth2 removal"
 
 # 3.16 — apiKey in Authorization header with SSWS description → bearerFormat added
 cleanup
-cat > /tmp/test-spec-3-16.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-16.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -590,13 +608,13 @@ cat > /tmp/test-spec-3-16.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-16.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-16.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.16 apiKey with SSWS description → bearerFormat added"
 assert_contains "$OUTPUT" "Added bearerFormat" "3.16 reports bearerFormat inference"
 
 # 3.17 — Okta-style combined issues (apiKey + oauth2 authCode + https + default) → all auto-fixed
 cleanup
-cat > /tmp/test-spec-3-17.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-17.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Okta Management API
@@ -633,7 +651,7 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-17.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-17.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.17 Okta-style combined issues → auto-fixed"
 assert_contains "$OUTPUT" "Stripped protocol" "3.17 reports protocol stripping"
 assert_contains "$OUTPUT" "Removed default" "3.17 reports default removal"
@@ -641,7 +659,7 @@ assert_contains "$OUTPUT" "Added bearerFormat" "3.17 reports bearerFormat infere
 
 # 3.18 — Clean spec (no issues) → ALLOW
 cleanup
-cat > /tmp/test-spec-3-18.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-18.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -665,12 +683,12 @@ cat > /tmp/test-spec-3-18.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-18.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-18.json")
 assert_empty "$OUTPUT" "3.18 Clean spec (no issues) → ALLOW"
 
 # 3.19 — Duplicate parameters (path-level + operation-level) → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-19.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-19.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -701,13 +719,13 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-19.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-19.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.19 duplicate params (path + op level) → auto-fixed"
 assert_contains "$OUTPUT" "Removed duplicate param" "3.19 reports param dedup"
 
 # 3.20 — Duplicate $ref parameters (same ref at both levels) → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-20.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-20.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -734,7 +752,7 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-20.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-20.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.20 duplicate \$ref params → auto-fixed"
 assert_contains "$OUTPUT" "Removed duplicate param" "3.20 reports \$ref dedup"
 
@@ -1219,6 +1237,13 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_contains "$OUTPUT" "missing --no-prompt" "6.35 cd && env foundry apps validate → advisory"
 
+# 6.36 — Legacy backtick command substitution is split without making the hook
+# script itself syntactically invalid.
+cleanup
+JSON=$(jq -n --arg c 'echo `foundry apps validate`' '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.36 backtick command substitution → advisory"
+
 # =============================================
 # Section 7: Skill Description Validation
 # =============================================
@@ -1509,7 +1534,7 @@ OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
 assert_contains "$OUTPUT" "Windows" "9.5  warning includes Windows download instructions"
 rm -rf "$FAKE_BIN"
 
-# 9.6 — Warning instructs Claude to prompt user
+# 9.6 — Warning instructs the assistant to prompt user
 cleanup
 FAKE_BIN=$(mktemp -d)
 cat > "$FAKE_BIN/foundry" << 'FEOF'
@@ -1518,7 +1543,7 @@ echo "foundry 1.5.0 (git: abc123) build_date: 2025-06-01T00:00:00Z"
 FEOF
 chmod +x "$FAKE_BIN/foundry"
 OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
-assert_contains "$OUTPUT" "AskUserQuestion" "9.6  warning instructs Claude to prompt user"
+assert_contains "$OUTPUT" "Ask the user whether to upgrade now" "9.6  warning instructs the assistant to prompt user"
 rm -rf "$FAKE_BIN"
 
 # 9.7 — No error when Foundry CLI is not installed
@@ -1616,6 +1641,20 @@ assert_contains "$OUTPUT" "STANDALONE FUSION" "10.7  negated capabilities still 
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
 assert_contains "$OUTPUT" "crowdstrike-falcon-fusion" "10.9  advisory names the plugin either way"
 assert_contains "$OUTPUT" "Do NOT scaffold a Foundry app" "10.10 advisory forbids scaffolding either way"
+
+# Codex stores enabled marketplace plugins in config.toml rather than Claude
+# Code's installed_plugins.json. Do not tell a Codex user to install the sibling
+# when it is already enabled.
+CODEX_HOME=$(mktemp -d)
+mkdir -p "$CODEX_HOME/.codex"
+cat > "$CODEX_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-fusion@openai-api-curated"]
+enabled = true
+EOF
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$CODEX_HOME" PLUGIN_ROOT="$(pwd)" CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_contains "$OUTPUT" "already installed" "10.11 Codex config → sibling recognized as installed"
+rm -rf "$CODEX_HOME"
 
 # A bare Fusion request (no Foundry noun) is not this router's business — the
 # crowdstrike-falcon-fusion plugin's own router matches "build a Fusion workflow"

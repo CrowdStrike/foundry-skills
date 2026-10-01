@@ -23,6 +23,26 @@ HOOK_EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // empty')
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 MARKER="/tmp/.foundry-skill-router-active${SESSION_ID:+-$SESSION_ID}"
 
+# Best-effort cross-host check. Claude Code records installed plugins in JSON;
+# Codex records enabled marketplace plugins in config.toml.
+plugin_is_enabled() {
+  local plugin="$1"
+  if [ -f "$HOME/.claude/plugins/installed_plugins.json" ] &&
+     grep -q "$plugin" "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null; then
+    return 0
+  fi
+  if [ -f "$HOME/.codex/config.toml" ] &&
+     awk -v prefix="[plugins.\"$plugin@" '
+       index($0, prefix) == 1 { in_plugin = 1; next }
+       /^\[/ { in_plugin = 0 }
+       in_plugin && /^enabled[[:space:]]*=[[:space:]]*true[[:space:]]*$/ { found = 1 }
+       END { exit found ? 0 : 1 }
+     ' "$HOME/.codex/config.toml" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
 case "$HOOK_EVENT" in
   UserPromptSubmit)
     # Each prompt is classified on its own; never carry a detection forward.
@@ -79,13 +99,10 @@ case "$HOOK_EVENT" in
       if [ -f "$REDIRECT_SCRIPT" ]; then
         VERDICT=$(printf '%s' "$USER_PROMPT" | python3 "$REDIRECT_SCRIPT" 2>/dev/null || true)
         if echo "$VERDICT" | grep -q '"redirect": true'; then
-          # If the sibling plugin is already installed, say "use it" rather than
-          # "install it". Best-effort: the file may be absent, in which case we
-          # fall back to the install wording. Mirrors the check in
-          # fusion-skills' fusion-foundry-bridge.sh.
-          FUSION_HINT="Advise the crowdstrike-falcon-fusion plugin — /plugin install crowdstrike-falcon-fusion, or https://claude.com/plugins/crowdstrike-falcon-fusion."
-          if [ -f "$HOME/.claude/plugins/installed_plugins.json" ] &&
-             grep -q "crowdstrike-falcon-fusion" "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null; then
+          # If the sibling plugin is already enabled, say "use it" rather than
+          # "install it". Mirrors fusion-skills' fusion-foundry-bridge.sh.
+          FUSION_HINT="Advise the crowdstrike-falcon-fusion plugin — install it from the plugin browser (/plugins in Codex; /plugin install crowdstrike-falcon-fusion in Claude Code), or see https://github.com/CrowdStrike/fusion-skills."
+          if plugin_is_enabled "crowdstrike-falcon-fusion"; then
             FUSION_HINT="The crowdstrike-falcon-fusion plugin is already installed — hand off to its workflows skill."
           fi
           jq -n --arg hint "$FUSION_HINT" '{
@@ -107,7 +124,7 @@ case "$HOOK_EVENT" in
       jq -n '{
         hookSpecificOutput: {
           hookEventName: "UserPromptSubmit",
-          additionalContext: "FOUNDRY PLUGIN DETECTED: This prompt involves Falcon Foundry development. Do NOT enter plan mode. IMMEDIATELY invoke crowdstrike-falcon-foundry:development-workflow using the Skill tool. That skill handles requirements gathering, clarifying questions, CLI scaffolding, and sub-skill delegation."
+          additionalContext: "FOUNDRY PLUGIN DETECTED: This prompt involves Falcon Foundry development. Do NOT enter plan mode. Immediately load and follow the crowdstrike-falcon-foundry:development-workflow skill. That skill handles requirements gathering, clarifying questions, CLI scaffolding, and sub-skill delegation."
         }
       }'
       exit 0
