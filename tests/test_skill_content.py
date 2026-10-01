@@ -538,3 +538,21 @@ class TestSkillLinksStayInPackage:
                         if os.path.commonpath([resolved, skill_dir]) != skill_dir:
                             offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
         assert not offenders, f"links leave the skill directory: {offenders}"
+
+    def test_link_targets_exist(self):
+        offenders = []
+        skills_dir = os.path.join(_ROOT, "skills")
+        for skill in sorted(os.listdir(skills_dir)):
+            skill_dir = os.path.join(skills_dir, skill)
+            path = os.path.join(skill_dir, "SKILL.md")
+            if not os.path.isfile(path):
+                continue
+            with open(path) as f:
+                for lineno, line in enumerate(f, 1):
+                    for target in self._LINK.findall(line):
+                        if re.match(r"[a-z]+:|#", target):
+                            continue
+                        resolved = os.path.join(skill_dir, target.split("#")[0].split("?")[0])
+                        if not os.path.exists(resolved):
+                            offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
+        assert not offenders, f"links point at missing files: {offenders}"
