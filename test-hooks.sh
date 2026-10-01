@@ -151,6 +151,7 @@ MATCH_PROMPTS=(
   "Can you make me a Foundry app that integrates with ServiceNow?"
   "I need a Foundry app with a Python function"
   "connect the OpenRouter API to a Foundry app"
+  "Can you set up a Foundry app with a data store for investigation notes?"
 )
 
 MATCH_NAMES=(
@@ -167,6 +168,7 @@ MATCH_NAMES=(
   "1.11 make verb (make me a foundry app)"
   "1.12 need verb (I need a foundry app)"
   "1.13 verb five words from noun (connect ... foundry app)"
+  "1.14 two-word verb (set up a foundry app)"
 )
 
 for i in "${!MATCH_PROMPTS[@]}"; do

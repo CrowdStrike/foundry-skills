@@ -100,7 +100,7 @@ case "$HOOK_EVENT" in
     # The verb and noun must be at most five words apart, so a prompt that
     # fixes one thing and mentions Falcon Foundry later in the sentence doesn't match,
     # while "connect the OpenRouter API to a Foundry app" still does.
-    VERBS="create|build|make|need|want|write|connect|deploy|release|scaffold|add|update|fix|debug|configure"
+    VERBS="create|build|set up|make|need|want|write|connect|deploy|release|scaffold|add|update|fix|debug|configure"
     NOUNS="foundry app|foundry function|foundry collection|foundry workflow|foundry ui|foundry page|foundry api|falcon foundry|falcon app|crowdstrike app|foundry extension|foundry agent|foundry knowledge base"
     GAP="([[:space:]]+[^[:space:]]+){0,5}[[:space:]]+"
 
