@@ -34,19 +34,35 @@ MARKER="/tmp/.foundry-skill-router-active${SESSION_ID:+-$SESSION_ID}"
 # Best-effort cross-host check. Claude Code records installed plugins in JSON;
 # Codex records enabled marketplace plugins in config.toml; Antigravity in
 # config.json; Cursor keeps a marketplace install in its plugin cache.
+codex_plugin_enabled() {
+  local plugin="$1"
+  [ -f "$HOME/.codex/config.toml" ] || return 1
+  awk -v prefix="[plugins.\"$plugin@" '
+    index($0, prefix) == 1 { in_plugin = 1; next }
+    /^\[/ { in_plugin = 0 }
+    in_plugin && /^enabled[[:space:]]*=[[:space:]]*true[[:space:]]*(#.*)?$/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$HOME/.codex/config.toml" 2>/dev/null
+}
+
 plugin_is_enabled() {
   local plugin="$1"
+  # Cursor sets CURSOR_PLUGIN_ROOT. Codex sends turn_id. Check only that host
+  # so a Claude registry on the same machine cannot mark a Codex-disabled
+  # sibling as installed.
+  if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    [ -d "$HOME/.cursor/plugins/cache/cursor-public/$plugin" ]
+    return
+  fi
+  if printf '%s' "$INPUT" | jq -e 'has("turn_id")' >/dev/null 2>&1; then
+    codex_plugin_enabled "$plugin"
+    return
+  fi
   if [ -f "$HOME/.claude/plugins/installed_plugins.json" ] &&
      grep -q "$plugin" "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null; then
     return 0
   fi
-  if [ -f "$HOME/.codex/config.toml" ] &&
-     awk -v prefix="[plugins.\"$plugin@" '
-       index($0, prefix) == 1 { in_plugin = 1; next }
-       /^\[/ { in_plugin = 0 }
-       in_plugin && /^enabled[[:space:]]*=[[:space:]]*true[[:space:]]*$/ { found = 1 }
-       END { exit found ? 0 : 1 }
-     ' "$HOME/.codex/config.toml" 2>/dev/null; then
+  if codex_plugin_enabled "$plugin"; then
     return 0
   fi
   if [ -d "$HOME/.gemini/config/plugins/$plugin" ]; then

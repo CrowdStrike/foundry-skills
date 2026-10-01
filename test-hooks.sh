@@ -1678,6 +1678,23 @@ OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry 
 assert_contains "$OUTPUT" "already installed" "10.11 Codex config → sibling recognized as installed"
 rm -rf "$CODEX_HOME"
 
+# turn_id marks a Codex turn. Claude's registry on the same machine must not
+# count when Codex has the sibling disabled.
+BOTH_HOME=$(mktemp -d)
+mkdir -p "$BOTH_HOME/.claude/plugins" "$BOTH_HOME/.codex"
+cat > "$BOTH_HOME/.claude/plugins/installed_plugins.json" <<'EOF'
+{"plugins":{"crowdstrike-falcon-fusion@claude-plugins-official":[{"scope":"user"}]}}
+EOF
+cat > "$BOTH_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-fusion@openai-api-curated"]
+enabled = false
+EOF
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","turn_id":"codex-turn","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$BOTH_HOME" "$HOOK" 2>&1)
+assert_not_contains "$OUTPUT" "already installed" "10.13 Codex disabled sibling ignores Claude registry"
+assert_contains "$OUTPUT" "/plugins in Codex" "10.13 Codex disabled sibling names the Codex install"
+rm -rf "$BOTH_HOME"
+
 # Cursor marketplace installs live in the plugin cache, not Claude's registry
 # or Codex's config.toml.
 CURSOR_HOME=$(mktemp -d)

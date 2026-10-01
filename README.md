@@ -70,7 +70,7 @@ This prompt exercises the full skill set — API integration, workflow, and UI:
 
 ### How plugin skill routing works
 
-Repository-backed installs in Claude Code, Codex, and Cursor include hooks that ensure the right skills get used. Codex requires reviewing and trusting bundled hooks through `/hooks` before they run. Cursor loads them from `.cursor-plugin/plugin.json`:
+Repository-backed installs in Claude Code, Codex, Copilot CLI, and Cursor include hooks that ensure the right skills get used. Codex requires reviewing and trusting bundled hooks through `/hooks` before they run. Cursor loads them from `.cursor-plugin/plugin.json`:
 
 1. **`UserPromptSubmit` hook** — Matches an action verb paired with a Foundry noun — e.g., "create a foundry app". Explicit CLI commands and skill requests also trigger it.
 
