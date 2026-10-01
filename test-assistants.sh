@@ -271,6 +271,7 @@ mkdir -p "$LOG_DIR"
 
 # ── Bias control ───────────────────────────────────────────────
 DISABLED_CLAUDE=()
+DISABLED_COPILOT=()
 DISABLED_AGY=()
 STASHED=0
 OURS=()                 # symlinks this script created, so we only ever remove our own
@@ -286,6 +287,7 @@ points_into_repo() {
 restore() {
   local had=0
   [ ${#DISABLED_CLAUDE[@]} -gt 0 ] && had=1
+  [ ${#DISABLED_COPILOT[@]} -gt 0 ] && had=1
   [ ${#DISABLED_AGY[@]} -gt 0 ] && had=1
   [ "$STASHED" -gt 0 ] && had=1
   [ -n "$CODEX_CACHE" ] && had=1
@@ -296,6 +298,9 @@ restore() {
   local p
   for p in ${DISABLED_CLAUDE[@]+"${DISABLED_CLAUDE[@]}"}; do
     claude plugin enable "$p" >/dev/null 2>&1 && vok "re-enabled claude plugin $p" || warn "could not re-enable claude plugin $p"
+  done
+  for p in ${DISABLED_COPILOT[@]+"${DISABLED_COPILOT[@]}"}; do
+    copilot plugin enable "$p" >/dev/null 2>&1 && vok "re-enabled copilot plugin $p" || warn "could not re-enable copilot plugin $p"
   done
   for p in ${DISABLED_AGY[@]+"${DISABLED_AGY[@]}"}; do
     agy plugin enable "$p" >/dev/null 2>&1 && vok "re-enabled agy plugin $p" || warn "could not re-enable agy plugin $p"
@@ -315,7 +320,7 @@ restore() {
     done
     rmdir "$STASH" 2>/dev/null || true
   fi
-  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_AGY[@]} ))
+  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_COPILOT[@]} + ${#DISABLED_AGY[@]} ))
   printf '  %s✓%s  re-enabled %s%s%s plugin(s), restored %s%s%s symlink(s)\n' \
     "$GREEN" "$RESET" "$BOLD" "$plugins" "$RESET" "$BOLD" "$STASHED" "$RESET"
 }
@@ -411,6 +416,16 @@ isolate() {
       fi
     done < <(echo "$out" | grep -oE '[a-z0-9-]*foundry[a-z0-9-]*' | sort -u)
   fi
+  if command -v copilot >/dev/null 2>&1; then
+    while read -r p; do
+      [ -z "$p" ] && continue
+      if copilot plugin disable "$p" >/dev/null 2>&1; then
+        DISABLED_COPILOT+=("$p"); vok "disabled copilot plugin $p"
+      fi
+    done < <(copilot plugin list --json 2>/dev/null |
+      jq -r '.[] | select(.enabled == true) | .name' |
+      grep -E 'foundry|^crowdstrike-falcon-fusion$' | sort -u)
+  fi
   # Antigravity's own plugin stays enabled: its run swaps the installed copy for a
   # symlink to this repo. Disable any other Foundry-named plugin, and the sibling
   # CrowdStrike plugin too, or Antigravity reaches for its skills (it used
@@ -450,15 +465,6 @@ isolate() {
     fi
   done
 
-  # Copilot and Cursor can only uninstall, not disable, an installed plugin — too
-  # destructive to do automatically. It doesn't matter: --plugin-dir takes precedence,
-  # so the run still loads this repo's skills (confirmed by the per-assistant source
-  # and skills paths in the summary). Note it as expected, not as a warning.
-  if command -v copilot >/dev/null 2>&1 && copilot plugin list 2>/dev/null | grep -qi foundry; then
-    ok "copilot has a Foundry plugin installed — expected; --plugin-dir overrides it, so this run stays isolated"
-    info "uninstall it only if you want a fully clean environment; not required"
-  fi
-
   # Symlinks in ~/.agents/skills pointing into THIS repo. These are live, so they
   # would double-load alongside --plugin-dir.
   if [ -d "$SKILL_HOME" ]; then
@@ -474,7 +480,7 @@ isolate() {
     [ "$STASHED" -eq 0 ] && rmdir "$STASH" 2>/dev/null || true
   fi
 
-  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_AGY[@]} ))
+  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_COPILOT[@]} + ${#DISABLED_AGY[@]} ))
   if [ "$plugins" -eq 0 ] && [ "$STASHED" -eq 0 ]; then
     ok "nothing to isolate — no competing sources found"
   else

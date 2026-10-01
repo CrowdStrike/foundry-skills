@@ -34,7 +34,7 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Shell",
         "hooks": [
           {
             "type": "command",

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "./hooks/foundry-session-start.sh"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "./hooks/foundry-skill-router.sh"
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "./hooks/foundry-skill-router.sh"
+      },
+      {
+        "command": "./hooks/foundry-cli-guard.sh",
+        "matcher": "Shell"
+      }
+    ]
+  }
+}

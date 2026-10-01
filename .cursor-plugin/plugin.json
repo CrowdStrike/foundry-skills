@@ -1,0 +1,21 @@
+{
+  "name": "crowdstrike-falcon-foundry",
+  "displayName": "CrowdStrike Falcon Foundry",
+  "description": "Build Falcon Foundry apps with guided workflows for UI, functions, collections, Falcon Fusion SOAR workflows, and API integrations.",
+  "version": "1.5.0",
+  "author": {
+    "name": "CrowdStrike"
+  },
+  "homepage": "https://github.com/CrowdStrike/foundry-skills",
+  "repository": "https://github.com/CrowdStrike/foundry-skills",
+  "license": "MIT",
+  "keywords": [
+    "crowdstrike",
+    "falcon",
+    "foundry",
+    "cybersecurity",
+    "workflows"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-cursor.json"
+}

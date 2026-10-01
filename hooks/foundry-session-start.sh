@@ -8,6 +8,19 @@
 #
 set -euo pipefail
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/host-output.sh"
+
+# Claude Code shows hook stderr to the model. Cursor only injects
+# additional_context from stdout, so the same warning has to be emitted both ways.
+emit_user_warning() {
+  if cursor_hooks; then
+    emit_advisory "SessionStart" "$1"
+  else
+    printf '%s\n' "$1" >&2
+  fi
+}
+
 # --- Version check ---
 MINIMUM_VERSION="2.1.0"
 NEEDS_UPGRADE=0
@@ -30,16 +43,14 @@ if CLI_OUTPUT=$(foundry version 2>/dev/null); then
   fi
 
   if [ "$NEEDS_UPGRADE" -eq 1 ]; then
-    cat >&2 << UPGRADE_EOF
-IMPORTANT: Foundry CLI $CLI_VERSION is below the minimum required $MINIMUM_VERSION. Before proceeding with any Foundry work, you MUST inform the user and offer to upgrade:
+    emit_user_warning "IMPORTANT: Foundry CLI $CLI_VERSION is below the minimum required $MINIMUM_VERSION. Before proceeding with any Foundry work, you MUST inform the user and offer to upgrade:
 
   - macOS/Linux: brew upgrade crowdstrike/foundry-cli/foundry
   - Windows: Download https://assets.foundry.crowdstrike.com/cli/latest/foundry_Windows_x86_64.zip
 
 Feature unavailable below $MINIMUM_VERSION: function execution and debugging (foundry functions exec, test, logs), non-interactive output for actions view and triggers view with multiple matches, and automatic headless mode detection.
 
-Use AskUserQuestion to ask whether to upgrade now. If the user declines, Foundry commands may fail or behave unexpectedly.
-UPGRADE_EOF
+Ask the user whether to upgrade now. If the user declines, Foundry commands may fail or behave unexpectedly."
   fi
 fi
 
@@ -50,13 +61,11 @@ if [ "$NEEDS_UPGRADE" -eq 1 ]; then
   if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     echo 'export FOUNDRY_UI_HEADLESS_MODE=true' >> "$CLAUDE_ENV_FILE"
   else
-    cat >&2 << ENV_EOF
-IMPORTANT: Foundry CLI $CLI_VERSION requires FOUNDRY_UI_HEADLESS_MODE=true to suppress the TUI in non-interactive environments. You MUST run this export before ANY foundry CLI command (deploy, release, validate, etc.), or those commands will fail with "could not open a new TTY":
+    emit_user_warning "IMPORTANT: Foundry CLI $CLI_VERSION requires FOUNDRY_UI_HEADLESS_MODE=true to suppress the TUI in non-interactive environments. You MUST run this export before ANY foundry CLI command (deploy, release, validate, etc.), or those commands will fail with \"could not open a new TTY\":
 
   export FOUNDRY_UI_HEADLESS_MODE=true
 
-Run this silently at the start of any Bash tool call that uses the foundry CLI. Do not ask the user — just prepend it.
-ENV_EOF
+Run this silently at the start of any shell command that uses the foundry CLI. Do not ask the user — just prepend it."
   fi
 fi
 

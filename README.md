@@ -68,19 +68,19 @@ This prompt exercises the full skill set — API integration, workflow, and UI:
 
 > Create a Falcon Foundry app for me that has an Okta API integration with openapi. Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
 
-### How Claude Code skill routing works
+### How plugin skill routing works
 
-The Claude Code plugin includes hooks that ensure the right skills get used:
+Repository-backed installs in Claude Code, Codex, Copilot CLI, and Cursor include hooks that ensure the right skills get used. Codex requires reviewing and trusting bundled hooks through `/hooks` before they run. Cursor loads them from `.cursor-plugin/plugin.json`:
 
 1. **`UserPromptSubmit` hook** — Matches an action verb paired with a Foundry noun — e.g., "create a foundry app". Explicit CLI commands and skill requests also trigger it.
 
-2. **`PreToolUse` hook** — When Foundry intent is detected, injects a non-blocking advisory reminder to use the Foundry workflow skill. Claude can still use all tools normally. The one exception is `foundry api-integrations create`, which is blocked when the OpenAPI spec can't be adapted for Falcon Foundry. If [superpowers](https://github.com/obra/superpowers) is installed, calls to `superpowers:brainstorming` get advice to switch to the Foundry workflow skill when the task is Foundry app work.
+2. **`PreToolUse` hook** — When Foundry intent is detected, injects a non-blocking advisory reminder to use the Foundry workflow skill. The assistant can still use all tools normally. The one exception is `foundry api-integrations create`, which is blocked when the OpenAPI spec can't be adapted for Falcon Foundry. In Claude Code, calls to `superpowers:brainstorming` get advice to switch to the Foundry workflow skill when the task is Foundry app work.
 
-3. **`PreToolUse` hook (CLI guard)** — Checks Bash commands and flags Foundry CLI commands missing the `--no-prompt` flag (prevents `Error: EOF` failures) and manual directory creation for app structure (prevents invalid `manifest.yml`). It's advisory: it adds guidance to the tool call rather than blocking it, and you'll only see it when it catches a problem.
+3. **`PreToolUse` hook (CLI guard)** — Checks shell commands and flags Foundry CLI commands missing the `--no-prompt` flag (prevents `Error: EOF` failures) and manual directory creation for app structure (prevents invalid `manifest.yml`). It's advisory: it adds guidance to the tool call rather than blocking it, and you'll only see it when it catches a problem. Cursor's shell tool is `Shell`; the guard treats that the same as Claude's `Bash`.
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
 
-Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the sandbox diagnostics in the debugging skill.
+Local Codex installs made with skill symlinks, and other assistants that do not load bundled hooks, must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the sandbox diagnostics in the debugging skill.
 
 ## Skills
 
