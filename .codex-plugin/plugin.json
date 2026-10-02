@@ -29,6 +29,7 @@
     ],
     "websiteURL": "https://github.com/CrowdStrike/foundry-skills",
     "privacyPolicyURL": "https://www.crowdstrike.com/en-us/legal/privacy-notice/",
+    "termsOfServiceURL": "https://www.crowdstrike.com/en-us/legal/terms-conditions/",
     "defaultPrompt": [
       "Create a Falcon Foundry app",
       "Add a Falcon Foundry capability",
