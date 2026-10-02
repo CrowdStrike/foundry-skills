@@ -6,6 +6,7 @@ No network or credentials needed; tests read skill files directly.
 """
 
 import os
+import re
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -386,7 +387,7 @@ class TestAIAgentsSkill:
         assert "id: ai_agents.<agent name>" in workflows
         assert "`version_constraint: ~1`" in workflows
         assert "${data['action_key.response']}" in workflows
-        assert "../ai-agents-development/references/workflow-invocation.md" in workflows
+        assert "`ai-agents-development` skill's `references/workflow-invocation.md`" in workflows
 
     def test_no_invented_tuning_knobs(self):
         """No temperature, chunk size, similarity, or top_k keys exist to set."""
@@ -503,3 +504,55 @@ class TestGetAlertsV2Keyword:
     def test_mock_example_asserts_composite_ids(self):
         content = _read_skill("skills/functions-falcon-api/SKILL.md")
         assert "get_alerts_v2.assert_called_once_with(composite_ids=" in content
+
+
+# ── Skill links stay inside the skill package ───────────────────────────────
+
+
+class TestSkillLinksStayInPackage:
+    """Every SKILL.md link must resolve inside its own skill directory.
+
+    Assistants other than Claude Code install each skill as its own package,
+    and awesome-copilot's valid-refs check rejects links that leave the skill
+    directory (outside-skill-dir). Name a sibling skill in prose instead.
+    """
+
+    _LINK = re.compile(r"\]\(([^)\s]+)\)")
+
+    def test_no_links_outside_skill_dir(self):
+        offenders = []
+        skills_dir = os.path.join(_ROOT, "skills")
+        for skill in sorted(os.listdir(skills_dir)):
+            skill_dir = os.path.join(skills_dir, skill)
+            path = os.path.join(skill_dir, "SKILL.md")
+            if not os.path.isfile(path):
+                continue
+            with open(path) as f:
+                for lineno, line in enumerate(f, 1):
+                    for target in self._LINK.findall(line):
+                        if re.match(r"[a-z]+:|#", target):
+                            continue
+                        resolved = os.path.normpath(
+                            os.path.join(skill_dir, target.split("#")[0].split("?")[0])
+                        )
+                        if os.path.commonpath([resolved, skill_dir]) != skill_dir:
+                            offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
+        assert not offenders, f"links leave the skill directory: {offenders}"
+
+    def test_link_targets_exist(self):
+        offenders = []
+        skills_dir = os.path.join(_ROOT, "skills")
+        for skill in sorted(os.listdir(skills_dir)):
+            skill_dir = os.path.join(skills_dir, skill)
+            path = os.path.join(skill_dir, "SKILL.md")
+            if not os.path.isfile(path):
+                continue
+            with open(path) as f:
+                for lineno, line in enumerate(f, 1):
+                    for target in self._LINK.findall(line):
+                        if re.match(r"[a-z]+:|#", target):
+                            continue
+                        resolved = os.path.join(skill_dir, target.split("#")[0].split("?")[0])
+                        if not os.path.exists(resolved):
+                            offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
+        assert not offenders, f"links point at missing files: {offenders}"
