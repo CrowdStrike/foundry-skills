@@ -1153,6 +1153,42 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.18c valid socket xdr.cases.panel → pass"
 
+# 6.18d — foundry ui extensions create with xdr.cases.details (CLI 2.1.2+) → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets \"xdr.cases.details\" --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18d valid socket xdr.cases.details → pass"
+
+# 6.18e — --help on a create command needs neither --no-prompt nor --sockets → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --help"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18e ui extensions create --help → pass"
+
+# 6.18f — -h on agents create → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create -h | grep schema"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18f agents create -h → pass"
+
+# 6.18g — a help call chained with a real command still checks the real one
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate --help && foundry apps validate"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.18g help chained with apps validate → advisory"
+
+# 6.18h — foundry apps logs (CLI 2.1.2+) without --no-prompt → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps logs --level error --since 168h"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.18h apps logs without --no-prompt → advisory"
+
+# 6.18i — foundry apps logs with --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps logs --deployment-id abc123 --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18i apps logs with --no-prompt → pass"
+
 # 6.19 — foundry apps validate without --no-prompt → advisory
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate"}}')

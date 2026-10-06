@@ -70,18 +70,24 @@ FOUNDRY_RAW=$(printf '%s\n' "$COMMAND" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); prin
   sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*//' |
   grep -E '^([^[:space:]]*/)?foundry([[:space:]]|$)' || true)
 
+# A --help or -h call only prints usage, so it never needs --no-prompt, --sockets,
+# or any other flag the checks below look for.
+HELP_RE='(^|[[:space:]])(-h|--help)([[:space:]]|$)'
+FOUNDRY_CMDS=$(printf '%s\n' "$FOUNDRY_CMDS" | grep -vE "$HELP_RE" || true)
+FOUNDRY_RAW=$(printf '%s\n' "$FOUNDRY_RAW" | grep -vE "$HELP_RE" || true)
+
 # Set by reminders that must not short-circuit a later, more important advisory.
 # Whichever advisory fires next prepends it; if none does, it is flushed at the end.
 PENDING_REMINDER=""
 
 # Check for Foundry CLI commands that need --no-prompt
 # Nearly all Foundry CLI commands support --no-prompt:
-#   apps create/validate/release/delete, functions create, collections create,
+#   apps create/validate/release/delete/logs, functions create, collections create,
 #   workflows create, api-integrations create, agents create/delete,
 #   knowledge-bases create/delete (alias: kb), ui pages create, ui extensions create,
 #   rtr-scripts create, profile create/delete
 #   functions exec (incl. exec list / exec status), functions logs, functions test
-if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete|logs)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
   # Check if --no-prompt is missing
   if ! echo "$FOUNDRY_CMDS" | grep -qF -- '--no-prompt'; then
     emit_advisory "PreToolUse" "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, functions exec/logs/test) run non-interactively in coding assistants and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
@@ -169,7 +175,7 @@ if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; th
   # Validate --sockets value against known valid socket IDs
   SOCKET_VAL=$(echo "$FOUNDRY_RAW" | grep -oE -- '--sockets\s+"?[^"[:space:]]+"?' | sed 's/--sockets[[:space:]]*//' | tr -d '"')
   if [ -n "$SOCKET_VAL" ]; then
-    VALID_SOCKETS="activity.detections.details identity.detections.details automated-leads.leads.details hosts.host.panel xdr.cases.panel ngsiem.workbench.details workflows.executions.execution.details"
+    VALID_SOCKETS="activity.detections.details identity.detections.details automated-leads.leads.details hosts.host.panel xdr.cases.panel xdr.cases.details ngsiem.workbench.details workflows.executions.execution.details"
     IS_VALID=false
     for vs in $VALID_SOCKETS; do
       if [ "$SOCKET_VAL" = "$vs" ]; then
@@ -178,7 +184,7 @@ if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; th
       fi
     done
     if [ "$IS_VALID" = "false" ]; then
-      emit_advisory "PreToolUse" "Invalid socket ID: \"${SOCKET_VAL}\". Run \`foundry ui extensions list-sockets\` for available sockets. Known IDs: activity.detections.details, identity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, ngsiem.workbench.details, workflows.executions.execution.details."
+      emit_advisory "PreToolUse" "Invalid socket ID: \"${SOCKET_VAL}\". Run \`foundry ui extensions list-sockets\` for available sockets. Known IDs: activity.detections.details, identity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, xdr.cases.details, ngsiem.workbench.details, workflows.executions.execution.details."
       exit 0
     fi
   fi
