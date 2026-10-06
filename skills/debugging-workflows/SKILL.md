@@ -44,9 +44,9 @@ Function execution fails
 ├── Status 202 + no result       → Async execution: foundry functions exec status <exec_id>
 ├── 403 "app is not installed"   → Deployed but not released + installed from App Catalog; FalconPy calls need an installed app
 ├── 401 on every FalconPy call, scopes correct → Client constructed at module scope; move it inside the handler
-├── "authorization failed"       → Missing custom-apps:write scope on API client
+├── "authorization failed"       → Confirm the CLI profile's API client has Apps read + write; if it does, it's a platform permission problem: report the trace ID, don't edit scopes
 ├── "artifact is not deployed"   → Deploy first: foundry apps deploy --no-prompt
-├── No logs available            → Wait ~5 min, then: foundry functions logs <exec_id> --refresh
+├── No logs available            → Wait 5-10 min, then: foundry functions logs <exec_id> --refresh
 │   └── Still "Log query failed"   → Temporarily return the diagnostic values in the handler's response body, redeploy, exec once, then remove them
 ├── UI page: repeated 404s on /api2/faas-gateway/entities/execution/v1 in the browser console → foundry-js polling for the cloud-function result before it is ready; non-fatal if the data still loads, not a failure
 └── Unexpected response          → Read logs + source, correlate timestamps against handler code
@@ -115,7 +115,7 @@ Note the exec_id and status code from the output.
 foundry functions logs <exec_id>
 ```
 
-Logs arrive ~5 minutes after execution via the Firehose pipeline. The CLI polls automatically with a countdown.
+Logs arrive 5-10 minutes after execution via the Firehose pipeline. The CLI polls automatically with a countdown.
 
 **Step 3: Correlate logs against source**
 
@@ -143,7 +143,7 @@ Read the handler source and compare against log timestamps and error messages.
 | `403` with `app is not installed` | App deployed but not released and installed | `foundry apps release`, then install from the App Catalog |
 | `Timeout` / no logs appear | Function exceeded `max_exec_duration_seconds` | Increase timeout or optimize |
 | Status 202, no result | Async execution | Poll: `foundry functions exec status <exec_id>` |
-| Logs say "available" but empty | Logs not yet in pipeline | Wait 5 min or use `--refresh` |
+| Logs say "available" but empty | Logs not yet in pipeline | Wait 5-10 min or use `--refresh` |
 
 **Step 5: Fix, redeploy, verify**
 ```bash
@@ -332,6 +332,8 @@ Screenshots are particularly effective for:
 3. Restart with clean environment
 
 ### Manifest Issues
+Don't restore `manifest.yml` from git (`git checkout manifest.yml`) after a deploy. The deploy writes `app_id` and artifact IDs back into the file, and discarding them breaks the link to the deployed app: `exec`/`test` fail with `app_id not found in manifest`, and the next deploy fails with `an app with the provided name already exists`. In testing, putting back only `app_id` wasn't enough (`exec` then reported `artifact is not deployed` and later deploys failed); deleting the app (`foundry apps delete --force-delete --no-prompt`) and deploying fresh worked. Commit or discard the deploy-written IDs deliberately instead.
+
 1. Backup current `manifest.yml`
 2. Start with minimal working manifest
 3. Incrementally add capabilities back, deploying after each addition
