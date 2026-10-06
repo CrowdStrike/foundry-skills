@@ -326,7 +326,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | Display Name | Technical ID for `--sockets` | Console Navigation |
 |-------------|------------------------------|--------------------|
 | Endpoint detection details | `activity.detections.details` | Endpoint security › Monitor › Endpoint detections |
-| Identity Protection detection details | `identity.detections.details` | Identity protection › Detections |
+| Identity detection details | `identity.detections.details` | Identity protection › Detections |
 | Next-Gen SIEM cases panel | `xdr.cases.panel` | Next-Gen SIEM › Cases |
 | Next-Gen SIEM cases details | `xdr.cases.details` | Next-Gen SIEM › Cases › open a case (details section; CLI 2.1.2+) |
 | Next-Gen SIEM workbench details | `ngsiem.workbench.details` | Next-Gen SIEM › Cases › open a case › workbench graph canvas › click a node |
