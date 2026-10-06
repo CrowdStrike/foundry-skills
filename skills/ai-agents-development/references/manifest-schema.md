@@ -70,6 +70,16 @@ The field is a pointer with `omitempty`, so the whole block is **absent** from t
 
 `agent_as_tool: true` is the only switch with a validation rule: the agent must also declare `input_schema`, checked both at create time (`--input-schema is required when --expose-agent-as-tool is set`) and on every manifest load. The other two are unvalidated client-side, so a misspelled key surfaces only at deploy.
 
+### Tools don't deploy yet
+
+Verified on us-2 with CLI 2.1.1 on 2026-10-05. Any deploy that sends the definition of an agent with a `tools` list fails, whether the agent is new or its system prompt or description changed:
+
+- The documented `collections.<name>.<Operation>` form (including `collections.generic.*`) makes the package upload (`POST /foundry/entities/deploy-package/v1`) return `500 Internal Server Error` before any deployment is created.
+- The platform's own tool ID (`mcp/gce/collections:<app id>:<hash>:<Operation>`, as listed by AgentWorks' **Add tools** picker) gets past the upload, and the deployment fails with `failed to validate tool used` (App manager > **Show errors**).
+- A change to `tools` alone isn't a deployable change (`no deployable artifacts found`). Bundled with another artifact change it deploys, but the agent isn't resent, so the platform-side agent never gets the tool.
+
+Exposing the collection works: after `--agent-tools-expose`, its operations appear in the **Add tools** picker. Only the agent's reference fails. Until this is fixed, leave `tools` out of the manifest and have a function do the agent's reads and writes.
+
 ## Knowledge base fields
 
 | Field | YAML key | Type | Required | CLI-settable | Notes |

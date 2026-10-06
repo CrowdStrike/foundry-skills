@@ -36,7 +36,7 @@ Agents are the only consumer of knowledge bases. A knowledge base on its own doe
 agent "my_agent" references knowledge base "X" which is not defined in the manifest
 ```
 
-The agent directory is rolled back on that failure, so you get no partial state — but you do waste the round trip.
+The agent directory is rolled back, so nothing is left half-created.
 
 ## Naming and Description Constraints
 
@@ -222,6 +222,8 @@ Adding or removing exposure after create means editing `manifest.yml` (or deleti
 ## Agent Tool References
 
 Each `tools` entry is a dotted string. The artifact must be exposed on its own side *and* named here — one without the other produces an agent that silently cannot call it, with no error at validate or deploy.
+
+> **Manifest tools don't deploy yet** (2026-10-05): leave `tools` out of the manifest and have a function do the reads and writes. See [manifest-schema](references/manifest-schema.md#tools-dont-deploy-yet).
 
 | Target | Format | Example |
 |--------|--------|---------|

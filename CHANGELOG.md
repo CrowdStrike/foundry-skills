@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Reading a structured-output agent's reply in a workflow** — `workflow-invocation` said an app agent's action always returns `response`. That holds for `text`, `json`, `markdown`, and `html` agents, but a `json_with_schema` agent's action exposes its output schema's fields instead (`${data['<action key>.category']}` for a schema with a `category` property). A `.response` reference to such an agent passes validate and deploy, then fails the app install with no detail (**Install failed**, or **Settings update failed** on a patch upgrade). The reference now covers both cases and points to the workflow editor's **Workflow data** panel for the real keys, and `workflows-development`'s variable table lists the schema-field form.
+
+### Added
+
+- **Manifest agent tools don't deploy yet** — `ai-agents-development` warns that, as of CLI 2.1.1, any deploy that sends an agent with a `tools` list fails: the documented `collections.<name>.<Operation>` form gets a `500` from the package upload, the platform's own `mcp/gce/...` tool ID fails the deployment with `failed to validate tool used`, and a `tools`-only change isn't deployable at all. Exposing the collection still works. The skill says to leave `tools` out and do the reads and writes in a function until this is fixed, and `manifest-schema.md` has the details.
+- **Loops need a link from the action before them** — `workflows-development` notes that an action must name a loop in its `next:` list, or the loop deploys and never runs.
+- **Function output paths in workflows** — the variable table now shows a function action's output as `<action key>.FaaS.<function>.<handler>.<field>`, and a loop item's field as `...<field>.#.<item field>`.
+- **What mock executions can test** — `foundry workflows executions start` always runs a mock execution that doesn't resolve an app's own `functions.` references, so it fails them with `action not found`. The workflow testing reference says to test through the installed app, using a near-term schedule for a scheduled workflow.
+
 ## [1.6.0] - 2026-10-01
 
 ### Added

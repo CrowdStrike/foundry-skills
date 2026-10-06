@@ -214,17 +214,9 @@ For actions not in this table, use `foundry workflows actions view --name "..." 
 
 **Print data** (`aadbf530e35fc452a032f5f8acaaac2a`):
 
-Print data has three input properties: `fields` (array — dropdown of trigger/workflow metadata), `text_data` (string — general-purpose), and `custom_json` (object only). Use `text_data` for API integration responses since `body` may be an array.
+Print data has three input properties: `fields` (array — dropdown of trigger/workflow metadata), `text_data` (string — general-purpose), and `custom_json` (object only). Use `text_data` for API integration responses since `body` may be an array (example above).
 
-```yaml
-    print_data:
-        id: aadbf530e35fc452a032f5f8acaaac2a
-        properties:
-            text_data: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
-        version_constraint: ~1
-```
-
-The data path follows the pattern: `action_key.API_Integration.Custom_{IntegrationName}.{operationId}.{field}`. The platform adds `Custom_` to all API integration names in the variable path. Use the **Workflow data** panel in the workflow editor to copy the exact path for any field — click the data pill and it copies the correct `${data['...']}` expression to your clipboard.
+The data path follows the pattern: `action_key.API_Integration.Custom_{IntegrationName}.{operationId}.{field}`. The platform adds `Custom_` to all API integration names in the variable path. Copy exact paths from the workflow editor's **Workflow data** panel: clicking a data pill copies its `${data['...']}` expression.
 
 **Send email** (`07413ef9ba7c47bf5a242799f59902cc`):
 
@@ -253,7 +245,8 @@ Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/go
 | `${data['action_key.API_Integration.Custom_Name.operationId.body']}` | Response body from an API integration action |
 | `${data['action_key.API_Integration.Custom_Name.operationId.body']}[0].field` | Access a field in the first element of an array response |
 | `${data['action_key.output.field']}` | Field from a platform action's output |
-| `${data['action_key.response']}` | Reply from an app's own AI agent (`ai_agents.<agent name>`); no `.output` segment |
+| `${data['action_key.response']}` | Reply from an app's own AI agent (`ai_agents.<agent name>`); no `.output` segment. A `json_with_schema` agent has no `response`: use `${data['action_key.<schema field>']}` |
+| `${data['action_key.FaaS.<function>.<handler>.<field>']}` | Function action output; a loop item's field is `...<field>.#.<item field>` |
 | `${data['param_name']}` | On-demand trigger parameter value (use the parameter name directly, no prefix) |
 
 **CRITICAL:** Do NOT use `$action_name.output.body` — this passes as a literal string and is NOT resolved at runtime. Always use `${data['...']}` expressions.
@@ -281,7 +274,7 @@ CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842
 
 ## Control Flow
 
-**Loops** iterate over arrays or paginate with cursor-based conditions. Loops are self-contained sub-workflows at the root `loops:` level:
+**Loops** iterate over arrays or paginate with cursor-based conditions. Loops are self-contained sub-workflows at the root `loops:` level. The action before a loop must name it in its `next:` list, or the loop deploys but never runs:
 
 ```yaml
 loops:
