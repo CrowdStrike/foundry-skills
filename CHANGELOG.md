@@ -29,7 +29,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
-- **Two cross-skill links left their skill package** — `collections-development` and `workflows-development` linked into sibling skills' `references/`, which aren't there when an assistant installs each skill as its own package, and which awesome-copilot's link check rejects. Both now name the skill and file in prose, and a content test fails if a `SKILL.md` link leaves its skill directory or points at a missing file.
 - **The CLI guard ignores `--help` calls.** `foundry agents create -h` or `foundry ui extensions create --help` only print usage, but the guard flagged them for a missing `--no-prompt` or `--sockets`. A help call chained with a real command still gets the real command checked.
 - **`foundry apps logs` gets the `--no-prompt` check** like `foundry functions logs`, since it prompts for anything not passed as a flag.
 
