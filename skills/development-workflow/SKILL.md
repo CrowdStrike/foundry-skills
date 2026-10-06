@@ -17,7 +17,7 @@ metadata:
 >
 > Don't hand Foundry app creation to superpowers:brainstorming or superpowers:writing-plans. They don't know the Foundry CLI and produce plans that hand-write manifest.yml and boilerplate files. They can supplement this flow (TDD discipline, code review), not replace it.
 >
-> **CRITICAL: add `--no-prompt` to every command that accepts it** — without it, interactive prompts cause `Error: EOF`. The `create`, `validate`, `deploy`, `release`, and `delete` commands all accept it (`apps delete` also needs `--force-delete`). Three reject it and fail with `unknown flag`: `foundry version`, `apps list`, and `apps list-deployments`. Verify with `foundry <command> --help`. When a command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
+> **CRITICAL: add `--no-prompt` to every command that accepts it** — without it, interactive prompts cause `Error: EOF`. The `create`, `validate`, `deploy`, `release`, `delete`, and `apps logs` commands all accept it (`apps delete` also needs `--force-delete`). On `apps logs` it matters for a second reason: it suppresses the scrollable log viewer, which would otherwise wait for a keypress in a terminal-backed session. Three reject it and fail with `unknown flag`: `foundry version`, `apps list`, and `apps list-deployments`. Verify with `foundry <command> --help`. When a command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
 > **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
 
@@ -92,6 +92,7 @@ Map user requests to Foundry capabilities:
 | "knowledge base", "give the agent docs" | Knowledge Base | `foundry knowledge-bases create` |
 | "run function", "execute", "test handler" | Function Execution | `foundry functions exec` |
 | "get logs", "show execution logs" | Log Retrieval | `foundry functions logs` |
+| "why did my deploy fail", "app logs", "deployment logs" | App Lifecycle Logs | `foundry apps logs` |
 | "check status", "execution result" | Execution Status | `foundry functions exec status` |
 | "test function", "run tests", "test cases" | Function Testing | `foundry functions test` |
 | "debug function", "why did it fail" | Function Debugging | → debugging-workflows skill |
@@ -230,6 +231,9 @@ foundry apps list-deployments
 # If still in progress, wait 5s then poll again:
 # sleep 5 && foundry apps list-deployments
 
+# If the deployment failed, read why — do NOT just re-deploy
+foundry apps logs --deployment-id <deployment_id> --no-prompt
+
 # Local UI development (deploy first if UI calls backend capabilities)
 foundry ui run
 ```
@@ -237,6 +241,8 @@ foundry ui run
 **Deploy once, poll `list-deployments`** for the deployment version `deploy` printed (release numbers differ). Re-deploying duplicates it.
 
 **A `Failed` deployment has no reason in the CLI.** Read it in the console: **App manager > the app > "Show errors (N)"** (per capability). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`; wait, it is not a manifest error.
+
+**When a deployment fails, read its records before changing anything.** `foundry apps logs --deployment-id <id> --no-prompt` returns the platform's own account of the failure — which artifact broke and a stable reason code — oldest first, so the first `ERROR` is the cause and the last is usually the generic summary. Re-deploying without reading this repeats the same failure. Records are indexed asynchronously, so if the query comes back empty right after the deploy, re-read it every 10 seconds for up to ~3 minutes before concluding there is nothing to read — and do not re-deploy to make records appear. The debugging-workflows skill covers the reason codes, the filters, and what each CLI error means.
 
 ```bash
 # Release (run ONCE after deploy succeeds)

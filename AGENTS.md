@@ -105,6 +105,7 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 - **"Create an AI agent"** → ai-agents-development skill
 - **"Add a knowledge base"** → ai-agents-development skill
 - **"Troubleshoot deployment"** → debugging-workflows skill
+- **"Why did my deploy fail"** → debugging-workflows skill (`foundry apps logs --deployment-id <id>`)
 - **"Add e2e tests"** → e2e-testing skill
 
 ## Essential Foundry CLI Commands
@@ -138,6 +139,8 @@ foundry apps run                           # Start full app locally in dev mode
 foundry apps validate --no-prompt           # Dry-run validation (no deploy)
 foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
 foundry apps release --change-type Patch --deployment-id <id> --notes "notes"  # Release to app catalog
+foundry apps list-deployments              # Deployment status and IDs (rejects --no-prompt)
+foundry apps logs --deployment-id <id> --no-prompt  # Why a deploy/release/install failed
 foundry ui run                             # Local UI development server
 
 # Scaffolding Commands (ALWAYS use --no-prompt)

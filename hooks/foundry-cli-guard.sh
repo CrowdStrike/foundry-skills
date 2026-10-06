@@ -81,10 +81,13 @@ PENDING_REMINDER=""
 #   knowledge-bases create/delete (alias: kb), ui pages create, ui extensions create,
 #   rtr-scripts create, profile create/delete
 #   functions exec (incl. exec list / exec status), functions logs, functions test
-if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
+#   apps logs — suppresses the scrollable viewer, which waits for a keypress in a
+#     terminal-backed session. Matched on the exact subcommand so that an unquoted
+#     --change-log value of "logs" does not trigger the advisory.
+if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+apps\b.*\b(create|validate|release|delete)\b|foundry\s+apps\s+logs\b|foundry\s+(functions|collections|workflows|api-integrations|rtr-scripts)\b.*\bcreate\b|foundry\s+(agents|knowledge-bases|kb)\b.*\b(create|delete)\b|foundry\s+functions\s+(exec|logs|test)\b|foundry\s+profile\b.*\b(create|delete)\b|foundry\s+ui\s+(pages|extensions)\b.*\bcreate\b'; then
   # Check if --no-prompt is missing
   if ! echo "$FOUNDRY_CMDS" | grep -qF -- '--no-prompt'; then
-    emit_advisory "PreToolUse" "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, functions exec/logs/test) run non-interactively in coding assistants and will hang with Error: EOF without it. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
+    emit_advisory "PreToolUse" "The command is missing --no-prompt. Foundry CLI commands (create/validate/release/delete, apps logs, functions exec/logs/test) run non-interactively in coding assistants and will hang without it — with Error: EOF on prompts, or on a keypress in the case of the apps logs viewer. Add --no-prompt before retrying. Example: foundry apps create --name \"app-name\" --no-prompt"
     exit 0
   fi
 fi

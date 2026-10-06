@@ -1281,6 +1281,41 @@ assert_contains "$OUTPUT" "missing --no-prompt" "6.37 Cursor Shell tool → advi
 assert_contains "$OUTPUT" "\"additional_context\"" "6.37 Cursor Shell tool → additional_context"
 assert_not_contains "$OUTPUT" "hookSpecificOutput" "6.37 Cursor Shell tool → no Claude hookSpecificOutput"
 
+# 6.40 — foundry apps logs without --no-prompt → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps logs --deployment-id abc123"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.40 apps logs without --no-prompt → advisory"
+
+# 6.41 — foundry apps logs with --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps logs --deployment-id abc123 --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.41 apps logs with --no-prompt → pass"
+
+# 6.42 — a quoted --change-log value mentioning "logs" must not trigger the apps logs advisory.
+# Deliberately omits --no-prompt: with the flag present the assertion passes even if the
+# match over-reaches, so the flag would make the test unable to fail for its stated reason.
+# --change-type and --change-log are supplied so no other advisory fires either.
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"add logs\""}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.42 deploy with --change-log mentioning logs → pass (no false positive)"
+
+# 6.43 — the same, with the literal subcommand "apps logs" inside the quoted value.
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"document apps logs\""}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.43 deploy with --change-log containing 'apps logs' → pass (no false positive)"
+
+# 6.44 — unquoted, so FOUNDRY_CMDS keeps the word and only the anchoring can reject it.
+# 6.42 and 6.43 are now absorbed by the quote-blanking in FOUNDRY_CMDS, so this is the
+# case that actually pins the match to "foundry apps logs" rather than a stray "logs".
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log logs"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.44 deploy with unquoted --change-log logs → pass (no false positive)"
+
 # =============================================
 # Section 7: Skill Description Validation
 # =============================================
