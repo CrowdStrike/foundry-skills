@@ -122,7 +122,7 @@ Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_s
 agent "my_agent" input_schema is required when input_format is json
 ```
 
-> **The schema file name is fixed.** The Foundry API reads only `input_schema.json` and `output_schema.json` from the agent directory, ignoring any other filename or an inline schema. Give the local file passed to `--output-schema` (`--input-schema`) that name first, downloading a URL source if needed. CLI 2.1.2 and later write the schema under that name whatever you pass, and reject any other value on every manifest load (verified 2026-10-06), so a wrong name breaks every command in the app:
+> **The schema file name is fixed.** The Foundry API reads only `input_schema.json` and `output_schema.json` from the agent directory, ignoring any other filename or an inline schema. Give the local file passed to `--output-schema` (`--input-schema`) that name first, downloading a URL source if needed. CLI 2.1.2 and later write the schema under that name whatever you pass, and reject any other value on every manifest load, so a wrong name breaks every command in the app:
 >
 > ```
 > agent "my_agent" output_schema must be "output_schema.json": rename agents/my_agent/verdict.json to output_schema.json and set output_schema: output_schema.json in manifest.yml
