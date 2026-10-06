@@ -189,6 +189,30 @@ class TestWorkflowDeletionWarning:
 # ── AI agents and knowledge bases (ai-agents-development) ───────────────────
 
 
+class TestWorkflowLoopsAndFunctionOutputs:
+    """Loop linking, function output paths, and what mock executions can test."""
+
+    SKILL = "skills/workflows-development/SKILL.md"
+
+    def test_loop_must_be_linked_from_previous_action(self):
+        """An unlinked loop deploys and never runs."""
+        content = _read_skill(self.SKILL)
+        assert "must name it in its `next:` list" in content
+        assert "deploys but never runs" in content
+
+    def test_function_output_path(self):
+        """Function outputs live under `.FaaS.<function>.<handler>`, loop items under `.#.`."""
+        content = _read_skill(self.SKILL)
+        assert "${data['action_key.FaaS.<function>.<handler>.<field>']}" in content
+        assert "...<field>.#.<item field>" in content
+
+    def test_mock_executions_do_not_resolve_app_references(self):
+        """`executions start` fails app function actions with `action not found`."""
+        ref = _read_skill("skills/workflows-development/references/advanced-patterns.md")
+        assert "always runs a mock execution" in ref
+        assert "error code 1202: action not found" in ref
+
+
 class TestAIAgentsSkill:
     """Verify the AI skill keeps the facts that cost a round trip to rediscover.
 
@@ -388,6 +412,32 @@ class TestAIAgentsSkill:
         assert "`version_constraint: ~1`" in workflows
         assert "${data['action_key.response']}" in workflows
         assert "`ai-agents-development` skill's `references/workflow-invocation.md`" in workflows
+
+    def test_json_with_schema_agent_exposes_schema_fields(self):
+        """A json_with_schema agent's workflow action has no `response` output.
+
+        Without this, workflows read `.response` from a structured-output agent, which deploys
+        and then fails the app install with no detail.
+        """
+        ref = _read_skill("skills/ai-agents-development/references/workflow-invocation.md")
+        assert "A `json_with_schema` agent has no `response` output." in ref
+        assert "${data['<action key>.category']}" in ref
+        assert "**Install failed**" in ref
+        assert "**Settings update failed**" in ref
+        assert "**Workflow data** panel" in ref
+        workflows = _read_skill("skills/workflows-development/SKILL.md")
+        assert "${data['action_key.<schema field>']}" in workflows
+
+    def test_manifest_tools_do_not_deploy_yet(self):
+        """Agents with a `tools` list fail deploy, so the skill says to leave tools out for now."""
+        content = _read_skill(self.SKILL)
+        assert "Manifest tools don't deploy yet" in content
+        assert "leave `tools` out of the manifest" in content
+        ref = _read_skill("skills/ai-agents-development/references/manifest-schema.md")
+        assert "### Tools don't deploy yet" in ref
+        assert "500 Internal Server Error" in ref
+        assert "failed to validate tool used" in ref
+        assert "no deployable artifacts found" in ref
 
     def test_no_invented_tuning_knobs(self):
         """No temperature, chunk size, similarity, or top_k keys exist to set."""

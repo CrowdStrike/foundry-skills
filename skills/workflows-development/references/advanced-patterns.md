@@ -14,6 +14,8 @@ foundry workflows executions view <execution_id>                        # View r
 
 Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
 
+`executions start` always runs a mock execution of the workflow YAML (`--mocks` is required with `--no-prompt`; an empty `{}` file mocks nothing). It doesn't resolve an app's own references, so an unmocked `functions.<name>.<handler>` action fails with `error code 1202: action not found` even when the deployed app works. Test those workflows through the installed app instead: an on-demand trigger can be run from the workflow in Falcon Fusion, while a scheduled one can't be started by hand, so give it a near-term `time_cycle` for the test and restore the real schedule afterward.
+
 ## Parameterized Fields Versioning Impact
 
 Workflow templates support parameterized fields — values that users configure when provisioning a workflow from the template. Check the "Parameterized" checkbox in the App Builder to mark fields as configurable.
