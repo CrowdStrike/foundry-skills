@@ -8,10 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **`authorization failed` from `exec` and `test`** — `debugging-workflows` said this meant a missing `custom-apps:write` scope on the API client, but no scope by that name can be added in the API client editor (the relevant one is **Apps**). It now says to confirm the CLI profile has Apps read and write, and to report the trace ID as a platform permission problem if it does.
+- **`--function` default** — `functions-development` said `--function` could be omitted only when an app has exactly one function. The CLI actually falls back to the first function in `manifest.yml`, so the skill now explains that default and still says to pass `--function` in multi-function apps.
+- **Function log delay** — logs take 5-10 minutes to arrive, matching `foundry functions logs --help`, not about 5.
+
 - **Reading a structured-output agent's reply in a workflow** — `workflow-invocation` said an app agent's action always returns `response`. That holds for `text`, `json`, `markdown`, and `html` agents, but a `json_with_schema` agent's action exposes its output schema's fields instead (`${data['<action key>.category']}` for a schema with a `category` property). A `.response` reference to such an agent passes validate and deploy, then fails the app install with no detail (**Install failed**, or **Settings update failed** on a patch upgrade). The reference now covers both cases and points to the workflow editor's **Workflow data** panel for the real keys, and `workflows-development`'s variable table lists the schema-field form.
 
 ### Added
 
+- **The handler's status code vs. the CLI's** — after polling, `exec` prints `Status Code: 200` whenever the platform ran the function, even when the handler returned a `400`. The handler's result is `payload.status_code`, which is also what `tests.yml` `expect.status` checks.
+- **One install covers later deploys** — FalconPy calls under `exec` and `test` need an installed app, but only once: later deploys, including code changes, authenticate without another release.
+- **Hidden directories inside a function trigger the undeployed-changes warning** — a `.venv` or `.pytest_cache` under `functions/<name>/` makes `exec` and `test` report local changes right after a clean deploy, even though the deploy never packages them. Keep virtual environments at the repo root.
+- **Exec IDs embed the CID** — exec IDs are base64 for `fn-id/version/cid/req-id`, so the skill says to use a placeholder instead of pasting them into public PRs, issues, or posts.
+- **Don't restore `manifest.yml` from git after a deploy** — discarding the IDs the deploy wrote leads to `app_id not found in manifest` and then `an app with the provided name already exists`. `debugging-workflows` describes the recovery that worked: delete the app and deploy fresh.
 - **Manifest agent tools don't deploy yet** — `ai-agents-development` warns that, as of CLI 2.1.1, any deploy that sends an agent with a `tools` list fails: the documented `collections.<name>.<Operation>` form gets a `500` from the package upload, the platform's own `mcp/gce/...` tool ID fails the deployment with `failed to validate tool used`, and a `tools`-only change isn't deployable at all. Exposing the collection still works. The skill says to leave `tools` out and do the reads and writes in a function until this is fixed, and `manifest-schema.md` has the details.
 - **Loops need a link from the action before them** — `workflows-development` notes that an action must name a loop in its `next:` list, or the loop deploys and never runs.
 - **Function output paths in workflows** — the variable table now shows a function action's output as `<action key>.FaaS.<function>.<handler>.<field>`, and a loop item's field as `...<field>.#.<item field>`.
