@@ -17,6 +17,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Function output paths in workflows** — the variable table now shows a function action's output as `<action key>.FaaS.<function>.<handler>.<field>`, and a loop item's field as `...<field>.#.<item field>`.
 - **What mock executions can test** — `foundry workflows executions start` always runs a mock execution that doesn't resolve an app's own `functions.` references, so it fails them with `action not found`. The workflow testing reference says to test through the installed app, using a near-term schedule for a scheduled workflow.
 
+## [1.6.1] - TBD
+
+### Added
+
+- **`xdr.cases.details` socket (CLI 2.1.2+)** — `ui-development` lists the new Next-Gen SIEM cases details socket, and the CLI guard accepts it instead of reporting an invalid socket ID. The table also corrects the label for `xdr.cases.panel`, which is the cases panel, not the details section.
+
+### Changed
+
+- **Agent schema filenames name the CLI version** — the fixed `input_schema.json` / `output_schema.json` rule now says CLI 2.1.2 and later write the schema under that name and reject any other value on every manifest load, verified against 2.1.2. 2.1.1 and earlier still pass validate and fail at deploy.
+
+### Fixed
+
+- **The CLI guard ignores `--help` calls.** `foundry agents create -h` or `foundry ui extensions create --help` only print usage, but the guard flagged them for a missing `--no-prompt` or `--sockets`. A help call chained with a real command still gets the real command checked.
+- **`foundry apps logs` gets the `--no-prompt` check** like `foundry functions logs`, since it prompts for anything not passed as a flag.
+
 ## [1.6.0] - 2026-10-01
 
 ### Added
