@@ -24,9 +24,9 @@ The entire `ai:` block is omitted from the manifest when both lists are empty. T
 | Tools | `tools` | list of string | no | **no** | Dotted references; see below. Omitted when empty. |
 | System prompt | `system_prompt` | string | **yes** | `--system-prompt` | Always the literal `system_prompt.txt`; the flag value supplies the file's *content* (path/URL read, else inline text). |
 | Input format | `input_format` | string | **yes** | `--input-format` | `text` or `json`. Defaults to `text`. |
-| Input schema | `input_schema` | string | conditional | `--input-schema` | Required when `input_format: json`. Must be `input_schema.json`, a file in the agent dir; the deploy backend reads only that name. CLIs newer than 2.1.1 reject any other value, or an inline schema, on every manifest load; 2.1.1 and earlier accept it and the deploy fails. |
+| Input schema | `input_schema` | string | conditional | `--input-schema` | Required when `input_format: json`. Must be `input_schema.json`, a file in the agent dir; the deploy backend reads only that name. CLI 2.1.2 and later reject any other value, or an inline schema, on every manifest load; 2.1.1 and earlier accept it and the deploy fails. |
 | Output format | `output_format` | string | **yes** | `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html`. Defaults to `text`. |
-| Output schema | `output_schema` | string | conditional | `--output-schema` | Required **only** when `output_format: json_with_schema` (not for plain `json`). Must be `output_schema.json`, a file in the agent dir; the deploy backend reads only that name. CLIs newer than 2.1.1 reject any other value, or an inline schema, on every manifest load; 2.1.1 and earlier accept it and the deploy fails with `output schema is required when using JSON format`. |
+| Output schema | `output_schema` | string | conditional | `--output-schema` | Required **only** when `output_format: json_with_schema` (not for plain `json`). Must be `output_schema.json`, a file in the agent dir; the deploy backend reads only that name. CLI 2.1.2 and later reject any other value, or an inline schema, on every manifest load; 2.1.1 and earlier accept it and the deploy fails with `output schema is required when using JSON format`. |
 | Knowledge bases | `knowledge_bases` | list of string | no | `--knowledge-bases` | KB **names** (not ids/paths). Each must exist in `ai.knowledge_bases`. |
 | Exposure | `exposure` | object | no | `--expose-*` (3 flags) | Omitted entirely when nothing is exposed. See below. |
 
@@ -45,8 +45,8 @@ The entire `ai:` block is omitted from the manifest when both lists are empty. T
 - `agent "X" output_schema is required when output_format is json_with_schema`
 - `agent "X" input_schema is required when exposure.agent_as_tool is true`
 - `agent "X" input_schema file "f" ... does not exist` (and the output equivalent)
-- `agent "X" input_schema must be "input_schema.json": rename agents/<path>/<file> to input_schema.json and set input_schema: input_schema.json in manifest.yml` (and the output equivalent; CLIs newer than 2.1.1)
-- `agent "X" input_schema must be "input_schema.json": move the inline schema into agents/<path>/input_schema.json and set input_schema: input_schema.json in manifest.yml` (and the output equivalent; CLIs newer than 2.1.1)
+- `agent "X" input_schema must be "input_schema.json": rename agents/<path>/<file> to input_schema.json and set input_schema: input_schema.json in manifest.yml` (and the output equivalent; CLI 2.1.2 and later)
+- `agent "X" input_schema must be "input_schema.json": move the inline schema into agents/<path>/input_schema.json and set input_schema: input_schema.json in manifest.yml` (and the output equivalent; CLI 2.1.2 and later)
 - `duplicate agent name "X"`
 - `agent "X" references knowledge base "K" which is not defined in the manifest`
 
