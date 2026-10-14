@@ -197,7 +197,7 @@ uv pip install --python .venv/bin/python -r functions/my-function/requirements.t
 .venv/bin/python -m pytest functions/my-function/tests
 ```
 
-A repo-root `.venv` is safe to leave in place: the deploy never packages hidden paths (any path component starting with `.`).
+A repo-root `.venv` is safe to leave in place: the deploy never packages hidden paths (any path component starting with `.`). A `.venv` or `.pytest_cache` *inside* `functions/<name>/` is still excluded from the deploy, but `foundry functions exec` and `test` count it as an undeployed local change, so keep virtual environments at the repo root.
 
 ## Python Test with pytest and mock
 

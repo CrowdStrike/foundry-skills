@@ -28,7 +28,7 @@ After deploying a function, use these commands to execute, inspect results, and 
 
 ### Execute a Function
 
-> **Resolve WHICH function and WHICH handler before running.** An app can have multiple function artifacts, and each artifact can expose multiple handlers — so `exec` needs both a function (`--function`, omittable only when the app has exactly one) and a `--handler`. Read `manifest.yml` (the `functions:` list; each entry has a `id`, `name`, and a `handlers:` list) to see what's available, then close the gap between what you already know and what's still ambiguous:
+> **Resolve WHICH function and WHICH handler before running.** An app can have multiple function artifacts, and each artifact can expose multiple handlers — so `exec` needs both a function and a `--handler`. Always pass `--function` when the app has more than one: without it the CLI silently uses the *first* function in `manifest.yml`, which may not be the one you mean. Read `manifest.yml` (the `functions:` list; each entry has a `id`, `name`, and a `handlers:` list) to see what's available, then close the gap between what you already know and what's still ambiguous:
 > - **Function already known** (e.g. the user has a file under `functions/<name>/` open, named it in the prompt, or the app has only one) → don't re-ask it. Only resolve the handler.
 > - **Handler ambiguous** → if that function exposes exactly one handler in the manifest, use it. If it exposes several, list them and ask which one (don't guess).
 > - **Function ambiguous** (multi-function app, no context) → list the functions from the manifest and ask which one, then resolve its handler the same way.
@@ -73,10 +73,13 @@ foundry functions exec --handler my_handler --ignore-deploy-warning '{"key": "va
 
 The response shows: status code, exec ID, artifact info, and the function's response body. For async functions (202), the CLI automatically polls until the function completes and shows the actual result.
 
-#### Three things `exec` does not tell you
+**Exec IDs embed the CID.** An exec ID is base64 for `fn-id=<id>/version=<n>/cid=<cid>/req-id=<id>`. Don't paste raw exec IDs into public PRs, issues, or blog posts; use a placeholder such as `<exec_id>`.
 
-- **`403 app is not installed` from a Falcon platform API call inside the handler.** Deploying is enough for `exec` to reach the function, but any FalconPy / gofalcon call the handler makes against the Falcon platform is authorized against an *installed* app. Until the app has been released (`foundry apps release`) **and** installed from the App Catalog, those calls return `403` with `app is not installed`. That reads like a missing scope but is not one — check install state before touching `auth.scopes`.
-- **`undeployed local changes detected` fires on any file in the function directory.** The comparison covers every file under `functions/<name>/`, including files the deployed handler never imports (a new `tests.yml`, a scratch script, an edited README). It also fires right after a successful deploy when `manifest.yml` `ignored:` excludes something that still exists locally, such as `tests/`: the deployed copy never has it, so the directories never match. If the handler itself is unchanged and the user wants the deployed version, `--ignore-deploy-warning` is the right answer; otherwise deploy.
+#### Things `exec` does not tell you
+
+- **`403 app is not installed` from a Falcon platform API call inside the handler.** Deploying is enough for `exec` to reach the function, but any FalconPy / gofalcon call the handler makes against the Falcon platform is authorized against an *installed* app. Until the app has been released (`foundry apps release`) **and** installed from the App Catalog, those calls return `403` with `app is not installed`. That reads like a missing scope but is not one — check install state before touching `auth.scopes`. One install is enough: after it, later deploys (including code changes) authenticate under `exec` and `test` without another release.
+- **`undeployed local changes detected` fires on any file in the function directory.** The comparison covers every file under `functions/<name>/`, including files the deployed handler never imports (a new `tests.yml`, a scratch script, an edited README). It also fires right after a successful deploy when `manifest.yml` `ignored:` excludes something that still exists locally, such as `tests/`: the deployed copy never has it, so the directories never match. Hidden directories inside the function directory count too: a `.venv` or `.pytest_cache` under `functions/<name>/` triggers the warning right after a clean deploy, because the deploy never packages hidden paths but the comparison still sees them (`foundry apps deploy` reports "no changes detected" at the same moment). If the handler itself is unchanged and the user wants the deployed version, `--ignore-deploy-warning` is the right answer; otherwise deploy.
+- **There are two status codes, and only one is the handler's.** After polling, the CLI prints `Status Code: 200` when the platform ran the function, even if the handler rejected the request. The handler's own result is `payload.status_code` in the response body (a `400` with `errors` for a validation failure). Read that one when reporting or debugging; it is also what `tests.yml` `expect.status` asserts.
 - **`exec` can hang after the function has already returned.** Observed with CLI 2.1.1: when the handler returned quickly with a non-2xx `status_code` in its payload, the CLI kept polling for many minutes while a UI calling the same handler got the result in seconds. Wrap the command (`timeout 120 foundry functions exec ...`) and fall back to `foundry functions exec status <exec_id>` using the ID printed in the first lines of output.
 
 #### Supplying request values beyond the body
@@ -106,7 +109,7 @@ The positional argument (inline JSON, a file path, `@filename`, or stdin) is the
 
 - **Interactively** (no body and no request flags given), `exec` asks a single yes/no: whether to provide a bundled request file, then prompts for its path. It does not prompt for headers/query/context individually — use the flags or `--request-file` for those.
 
-> **Execute ≠ fetch logs. When asked to run a handler, execute it and return the response body — then stop.** Do NOT automatically fetch logs (no `--logs`, no follow-up `foundry functions logs`) unless the user explicitly asked for them (e.g. "run it and show me the logs"). Logs arrive via Firehose ~5 minutes later, so auto-fetching adds a long, usually unwanted delay.
+> **Execute ≠ fetch logs. When asked to run a handler, execute it and return the response body — then stop.** Do NOT automatically fetch logs (no `--logs`, no follow-up `foundry functions logs`) unless the user explicitly asked for them (e.g. "run it and show me the logs"). Logs arrive via Firehose 5-10 minutes later, so auto-fetching adds a long, usually unwanted delay.
 >
 > **If the handler returns an error** (non-2xx status, error in the response body, or a stack trace): report the response to the user first, then *offer* to investigate — e.g. "The handler returned a 500. Would you like me to fetch the logs to see what went wrong?" Only run `foundry functions logs <exec_id>` after the user says yes. The exception is when the user's original request already asked you to debug or "figure out why it fails" — that is standing consent to pull logs without re-asking.
 
@@ -145,7 +148,7 @@ foundry functions logs <exec_id> --job-id <job_id>
 foundry functions logs <exec_id> --refresh
 ```
 
-Logs are delivered via the Firehose pipeline and typically arrive ~5 minutes after execution. The CLI shows a spinner during the query and a countdown between poll attempts.
+Logs are delivered via the Firehose pipeline and typically arrive 5-10 minutes after execution. The CLI shows a spinner during the query and a countdown between poll attempts.
 
 ### Debugging Workflow (AI-Assisted)
 
@@ -261,7 +264,7 @@ foundry functions test --ignore-deploy-warning --no-prompt
 
 For async (202) handlers, the test command automatically polls for the actual result before asserting — in both modes.
 
-> **Resolve WHICH function to test the same way as `exec`** (see [Execute a Function](#execute-a-function)). `test` runs the `tests.yml` in a function's directory, so it needs to know which function artifact you mean: pass `--function <name>` unless the app has exactly one, or the function is already known from an open file / the prompt. Consult `manifest.yml` for the available functions. Handlers are selected by the `handler:` field on each **group** in `tests.yml` (each group's handler must exist on the target function in the manifest); narrow a run to a single handler group with `--handler <name>`.
+> **Resolve WHICH function to test the same way as `exec`** (see [Execute a Function](#execute-a-function)). `test` runs the `tests.yml` in a function's directory, so it needs to know which function artifact you mean: pass `--function <name>` unless the app has exactly one (without it the CLI uses the first function in the manifest), or the function is already known from an open file / the prompt. Consult `manifest.yml` for the available functions. Handlers are selected by the `handler:` field on each **group** in `tests.yml` (each group's handler must exist on the target function in the manifest); narrow a run to a single handler group with `--handler <name>`.
 
 ### Writing Integration Test Cases
 
