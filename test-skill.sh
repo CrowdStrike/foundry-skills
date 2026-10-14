@@ -141,7 +141,7 @@ find_app_dir() {
 # API health check: send a minimal request to verify connectivity before burning tokens
 check_api_health() {
   # Use claude with a trivial prompt — just check if it exits successfully
-  env -u CLAUDECODE claude -p "Reply with OK" \
+  env -u CLAUDECODE claude --no-session-persistence -p "Reply with OK" \
     --model haiku > /dev/null 2>&1
   return $?
 }
@@ -191,7 +191,7 @@ for i in $(seq 1 $RUNS); do
   # Use stream-json to capture tool calls for anti-pattern analysis
   cd "$RUN_DIR"
   RUN_START=$(date +%s)
-  FOUNDRY_SKIP_NAME_CONFIRM=1 env -u CLAUDECODE claude -p "$RUN_PROMPT" \
+  FOUNDRY_SKIP_NAME_CONFIRM=1 env -u CLAUDECODE claude --no-session-persistence -p "$RUN_PROMPT" \
     ${PLUGIN_DIR_FLAGS[@]+"${PLUGIN_DIR_FLAGS[@]}"} \
     --dangerously-skip-permissions \
     --model "${EVAL_MODEL:-opus}" \

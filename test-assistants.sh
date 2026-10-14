@@ -558,8 +558,8 @@ fi
 # Codex gets no sandbox-bypass flag on purpose. Its sandbox is what breaks the
 # CLI's token-cache write, so bypassing it would make this pass while users fail.
 ASSISTANTS=(
-  "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --dangerously-skip-permissions --verbose --output-format stream-json"
-  "Codex|codex|~/.agents/skills|exec %%PROMPT%% --skip-git-repo-check --json"
+  "Claude Code|claude|--plugin-dir|-p %%PROMPT%% --no-session-persistence --plugin-dir $REPO --dangerously-skip-permissions --verbose --output-format stream-json"
+  "Codex|codex|~/.agents/skills|exec %%PROMPT%% --ephemeral --skip-git-repo-check --json"
   "Copilot CLI|copilot|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --allow-all --output-format json"
   "Cursor|agent|--plugin-dir|-p %%PROMPT%% --plugin-dir $REPO --force --trust --output-format stream-json"
   "Antigravity CLI|agy|~/.gemini/config/plugins|-p %%PROMPT%% --dangerously-skip-permissions --output-format stream-json"

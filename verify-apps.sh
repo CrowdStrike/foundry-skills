@@ -641,7 +641,7 @@ LOG_FILE="$BASE_DIR/verify-browser.log"
 printf "  Launching browser verification...\n"
 printf "  Log: %s\n\n" "$LOG_FILE"
 
-env -u CLAUDECODE claude -p "$BROWSER_PROMPT" \
+env -u CLAUDECODE claude --no-session-persistence -p "$BROWSER_PROMPT" \
   --dangerously-skip-permissions \
   --model "${VERIFY_MODEL:-opus}" \
   --verbose \
