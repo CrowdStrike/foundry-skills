@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Swagger 2.0 specs through the hook** — the `api-integrations create` hook converted a Swagger 2.0 spec to a new `.openapi3` file, then let the command import the unconverted original. It also couldn't reliably finish an `npx` download inside its 5-second timeout. The hook now blocks Swagger 2.0 specs and tells you to run the adapter and register the converted file.
 - **Operation-level parameter overrides** — the adapter deleted an operation's parameter whenever the path defined one with the same name and location, so an override such as a different `limit` default reverted to the path's value. Identical copies are still removed, while a differing override is kept and the path-level parameter moves into the path's other operations.
 - **Pinned `swagger2openapi`** — Swagger conversion runs `swagger2openapi@7.0.8`, so the same spec always converts the same way.
+- **Standalone-workflow detection after a negation** — the Fusion redirect classifier blanked everything from a negation to the end of the sentence, and it read "I do need" as a negation, so "No UI, but add a function" was redirected to the Falcon Fusion plugin. A negation now ends at a contrast word like `but` or `however`, and only "don't/doesn't need" counts as one.
+- **CLI guard checks each chained command** — a flag on one Foundry command in a `&&` or `;` chain satisfied the guard for every other one, so `foundry apps validate --no-prompt && foundry functions create --name Demo` got no `--no-prompt` warning. The `--no-prompt`, `--change-type`, `--change-log`, `--files`, `--input-schema`, and `--sockets` checks now look at each invocation on its own.
 
 ### Added
 
