@@ -245,7 +245,7 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 **Note:** There is no `list-releases` command. After `release`, check status via the App Manager URL printed in the output, or wait ~30s and proceed to testing.
 
-**Patch releases update an installed app in place**; no reinstall. Reinstall (uninstall, then install) only to reach an API integration's credential form again, e.g. after adding an integration.
+**Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**. That option only exists if the app had settings at first install. If ⋮ shows only **Uninstall app**, release with `--change-type Major`; **Accept update** then shows the credential form, and Modify settings works after that. Don't reinstall; dependent workflows can break.
 
 `foundry ui run` only serves UI locally — backend capabilities (API integrations, functions, collections) resolve from the cloud. Deploy those first.
 
