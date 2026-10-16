@@ -166,3 +166,15 @@ def test_affirmative_ui_request_still_blocks():
         "Build a workflow and a UI page to review the results."
     )
     assert result["redirect"] is False
+
+
+def test_but_ends_a_negation():
+    """A contrast word ends the negated span, so the capability after it counts."""
+    for prompt in (
+        "Create a workflow that contains the host on detection. No UI, but add a function.",
+        "Automate host containment on detection, no UI but I do need a function.",
+        "Build a workflow without a UI, however it needs a collection.",
+    ):
+        result = detect.classify(prompt)
+        assert result["redirect"] is False, prompt
+        assert result["app_signals"], prompt

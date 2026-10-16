@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Function log delay** — logs take 5-10 minutes to arrive, matching `foundry functions logs --help`, not about 5.
 
 - **Reading a structured-output agent's reply in a workflow** — `workflow-invocation` said an app agent's action always returns `response`. That holds for `text`, `json`, `markdown`, and `html` agents, but a `json_with_schema` agent's action exposes its output schema's fields instead (`${data['<action key>.category']}` for a schema with a `category` property). A `.response` reference to such an agent passes validate and deploy, then fails the app install with no detail (**Install failed**, or **Settings update failed** on a patch upgrade). The reference now covers both cases and points to the workflow editor's **Workflow data** panel for the real keys, and `workflows-development`'s variable table lists the schema-field form.
+- **Standalone-workflow detection after a negation** — the Fusion redirect classifier blanked everything from a negation to the end of the sentence, and it read "I do need" as a negation, so "No UI, but add a function" was redirected to the Falcon Fusion plugin. A negation now ends at a contrast word like `but` or `however`, and only "don't/doesn't need" counts as one.
+- **CLI guard checks each chained command** — a flag on one Foundry command in a `&&` or `;` chain satisfied the guard for every other one, so `foundry apps validate --no-prompt && foundry functions create --name Demo` got no `--no-prompt` warning. The `--no-prompt`, `--change-type`, `--change-log`, `--files`, `--input-schema`, and `--sockets` checks now look at each invocation on its own.
 
 ### Added
 
