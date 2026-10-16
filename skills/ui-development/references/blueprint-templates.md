@@ -71,6 +71,8 @@ react-router-dom: 7.13.0
 vite: 7.1.12, @vitejs/plugin-react-swc: 3.11.0
 ```
 
+**Stay on Vite 7** (as of 2026-10). Vite 8 fails with this blueprint in two ways. `@vitejs/plugin-react-swc` 3.11.0 accepts Vite only up to `^7`, so npm reports an invalid peer dependency. Vite 8's CSS minifier (lightningcss) also fails on the `@crowdstrike/tailwind-toucan-base` stylesheet with `[lightningcss minify] Unexpected token Number` at `--space-0.5: 0.125rem;`. Upgrade only after both build cleanly, and don't edit `vite.config.js` to work around either error.
+
 ### Files that work as-is (do NOT read or modify unless the user asks)
 
 **vite.config.js** — turnkey. Do NOT read, modify, or "fix" this file. It already has `noAttr()`, `base: './'`, and `root: 'src'` — all correct. Changing any value breaks deploys.

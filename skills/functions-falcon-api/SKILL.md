@@ -301,6 +301,33 @@ auth:
 
 - [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — background on async LogScale querying from Foundry, plus CSV export. Note that this post reaches for `FoundryLogScale` with `mode="async"`; the `NGSIEM` pattern above is what has been verified end-to-end against the queryjobs API in a deployed app. Use the pattern above, and treat the post as context for the surrounding workflow (time ranges, result handling, export).
 
+## NG-SIEM Content APIs (Dashboards, Saved Queries, Lookup Files)
+
+### Search domain names differ by API
+
+The `NGSIEM` class takes a `search_domain` or `repository` on most calls, and the accepted values are not shared between APIs. Check each value against the API's swagger, not the console's labels.
+
+| Calls | Accepted values |
+|-------|-----------------|
+| Dashboards and saved queries (`list_dashboards`, `get_dashboard_template`, `create_dashboard_from_template`, `list_saved_queries`, `get_saved_query_template`, `bulk_create_saved_queries_from_template`) | Search domain aliases: `all`, `falcon`, `third-party` |
+| Persisted aggregations (`list_persisted_aggregations` and the rest) | A view or repository name, such as `search-all`. `all` and `falcon` give `404`, and `third-party` gives `400` |
+| Searches (`start_search`, `get_search_status`) | A view, such as `search-all` (see the `search-all` gotcha above). `falcon` is not a view |
+
+A `404` or `400` from these calls means a wrong name or ID, not a missing scope. A missing scope answers `403` for every input.
+
+### Creating dashboards and saved queries
+
+- **The new item's name comes from the template.** `create_dashboard_from_template` ignores its `name` parameter and uses the YAML's top-level `name:`. Rewrite that field to name a copy, and do the same for saved query templates.
+- **Each search domain has an asset limit per type.** At the limit, creates fail with `400` `maximum supported number of assets already exist in this search domain`. The console doesn't apply the same check, so a domain can already hold more items than the API will create, and deleting a few doesn't help until the count is under the limit. Offer another search domain, or tell the user.
+- **Bulk saved query creates answer `200` even when items are refused.** Read `success` and `error` on each item in `resources`, not the status code.
+- **FalconPy 1.6.6 `create_saved_query` fails** with `400` `missing or empty yaml_template file content`, because it sends the template without a filename. Use `bulk_create_saved_queries_from_template(search_domain=..., saved_query_items=[{"yaml_template": yaml_text}])` with one item, and recheck when you upgrade FalconPy.
+
+### Lookup files and saved query functions are view-scoped
+
+- A lookup file resolves only from a view whose search domain stores it. A query copied into another search domain can fail with `Can't find "<name>". Verify the file name is correct and try again.` `$name()` saved query functions are scoped the same way.
+- A missing file fails at `get_search_status`. A missing function fails at `start_search`.
+- `create_lookup_file` refuses a name that contains `/` (`path traversal characters not allowed`), so a packaged file can't be copied under its own name.
+
 ## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
 Use the `Agents`, `Spans`, `AgentInvocation`, `AgentVersions`, and `Models` classes with the `charlotte-ai-agent-definition` scopes (`read`; `write` to invoke and poll). Filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing). Route-to-method map: [advanced-patterns](references/advanced-patterns.md).
@@ -376,6 +403,10 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
 | `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Verified against a live CID (200 + results); see LogScale Queries section |
+| `NGSIEM` | `list_dashboards`, `get_dashboard_template`, `create_dashboard_from_template` | `ngsiem-dashboards:read`, `ngsiem-dashboards:write` | Verified against a live CID; see NG-SIEM Content APIs |
+| `NGSIEM` | `list_saved_queries`, `get_saved_query_template`, `bulk_create_saved_queries_from_template` | `ngsiem-saved-queries:read`, `ngsiem-saved-queries:write` | Verified against a live CID |
+| `NGSIEM` | `list_lookup_files` | `ngsiem-lookup-files:read` | From the API swagger, not yet verified in a deployed app |
+| `NGSIEM` | `list_persisted_aggregations`, `bulk_create_persisted_aggregations`, `update_persisted_aggregation` | `ngsiem-persisted-aggregations:read`, `ngsiem-persisted-aggregations:write` | Verified against a live CID. Add by hand: `foundry auth scopes add` rejects these names (see `security-patterns`) |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
@@ -399,7 +430,7 @@ auth:
 
 If you're using a FalconPy method not in this table:
 1. Check the method's HTTP verb and API path in FalconPy source — GET typically needs `:read`, POST/PUT/PATCH/DELETE typically needs `:write`
-2. The scope prefix is usually the **API path prefix** (e.g., `/iocs/...` → `iocs`, `/devices/...` → `devices`), but exceptions exist (`Hosts` → `devices`, `NGSIEM` → `humio-auth-proxy`)
+2. The scope prefix is usually the **API path prefix** (e.g., `/iocs/...` → `iocs`, `/devices/...` → `devices`), but exceptions exist (`Hosts` → `devices`, `NGSIEM` searches and file uploads → `humio-auth-proxy`, `NGSIEM` dashboards, saved queries, lookup files, and persisted aggregations → `ngsiem-*`)
 3. When ambiguous, **ask the user** which scopes to include rather than guessing
 
 ## Falcon Severity Values
@@ -423,7 +454,7 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 - **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.
 - **Writing Falcon API calls outside of FDK handler functions.** The handler pattern is required for automatic auth injection.
 - **Module-scope client, or `request.params.get()` / `request.query`.** `401` on every call, or an attribute error.
-- **Not handling 207 Multi-Status.** These responses look successful but may contain embedded errors.
+- **Not handling 207 Multi-Status.** These responses look successful but may contain embedded errors. Some bulk creates go further and answer `200` with a refusal on the item (see NG-SIEM Content APIs).
 
 ## Use Cases
 

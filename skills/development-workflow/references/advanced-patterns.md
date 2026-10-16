@@ -193,6 +193,12 @@ If a UI page displays the same logo, inline the SVG in the page markup rather th
 
 **Deleting an app:** `foundry apps delete --force-delete --no-prompt` removes the app from the cloud but keeps the local files. The `--local-files` flag *also* deletes the local manifest and app directory, so omit it unless you intend to erase the local project too.
 
+**Deploying a deleted app again from the same directory:**
+
+- Strip the `id` and `app_id` keys first, with the same `yq` command as Multi-Cloud Deployment in `SKILL.md`. With the old IDs, `foundry apps validate` refuses collections that "existed previously, but were deleted".
+- Version numbers start over. The first `--change-type Minor` deploy of the new app is `v0.1.0`.
+- Objects the old app created through Falcon APIs are separate tenant objects and outlive it. Examples: dashboards, saved searches, and Next-Gen SIEM persisted aggregations, which keep running and storing data. Clean them up before you delete the app, or in the console afterward.
+
 ## Session Handoff
 
 When transferring Foundry development between sessions, preserve:

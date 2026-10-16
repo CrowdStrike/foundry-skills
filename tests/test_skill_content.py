@@ -606,3 +606,67 @@ class TestSkillLinksStayInPackage:
                         if not os.path.exists(resolved):
                             offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
         assert not offenders, f"links point at missing files: {offenders}"
+
+
+# ── Lessons from a live Next-Gen SIEM app ───────────────────────────────────
+
+
+class TestLiveAppLessons:
+    """Verify facts from a live app build that the CLI and API don't explain.
+
+    Each one cost a misdiagnosis: a knowledge base edit that fails the deploy,
+    a scope name the CLI rejects, a 404 read as a permission problem, and a
+    dashboard API that ignores the name it is given.
+    """
+
+    KB = "skills/ai-agents-development/references/knowledge-bases.md"
+    AI = "skills/ai-agents-development/SKILL.md"
+    SECURITY = "skills/security-patterns/SKILL.md"
+    DEBUG = "skills/debugging-workflows/SKILL.md"
+    FALCON_API = "skills/functions-falcon-api/SKILL.md"
+    COLLECTIONS = "skills/collections-development/SKILL.md"
+
+    def test_deployed_kb_files_are_write_once(self):
+        content = _read_skill(self.KB)
+        assert "write-once" in content
+        assert "Dependent artifact failed" in content
+        assert "Delete the entry's `id` key" in content
+        assert "To change a KB's files, delete and re-create it" not in content, \
+            "deleting and re-creating doesn't change a deployed KB's files"
+
+    def test_agent_reply_checked_before_api_calls(self):
+        content = _read_skill(self.AI)
+        assert "Acting on an Agent's Reply" in content
+        assert "Only the code check stops them" in content
+
+    def test_scopes_add_flag_and_rejected_names(self):
+        content = _read_skill(self.SECURITY)
+        assert "--scopes" in content
+        assert '--scope "devices:read"' not in content, "CLI 2.1.2 has no --scope flag"
+        assert "major version" in content
+        assert "rejects some valid scope names" in content
+
+    def test_identity_and_status_codes(self):
+        content = _read_skill(self.DEBUG)
+        assert "Which Identity Makes the Call" in content
+        assert "for every input" in content
+        assert "not a permission problem" in content
+
+    def test_no_changes_detected_and_exec_version_pin(self):
+        content = _read_skill(self.DEBUG)
+        assert "no changes detected" in content
+        assert "no app artifacts found of type FAAS_FUNCTION" in content
+        assert "--version" in content
+
+    def test_ngsiem_content_api_gotchas(self):
+        content = _read_skill(self.FALCON_API)
+        assert "Search domain names differ by API" in content
+        assert "ignores its `name` parameter" in content
+        assert "maximum supported number of assets already exist in this search domain" in content
+        assert "bulk_create_saved_queries_from_template" in content
+        assert "ngsiem-persisted-aggregations:read" in content
+
+    def test_collection_writers_merge_or_lock(self):
+        content = _read_skill(self.COLLECTIONS)
+        assert "compare-and-set" in content
+        assert "expired lock as free" in content

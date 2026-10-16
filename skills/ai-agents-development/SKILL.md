@@ -276,6 +276,14 @@ Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an 
 
 - **`credit_cents_limit` has an undocumented floor of `100`.** Lower values are rejected with a `400`, so budget in whole credits.
 
+## Acting on an Agent's Reply
+
+An agent's reply is model output. Before a function passes any of it to a platform API:
+
+- **Check it in code against what that API accepts.** Enforce the enums, lengths, and character sets the platform validates, and clean or reject values that break them. One bad value can make a bulk API reject the whole batch. For example, a label of `dashboard:foo` fails a field that allows only letters, digits, spaces, hyphens, and underscores.
+- **State the same rules in the system prompt.** The prompt reduces bad values. Only the code check stops them.
+- **Keep failed items visible.** Store each item that fails the check with its reason, show it to the user, and don't act on it.
+
 ## Common Pitfalls
 
 | Symptom | Cause | Fix |
@@ -290,6 +298,8 @@ Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an 
 | `flag --name is required when --no-prompt flag is used` | `delete` without `--name` | Pass the artifact name as it appears in `manifest.yml` |
 | `still referenced by agent(s): Y` | Deleting a KB an agent still lists | Delete the agent first, or remove the KB from its `knowledge_bases` |
 | `file <name> already exists` | Re-running KB create over existing files | Delete the file or the KB directory first |
+| `409 a file with name '<file>' already exists in this knowledge base` at deploy, and the agent fails with `Dependent artifact failed (400)` | A file's content changed in a KB that was already deployed (KB files are write-once) | Ship the text as a new KB: new name and path, no `id` key, and update the agent's `knowledge_bases` ([knowledge-bases](references/knowledge-bases.md#changing-a-deployed-knowledge-base)) |
+| A bulk API rejects every item the agent proposed | One agent value breaks a rule the platform validates | Check and clean agent values in the function before the call (see Acting on an Agent's Reply) |
 | System prompt is a file path string | Typo'd `--system-prompt` path fell back to inline text | Read back `agents/<path>/system_prompt.txt` |
 | KB file missing after deploy | `.svg` files are always ignored by the packager | Convert to PNG, or reference it another way |
 | `must be a filename only, not a path` | Subdirectory in a KB `files` entry | Flatten — KB directories cannot nest |

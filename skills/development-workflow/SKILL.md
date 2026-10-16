@@ -236,6 +236,8 @@ foundry ui run
 
 **Deploy once, poll `list-deployments`** for the deployment version `deploy` printed (release numbers differ). Re-deploying duplicates it.
 
+**Version numbers come from the cloud.** Each deploy takes the next number for its change type, failed deploys included, and no flag sets a number.
+
 **A `Failed` deployment has no reason in the CLI.** Read it in the console: **App manager > the app > "Show errors (N)"** (per capability). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`; wait, it is not a manifest error.
 
 ```bash
