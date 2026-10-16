@@ -358,6 +358,9 @@ recover_orphans() {
       fi
     fi
   fi
+  if [ -e "$CODEX_CACHE_STASH" ]; then
+    warn "a Codex plugin cache is parked in ${CODEX_CACHE_STASH/#$HOME/\~} and its original spot is taken or unknown; move it back by hand"
+  fi
   # And for Antigravity: an interrupted run leaves a symlink where the installed
   # plugin belongs, with the real copy parked in the helper's stash.
   if ! agy_recover; then
@@ -450,8 +453,13 @@ isolate() {
   for cc in "$HOME"/.codex/plugins/cache/*/; do
     [ -d "$cc" ] || continue
     if find "$cc" -maxdepth 1 -name '*foundry*' -print -quit 2>/dev/null | grep -q .; then
+      # A stash recover_orphans couldn't put back is someone's only copy of a
+      # cache. Never overwrite it; leave this cache in place instead.
+      if [ -e "$CODEX_CACHE_STASH" ]; then
+        warn "a Codex plugin cache from an earlier run is still parked in ${CODEX_CACHE_STASH/#$HOME/\~}; move it back by hand. Codex results will be ambiguous until then"
+        break
+      fi
       CODEX_CACHE="${cc%/}"
-      rm -rf "$CODEX_CACHE_STASH"
       if mv "$CODEX_CACHE" "$CODEX_CACHE_STASH" 2>/dev/null; then
         # Record where it came from, so a run that dies before restoring can be
         # cleaned up by the next one instead of leaving Codex plugin-less.
