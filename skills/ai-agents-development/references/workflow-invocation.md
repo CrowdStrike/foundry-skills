@@ -90,3 +90,11 @@ def assess(agent_id: str, prompt: str) -> str:
 ```
 
 Resolve `agent_id` at runtime, never hardcode it. A lookup by name also returns deleted agents, including ones an earlier install left behind, so one name can match more than one agent; follow **AgentWorks: finding your app's own agents by name** in `functions-falcon-api` [advanced-patterns](../../functions-falcon-api/references/advanced-patterns.md). The poll gives up shortly after the agent's own deadline, which is why the function needs a `--max-exec-duration-seconds` above it (the default is 15 and the maximum 900). Any status it doesn't recognize is left to that timeout rather than looping forever.
+
+## Acting on an Agent's Reply
+
+An agent's reply is model output. Before a function passes any of it to a platform API:
+
+- **Check it in code against what that API accepts.** Enforce the enums, lengths, and character sets the platform validates, and clean or reject values that break them. One bad value can make a bulk API reject the whole batch. For example, a label of `dashboard:foo` fails a field that allows only letters, digits, spaces, hyphens, and underscores.
+- **State the same rules in the system prompt.** The prompt reduces bad values. Only the code check stops them.
+- **Keep failed items visible.** Store each item that fails the check with its reason, show it to the user, and don't act on it.

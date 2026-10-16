@@ -620,10 +620,10 @@ class TestLiveAppLessons:
     """
 
     KB = "skills/ai-agents-development/references/knowledge-bases.md"
-    AI = "skills/ai-agents-development/SKILL.md"
+    AGENT_REPLY = "skills/ai-agents-development/references/workflow-invocation.md"
     SECURITY = "skills/security-patterns/SKILL.md"
     DEBUG = "skills/debugging-workflows/SKILL.md"
-    FALCON_API = "skills/functions-falcon-api/SKILL.md"
+    NGSIEM = "skills/functions-falcon-api/references/ngsiem-content-apis.md"
     COLLECTIONS = "skills/collections-development/SKILL.md"
 
     def test_deployed_kb_files_are_write_once(self):
@@ -635,7 +635,7 @@ class TestLiveAppLessons:
             "deleting and re-creating doesn't change a deployed KB's files"
 
     def test_agent_reply_checked_before_api_calls(self):
-        content = _read_skill(self.AI)
+        content = _read_skill(self.AGENT_REPLY)
         assert "Acting on an Agent's Reply" in content
         assert "Only the code check stops them" in content
 
@@ -659,7 +659,7 @@ class TestLiveAppLessons:
         assert "--version" in content
 
     def test_ngsiem_content_api_gotchas(self):
-        content = _read_skill(self.FALCON_API)
+        content = _read_skill(self.NGSIEM)
         assert "Search domain names differ by API" in content
         assert "ignores its `name` parameter" in content
         assert "maximum supported number of assets already exist in this search domain" in content
