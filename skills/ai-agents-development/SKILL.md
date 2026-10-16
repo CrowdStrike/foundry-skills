@@ -305,7 +305,7 @@ Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an 
 
 | Task | Reference |
 |------|-----------|
-| KB file sourcing, encryption, deploy packaging limits | [references/knowledge-bases.md](references/knowledge-bases.md) |
+| KB sourcing, encryption, packaging, changes after deploy | [references/knowledge-bases.md](references/knowledge-bases.md) |
 | Full field-by-field schema, every validation error string | [references/manifest-schema.md](references/manifest-schema.md) |
 | Product docs: Falcon Foundry AI capabilities overview | [AI Capabilities](https://docs.crowdstrike.com/access?ft:originId=ce325bab) |
 | Product docs: agents via the CLI | [AI agents (Foundry CLI)](https://docs.crowdstrike.com/access?ft:originId=d82146c3) |
