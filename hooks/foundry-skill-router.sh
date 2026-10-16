@@ -179,9 +179,20 @@ case "$HOOK_EVENT" in
           PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
           ADAPT_SCRIPT="$PLUGIN_ROOT/skills/api-integrations/scripts/adapt_spec_for_foundry.py"
 
+          # Swagger 2.0 needs converting to a new file, and an npx download can't
+          # finish inside this hook's timeout. Send it back to run the adapter first.
+          if head -c 500 "$SPEC_FILE" | grep -qE "[\"']swagger[\"']" ||
+             grep -m1 -vE '^[[:space:]]*$' "$SPEC_FILE" | grep -qE '^[[:space:]]*swagger:'; then
+            emit_deny "PreToolUse" "BLOCKED: ${SPEC_FILE} is a Swagger 2.0 spec, and Foundry needs OpenAPI 3.0. Convert and adapt it first:
+python3 ${ADAPT_SCRIPT} ${SPEC_FILE}
+
+Then run the command again with --spec pointing at the .openapi3 file the script prints."
+            exit 0
+          fi
+
           # Run the adapt script automatically to fix known issues
           if [ -f "$ADAPT_SCRIPT" ]; then
-            if ! ADAPT_OUTPUT=$(python3 "$ADAPT_SCRIPT" "$SPEC_FILE" 2>&1); then
+            if ! ADAPT_OUTPUT=$(python3 "$ADAPT_SCRIPT" "$SPEC_FILE" --no-convert 2>&1); then
               emit_deny "PreToolUse" "BLOCKED: OpenAPI adaptation failed:
 ${ADAPT_OUTPUT}
 
@@ -210,7 +221,7 @@ x-cs-operation-config:
                 exit 0
               fi
               # Check if it made auto-fixes
-              if echo "$ADAPT_OUTPUT" | grep -qE '(Stripped protocol|Removed default|Added bearerFormat|Removed .*oauth2|Removed duplicate param|Removed security)'; then
+              if echo "$ADAPT_OUTPUT" | grep -qE '(Stripped protocol|Removed default|Added bearerFormat|Removed .*oauth2|Removed duplicate param|Moved path param|Removed security)'; then
                 emit_advisory "PreToolUse" "adapt_spec_for_foundry.py automatically fixed the spec before import:
 ${ADAPT_OUTPUT}
 Proceeding with the corrected spec."
