@@ -497,6 +497,40 @@ rm -rf /tmp/foundry-test-fake-bin
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10b adapter dependency failure → BLOCK"
 assert_contains "$OUTPUT" "python3 -m pip install -r" "3.10b dependency failure includes install command"
 
+# 3.10c — Swagger 2.0 JSON → BLOCK and point at the adapter, original spec untouched
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10c.json" <<'EOF'
+{"swagger": "2.0", "info": {"title": "Test", "version": "1.0"}, "paths": {}}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10c.json")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10c Swagger 2.0 JSON → BLOCK"
+assert_contains "$OUTPUT" ".openapi3 file" "3.10c Swagger block names the converted file to import"
+assert_empty "$(ls "${TEST_SPEC_PREFIX}"-3-10c.openapi3.* 2>/dev/null)" "3.10c hook does not run the conversion itself"
+
+# 3.10d — Swagger 2.0 YAML → BLOCK
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10d.yaml" <<'EOF'
+
+swagger: "2.0"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10d.yaml")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10d Swagger 2.0 YAML → BLOCK"
+
+# 3.10e — operation overrides a path-level param → auto-fixed by moving it down
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10e.json" <<'EOF'
+{"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0"}, "paths": {"/users": {
+  "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}}],
+  "get": {"operationId": "listUsers", "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "default": 100}}],
+          "responses": {"200": {"description": "OK"}}}}}}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10e.json")
+assert_contains "$OUTPUT" "Moved path param 'limit'" "3.10e param override → auto-fixed advisory"
+
 # 3.11 — JSON spec: default without enum → auto-fixed
 cleanup
 cat > "${TEST_SPEC_PREFIX}-3-11.json" <<'EOF'

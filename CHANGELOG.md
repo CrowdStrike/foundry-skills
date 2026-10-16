@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Function log delay** — logs take 5-10 minutes to arrive, matching `foundry functions logs --help`, not about 5.
 
 - **Reading a structured-output agent's reply in a workflow** — `workflow-invocation` said an app agent's action always returns `response`. That holds for `text`, `json`, `markdown`, and `html` agents, but a `json_with_schema` agent's action exposes its output schema's fields instead (`${data['<action key>.category']}` for a schema with a `category` property). A `.response` reference to such an agent passes validate and deploy, then fails the app install with no detail (**Install failed**, or **Settings update failed** on a patch upgrade). The reference now covers both cases and points to the workflow editor's **Workflow data** panel for the real keys, and `workflows-development`'s variable table lists the schema-field form.
+- **Public endpoints stay public** — `adapt_spec_for_foundry.py` removed every operation's `security: []` once the spec had a security scheme, so a deliberately public endpoint such as `/status` started requiring credentials. It now removes only the empty overrides it creates itself when it drops an unsupported scheme.
+- **Swagger 2.0 specs through the hook** — the `api-integrations create` hook converted a Swagger 2.0 spec to a new `.openapi3` file, then let the command import the unconverted original. It also couldn't reliably finish an `npx` download inside its 5-second timeout. The hook now blocks Swagger 2.0 specs and tells you to run the adapter and register the converted file.
+- **Operation-level parameter overrides** — the adapter deleted an operation's parameter whenever the path defined one with the same name and location, so an override such as a different `limit` default reverted to the path's value. Identical copies are still removed, while a differing override is kept and the path-level parameter moves into the path's other operations.
+- **Pinned `swagger2openapi`** — Swagger conversion runs `swagger2openapi@7.0.8`, so the same spec always converts the same way.
 
 ### Added
 
