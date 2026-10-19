@@ -254,10 +254,10 @@ def test_adds_global_security_and_strips_empty_overrides():
                     "responses": {"200": {"description": "OK"}},
                 }
             },
-            "/login": {
+            "/public": {
                 "get": {
-                    "operationId": "oauthOnly",
-                    "security": [{"oauth2": []}],
+                    "operationId": "publicEndpoint",
+                    "security": [],
                     "responses": {"200": {"description": "OK"}},
                 }
             },
@@ -266,32 +266,9 @@ def test_adds_global_security_and_strips_empty_overrides():
     changes = spec.fix_auth(s)
     assert "security" in s
     assert s["security"] == [{"apiToken": []}]
-    assert "security" not in s["paths"]["/login"]["get"]
+    assert "security" not in s["paths"]["/public"]["get"]
     assert any("global security" in c.lower() for c in changes)
     assert any("empty" in c.lower() for c in changes)
-
-
-def test_keeps_deliberate_public_override():
-    s = make_spec(
-        components={
-            "securitySchemes": {
-                "apiKey": {"type": "apiKey", "name": "X-API-Key", "in": "header"}
-            }
-        },
-        paths={
-            "/status": {
-                "get": {
-                    "operationId": "getStatus",
-                    "security": [],
-                    "responses": {"200": {"description": "OK"}},
-                }
-            }
-        },
-    )
-    changes = spec.fix_auth(s)
-    assert s["security"] == [{"apiKey": []}]
-    assert s["paths"]["/status"]["get"]["security"] == []
-    assert not any("empty" in c.lower() for c in changes)
 
 
 def test_does_not_duplicate_existing_global_security():

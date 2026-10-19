@@ -118,6 +118,8 @@ Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose 
 
 **API key prefix:** `apiKey` type with `name: Authorization` and `in: header` works for APIs that send tokens via the Authorization header. Add `bearerFormat` to specify the prefix (e.g., `SSWS`, `Bearer`, `Token`) — Foundry reads this field to populate the "API key parameter prefix" in the install UI. The adapt script infers the prefix from the scheme's description automatically.
 
+**Credentials go to every operation.** Foundry attaches the integration's credentials to every operation it proxies, including ones the spec marks public with `security: []` (verified 2026-10-19), and the adapt script removes those overrides. Don't count on an operation-level override to keep a credential away from an endpoint; put that endpoint in a separate integration with no security scheme.
+
 For full vendor-specific auth examples, see [references/auth-examples.md](references/auth-examples.md).
 
 ## Adapting Specs for Foundry

@@ -214,15 +214,6 @@ def fix_auth(spec):
                 f"Foundry supports: http (bearer/basic), oauth2, apiKey"
             )
 
-    # Operations that were deliberately public before any scheme was removed.
-    # Their empty override is the vendor's intent, not a leftover, so keep it.
-    public_ops = {
-        id(operation)
-        for path_item in spec.get('paths', {}).values()
-        for operation in path_item.values()
-        if isinstance(operation, dict) and operation.get('security') == []
-    }
-
     # Apply removals
     for name in to_remove:
         del schemes[name]
@@ -242,21 +233,21 @@ def fix_auth(spec):
             f" (was missing — Foundry requires this for credential prompt)"
         )
 
-    # Remove per-operation 'security: []' overrides that disable auth.
-    # These are left behind when vendor specs define per-operation security
-    # and the original schemes get removed/replaced.
+    # Remove per-operation 'security: []' overrides. Foundry ignores them and
+    # sends the integration's credentials to every operation (verified on a live
+    # install), so dropping them makes the spec match what Foundry does. They
+    # also appear when the scheme an operation referenced gets removed above.
     if remaining_schemes:
         empty_count = 0
         for path_item in spec.get('paths', {}).values():
             for operation in path_item.values():
-                if (isinstance(operation, dict) and operation.get('security') == []
-                        and id(operation) not in public_ops):
+                if isinstance(operation, dict) and operation.get('security') == []:
                     del operation['security']
                     empty_count += 1
         if empty_count:
             changes.append(
                 f"  Removed {empty_count} empty per-operation security overrides"
-                f" (were disabling auth)"
+                f" (Foundry ignores them)"
             )
 
     return changes
