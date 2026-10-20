@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **Autocomplete in the spec** — `spec-adaptation-examples` shows the `x-cs-operation-config.autocomplete` and `x-cs-pivot` pair that links a dropdown to the operation providing its values. It notes that the integration ID in a pivot can be left as copied from a sample, because install rewrites it to the app's own integration, and gives the deploy error you get when the named operation has no `autocomplete` config.
 - **Credentials go to every operation** — `api-integrations` notes that Foundry sends an integration's credentials to every operation, even one the spec marks public with `security: []`, so keeping a credential away from an endpoint takes a separate integration.
 - **The handler's status code vs. the CLI's** — after polling, `exec` prints `Status Code: 200` whenever the platform ran the function, even when the handler returned a `400`. The handler's result is `payload.status_code`, which is also what `tests.yml` `expect.status` checks.
 - **One install covers later deploys** — FalconPy calls under `exec` and `test` need an installed app, but only once: later deploys, including code changes, authenticate without another release.

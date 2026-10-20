@@ -606,3 +606,15 @@ class TestSkillLinksStayInPackage:
                         if not os.path.exists(resolved):
                             offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
         assert not offenders, f"links point at missing files: {offenders}"
+
+
+class TestPivotAutocomplete:
+    """A copied x-cs-pivot ID is rewritten at install, so agents shouldn't "fix" it."""
+
+    REF = "skills/api-integrations/references/spec-adaptation-examples.md"
+
+    def test_pivot_id_and_autocomplete_requirement(self):
+        content = _read_skill(self.REF)
+        assert "x-cs-pivot" in content
+        assert "install rewrites the ID" in content
+        assert "not configured for autocomplete" in content

@@ -75,6 +75,33 @@ Link two operations so one provides dropdown options for another:
 
 Configure this in the Falcon console's API integration settings by linking the providing operation's response field to the consuming operation's parameter.
 
+To set the link in the spec instead, give the providing operation an `autocomplete` config and point the consuming field at it with `x-cs-pivot`. This is the pattern `foundry-sample-servicenow-itsm` uses:
+
+```json
+"x-cs-operation-config": {
+  "autocomplete": {
+    "iterable_path": "result",
+    "id_field": "sys_id",
+    "display_field": "name",
+    "search_field": "params.query.sysparm_query",
+    "search_format": "nameLIKE~search_text~"
+  }
+}
+```
+
+```json
+"assignment_group": {
+  "type": "string",
+  "x-cs-pivot": {
+    "entity": "plugins.proxy.<integration id>.get_groups",
+    "searchable": true
+  }
+}
+```
+
+- **The ID in `entity` doesn't have to match.** Deploy resolves the operation by name within the same integration and stores the spec as written, and install rewrites the ID to the app's own integration. A spec copied from a sample keeps working with the sample's ID, so leave it alone.
+- **The named operation needs `autocomplete`.** Without it, deploy fails with `autocomplete refers to an operation "<name>" that is not configured for autocomplete`.
+
 ### Server-Side Search
 
 For large datasets, use server-side search with placeholder variables:
