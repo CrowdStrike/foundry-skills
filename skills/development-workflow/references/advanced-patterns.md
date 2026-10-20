@@ -196,7 +196,7 @@ If a UI page displays the same logo, inline the SVG in the page markup rather th
 **Deploying a deleted app again from the same directory:**
 
 - Strip the `id` and `app_id` keys first, with the same `yq` command as Multi-Cloud Deployment in `SKILL.md`. With the old IDs, `foundry apps validate` refuses collections that "existed previously, but were deleted".
-- Version numbers start over. The first `--change-type Minor` deploy of the new app is `v0.1.0`.
+- Version numbers come from the cloud: each deploy takes the next number for its change type, failed deploys included, and no flag sets one. For the new app they start over, so the first `--change-type Minor` deploy is `v0.1.0`.
 - Objects the old app created through Falcon APIs are separate tenant objects and outlive it. Examples: dashboards, saved searches, and Falcon Next-Gen SIEM persisted aggregations, which keep running and storing data. Clean them up before you delete the app, or in the console afterward.
 
 ## Session Handoff

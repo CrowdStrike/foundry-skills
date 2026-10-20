@@ -236,8 +236,6 @@ foundry ui run
 
 **Deploy once, poll `list-deployments`** for the deployment version `deploy` printed (release numbers differ). Re-deploying duplicates it.
 
-**Version numbers come from the cloud.** Each deploy takes the next number for its change type, failed deploys included, and no flag sets a number.
-
 **A `Failed` deployment has no reason in the CLI.** Read it in the console: **App manager > the app > "Show errors (N)"** (per capability). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`; wait, it is not a manifest error.
 
 ```bash
@@ -247,7 +245,7 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 **Note:** There is no `list-releases` command. After `release`, check status via the App Manager URL printed in the output, or wait ~30s and proceed to testing.
 
-**Patch releases update an installed app in place**; no reinstall. Reinstall (uninstall, then install) only to reach an API integration's credential form again, e.g. after adding an integration.
+**Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**. That option only exists if the app had settings at first install. If ⋮ shows only **Uninstall app**, release with `--change-type Major`; **Accept update** then shows the credential form, and Modify settings works after that. Don't reinstall; dependent workflows can break.
 
 `foundry ui run` only serves UI locally — backend capabilities (API integrations, functions, collections) resolve from the cloud. Deploy those first.
 
@@ -286,7 +284,7 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 **Dependency order:** Collections → Functions → Knowledge bases → Agents → Workflows → UI (each may depend on the previous)
 
 - **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" (rename only). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
-- **Narrow exceptions**, for what the CLI can't set: `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), and renaming a deployed KB (see `knowledge-bases.md`). Edit only those keys. (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
+- **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
 - OAuth scopes are auto-managed for CLI-created artifacts — MUST NOT manually add `api-integrations:read`
 - Use `npx @redocly/cli lint` for OpenAPI validation (not Python/Ruby YAML parsers)

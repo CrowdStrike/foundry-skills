@@ -73,7 +73,7 @@ Three identities can look alike, and each has its own scopes:
 
 Granting a scope to an API client doesn't change what a function can do, even under `exec`. Add the scope to `auth.scopes`, deploy, release, and have the app's users accept the update. Until the update is accepted in the App Catalog, the call keeps answering `403`. The CLI can't list a client's scopes, so test a scope by making the call. Don't test with Hosts `query_devices_by_filter`, which has answered `200` with no declared scope.
 
-One exception to the 403 rule above: the NG-SIEM queryjobs API also answers 403 for a real repository it won't search, such as `fusion`, while `search-all` works (see the `search-all` gotcha in `functions-falcon-api`).
+One exception to the 403 rule above: the Falcon Next-Gen SIEM queryjobs API also answers 403 for a real repository it won't search, such as `fusion`, while `search-all` works (see the `search-all` gotcha in `functions-falcon-api`).
 
 ## Local Testing
 

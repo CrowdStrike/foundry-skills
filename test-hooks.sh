@@ -497,6 +497,40 @@ rm -rf /tmp/foundry-test-fake-bin
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10b adapter dependency failure → BLOCK"
 assert_contains "$OUTPUT" "python3 -m pip install -r" "3.10b dependency failure includes install command"
 
+# 3.10c — Swagger 2.0 JSON → BLOCK and point at the adapter, original spec untouched
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10c.json" <<'EOF'
+{"swagger": "2.0", "info": {"title": "Test", "version": "1.0"}, "paths": {}}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10c.json")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10c Swagger 2.0 JSON → BLOCK"
+assert_contains "$OUTPUT" ".openapi3 file" "3.10c Swagger block names the converted file to import"
+assert_empty "$(ls "${TEST_SPEC_PREFIX}"-3-10c.openapi3.* 2>/dev/null)" "3.10c hook does not run the conversion itself"
+
+# 3.10d — Swagger 2.0 YAML → BLOCK
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10d.yaml" <<'EOF'
+
+swagger: "2.0"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10d.yaml")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10d Swagger 2.0 YAML → BLOCK"
+
+# 3.10e — operation overrides a path-level param → auto-fixed by moving it down
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10e.json" <<'EOF'
+{"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0"}, "paths": {"/users": {
+  "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}}],
+  "get": {"operationId": "listUsers", "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "default": 100}}],
+          "responses": {"200": {"description": "OK"}}}}}}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10e.json")
+assert_contains "$OUTPUT" "Moved path param 'limit'" "3.10e param override → auto-fixed advisory"
+
 # 3.11 — JSON spec: default without enum → auto-fixed
 cleanup
 cat > "${TEST_SPEC_PREFIX}-3-11.json" <<'EOF'
@@ -1262,6 +1296,30 @@ cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions create --name myfunc --language python --no-prompt"}}')
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.30 functions create with --no-prompt → pass (regression)"
+
+# 6.30b — one command's --no-prompt must not satisfy another in the same chain
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate --no-prompt && foundry functions create --name Demo --language python"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.30b chained create without --no-prompt → advisory"
+
+# 6.30c — every chained command has --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate --no-prompt && foundry functions create --name Demo --language python --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.30c chained commands all with --no-prompt → pass"
+
+# 6.30d — deploy flags are checked per deploy, not across the chain
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"a\" --no-prompt; foundry apps deploy --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --change-type" "6.30d second deploy without flags → advisory"
+
+# 6.30e — a chained ui extensions create without --sockets → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name a --from-template React --sockets hosts.host.panel --no-prompt && foundry ui extensions create --name b --from-template React --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --sockets" "6.30e chained extension create without --sockets → advisory"
 
 # 6.31-6.35 — Foundry CLI text that isn't a Foundry command → no advisory
 GUARD_NON_CLI_NAMES=(
