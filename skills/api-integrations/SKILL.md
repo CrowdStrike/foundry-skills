@@ -82,10 +82,10 @@ python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_f
 The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 
 The script applies fixes derived from 12 production Foundry sample apps:
-- **Swagger 2.0 conversion**: Converts to OpenAPI 3.0 via `swagger2openapi` (npx)
+- **Swagger 2.0 conversion**: Converts to OpenAPI 3.0 via `swagger2openapi` (npx) and writes the result next to the input as `<name>.openapi3.json` or `<name>.openapi3.yaml`. Register that file, not the original.
 - **Auth fixing**: Removes `oauth2 authorizationCode` flows (Foundry only supports `clientCredentials`). Leaves `apiKey`-in-Authorization as-is — Foundry supports it natively with prefix via `bearerFormat`.
 - **Server URLs**: Strips `https://` from variable-based URLs (Foundry adds protocol separately). Removes `default` from variables without `enum` (prevents locked dropdown).
-- **Parameter dedup**: Removes operation-level parameters that duplicate path-level parameters (prevents Foundry's "items are equal" validation error).
+- **Parameter dedup**: Removes operation-level parameters that duplicate path-level parameters (prevents Foundry's "items are equal" validation error). When an operation overrides a path-level parameter with a different definition, the operation keeps its version and the path-level one moves into the path's other operations.
 
 Foundry's UI import handles large/complex specs. Don't trim or simplify vendor specs. The auth fixes are what matter.
 
@@ -101,7 +101,7 @@ foundry api-integrations create --name "VendorApi" --description "Vendor API" --
 
 Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose operations to workflows, or a UI extension / workflow in the app needs a specific endpoint. See [Expose Operations to Workflows](#expose-operations-to-workflows) below.
 
-**Hook safety net:** When the host runs this plugin's hooks (Claude Code, Codex, Copilot CLI, and Cursor), the hook runs `adapt_spec_for_foundry.py` automatically if step 2 is missed. Cursor's shell tool is `Shell`; the hook treats that the same as `Bash`. Antigravity CLI and other assistants that do not load the hooks must run the script themselves.
+**Hook safety net:** When the host runs this plugin's hooks (Claude Code, Codex, Copilot CLI, and Cursor), the hook runs `adapt_spec_for_foundry.py` automatically if step 2 is missed. It blocks a Swagger 2.0 spec instead, because conversion writes a new file: run the script yourself and register the `.openapi3` file it prints. Cursor's shell tool is `Shell`; the hook treats that the same as `Bash`. Antigravity CLI and other assistants that do not load the hooks must run the script themselves.
 
 ## Authentication Configuration
 
@@ -117,6 +117,8 @@ Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose 
 | **CrowdStrike auto-auth** | Not needed — automatic for CrowdStrike APIs | None | — |
 
 **API key prefix:** `apiKey` type with `name: Authorization` and `in: header` works for APIs that send tokens via the Authorization header. Add `bearerFormat` to specify the prefix (e.g., `SSWS`, `Bearer`, `Token`) — Foundry reads this field to populate the "API key parameter prefix" in the install UI. The adapt script infers the prefix from the scheme's description automatically.
+
+**Credentials go to every operation.** Foundry attaches the integration's credentials to every operation it proxies, including ones the spec marks public with `security: []` (verified 2026-10-19), and the adapt script removes those overrides. Don't count on an operation-level override to keep a credential away from an endpoint; put that endpoint in a separate integration with no security scheme.
 
 For full vendor-specific auth examples, see [references/auth-examples.md](references/auth-examples.md).
 

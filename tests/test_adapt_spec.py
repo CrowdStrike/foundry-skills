@@ -463,6 +463,74 @@ def test_dedup_drops_parameters_key_when_all_removed():
     assert "parameters" not in s["paths"]["/users/{id}"]["get"]
 
 
+def test_dedup_removes_ref_duplicating_inline_path_param():
+    s = make_spec(
+        components={"parameters": {"Id": {"name": "id", "in": "path", "required": True}}},
+        paths={
+            "/users/{id}": {
+                "parameters": [{"name": "id", "in": "path", "required": True}],
+                "get": {
+                    "operationId": "getUser",
+                    "parameters": [{"$ref": "#/components/parameters/Id"}],
+                    "responses": {"200": {"description": "OK"}},
+                },
+            }
+        },
+    )
+    spec.dedup_parameters(s)
+    assert "parameters" not in s["paths"]["/users/{id}"]["get"]
+    assert s["paths"]["/users/{id}"]["parameters"] == [
+        {"name": "id", "in": "path", "required": True}
+    ]
+
+
+def test_dedup_keeps_operation_override_and_moves_path_param_down():
+    path_limit = {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}}
+    op_limit = {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 100}}
+    s = make_spec(
+        paths={
+            "/users": {
+                "parameters": [path_limit, {"name": "q", "in": "query"}],
+                "get": {
+                    "operationId": "listUsers",
+                    "parameters": [op_limit],
+                    "responses": {"200": {"description": "OK"}},
+                },
+                "post": {
+                    "operationId": "createUser",
+                    "responses": {"200": {"description": "OK"}},
+                },
+            }
+        }
+    )
+    changes = spec.dedup_parameters(s)
+    users = s["paths"]["/users"]
+    assert users["get"]["parameters"] == [op_limit]
+    assert users["post"]["parameters"] == [path_limit]
+    assert users["parameters"] == [{"name": "q", "in": "query"}]
+    assert any("Moved path param 'limit'" in c for c in changes)
+
+
+def test_dedup_drops_path_parameters_key_when_all_moved():
+    s = make_spec(
+        paths={
+            "/users": {
+                "parameters": [{"name": "limit", "in": "query", "description": "path"}],
+                "get": {
+                    "operationId": "listUsers",
+                    "parameters": [{"name": "limit", "in": "query", "description": "op"}],
+                    "responses": {"200": {"description": "OK"}},
+                },
+            }
+        }
+    )
+    spec.dedup_parameters(s)
+    assert "parameters" not in s["paths"]["/users"]
+    assert s["paths"]["/users"]["get"]["parameters"] == [
+        {"name": "limit", "in": "query", "description": "op"}
+    ]
+
+
 def test_dedup_noop_without_path_params():
     s = make_spec()  # no path-level parameters
     assert spec.dedup_parameters(s) == []
@@ -616,7 +684,8 @@ def test_convert_success(tmp_path, monkeypatch):
     p.write_text(json.dumps({"swagger": "2.0", "paths": {}}), encoding="utf-8")
     out_expected = str(p).rsplit(".", 1)[0] + ".openapi3.json"
 
-    def _fake_run(*_a, **_k):
+    def _fake_run(cmd, **_k):
+        assert "swagger2openapi@7.0.8" in cmd
         # Simulate swagger2openapi writing the converted file.
         with open(out_expected, "w", encoding="utf-8") as fh:
             json.dump({"openapi": "3.0.0", "paths": {}}, fh)
