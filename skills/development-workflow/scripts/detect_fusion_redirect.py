@@ -74,15 +74,16 @@ def _matches(patterns, text):
 # keeps a standalone-workflow request in foundry-skills.
 _NEGATION_CUE = (
     r"(?:no|not|without|excluding|skip|omit|"
-    r"(?:do(?:n't|es not|esn't| not)? (?:need|want|require))|"
+    r"(?:do(?:n't|es not|esn't| not) (?:need|want|require))|"
     r"(?:no need for)|(?:isn't|is not|aren't|are not))"
 )
 
 # A negation scopes over the capabilities that follow it, including across a
 # comma/"or"/"and" series: "no UI, no functions" and "without a UI or function".
-# Stop at sentence-ending punctuation so a later clause isn't swallowed.
+# Stop at sentence-ending punctuation or a contrast word ("no UI, but add a
+# function") so a later affirmative clause isn't swallowed.
 _NEGATED_SPAN = re.compile(
-    rf"\b{_NEGATION_CUE}\b[^.;!?\n]*",
+    rf"\b{_NEGATION_CUE}\b(?:(?!\b(?:but|however|though|although|except|yet)\b)[^.;!?\n])*",
     re.IGNORECASE,
 )
 
