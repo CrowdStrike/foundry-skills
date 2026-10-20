@@ -616,23 +616,32 @@ class TestLiveAppLessons:
 
     Each one cost a misdiagnosis: a knowledge base edit that fails the deploy,
     a scope name the CLI rejects, a 404 read as a permission problem, and a
-    dashboard API that ignores the name it is given.
+    dashboard API that takes its name from the template, not the parameter.
     """
 
     KB = "skills/ai-agents-development/references/knowledge-bases.md"
+    AGENTS_SKILL = "skills/ai-agents-development/SKILL.md"
     AGENT_REPLY = "skills/ai-agents-development/references/workflow-invocation.md"
     SECURITY = "skills/security-patterns/SKILL.md"
     DEBUG = "skills/debugging-workflows/SKILL.md"
     NGSIEM = "skills/functions-falcon-api/references/ngsiem-content-apis.md"
+    FALCON_API = "skills/functions-falcon-api/SKILL.md"
     COLLECTIONS = "skills/collections-development/SKILL.md"
+    WORKFLOW = "skills/development-workflow/SKILL.md"
 
     def test_deployed_kb_files_are_write_once(self):
         content = _read_skill(self.KB)
         assert "write-once" in content
         assert "Dependent artifact failed" in content
         assert "Delete the entry's `id` key" in content
+        assert "sanitized new name" in content
         assert "To change a KB's files, delete and re-create it" not in content, \
             "deleting and re-creating doesn't change a deployed KB's files"
+        assert "To refresh it you must re-download and overwrite" not in content
+        row = next(line for line in _read_skill(self.AGENTS_SKILL).splitlines()
+                   if line.startswith("| `file <name> already exists`"))
+        assert "409" in row and "knowledge-bases.md" in row, \
+            "the deploy 409 shares this text and needs the deployed-KB recovery"
 
     def test_agent_reply_checked_before_api_calls(self):
         content = _read_skill(self.AGENT_REPLY)
@@ -643,14 +652,28 @@ class TestLiveAppLessons:
         content = _read_skill(self.SECURITY)
         assert "--scopes" in content
         assert '--scope "devices:read"' not in content, "CLI 2.1.2 has no --scope flag"
+        assert 'analyst access" --no-prompt' in content, "roles create needs --no-prompt too"
         assert "major version" in content
         assert "rejects some valid scope names" in content
+        assert "`humio-auth-proxy:read`" in content
+
+    def test_manifest_hand_edit_exceptions_agree(self):
+        workflow = _read_skill(self.WORKFLOW)
+        assert "`auth.scopes` names `scopes add` rejects" in workflow
+        assert "renaming a deployed KB" in workflow
+        with open(os.path.join(_ROOT, "AGENTS.md")) as f:
+            agents_md = f.read()
+        assert "one sanctioned reason" not in agents_md
+        assert "rename a deployed knowledge base" in agents_md
 
     def test_identity_and_status_codes(self):
         content = _read_skill(self.DEBUG)
         assert "Which Identity Makes the Call" in content
         assert "for every input" in content
         assert "not a permission problem" in content
+        assert "starting an `exec` or `test` run" in content, \
+            "a function's FalconPy calls under exec use the installed app's scopes"
+        assert "`401 Unauthorized` from FalconPy | Missing OAuth scope" not in content
 
     def test_no_changes_detected_and_exec_version_pin(self):
         content = _read_skill(self.DEBUG)
@@ -661,12 +684,21 @@ class TestLiveAppLessons:
     def test_ngsiem_content_api_gotchas(self):
         content = _read_skill(self.NGSIEM)
         assert "Search domain names differ by API" in content
-        assert "ignores its `name` parameter" in content
+        assert "KeyError: 'name'" in content, "FalconPy 1.6.6 needs name even though the API ignores it"
+        assert "queryjobs (`start_search`) is the exception" in content
+        assert "such as `falcon`, answers `403`" not in content, \
+            "queryjobs answers 404 for falcon, which isn't a view; fusion is the 403 case"
+        assert "missing search_domain query param" in content
         assert "maximum supported number of assets already exist in this search domain" in content
         assert "bulk_create_saved_queries_from_template" in content
         assert "ngsiem-persisted-aggregations:read" in content
+        assert "ngsiem-lookup-files:write" in content
+        assert "ngsiem-*" not in _read_skill(self.FALCON_API), \
+            "not a real scope name, and agents copy the scope column"
 
-    def test_collection_writers_merge_or_lock(self):
+    def test_collection_writers_merge_or_single_writer(self):
         content = _read_skill(self.COLLECTIONS)
         assert "compare-and-set" in content
-        assert "expired lock as free" in content
+        assert "can't give you mutual exclusion" in content
+        assert "expired lock as free" not in content, "a lock written with PutObject is its own race"
+        assert "reverse-time prefix" not in content, "time-based keys break upsert by natural ID"

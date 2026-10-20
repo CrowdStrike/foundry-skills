@@ -99,7 +99,7 @@ A knowledge base still referenced by an agent cannot be deleted:
 cannot delete knowledge base "Threat Intel Docs": still referenced by agent(s): Detection Triage Agent
 ```
 
-Delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty `agents/` and `knowledge-bases/` parent directories behind; that is harmless. The manifest is saved *before* the directory is removed, so a failed removal reports an orphaned directory by path rather than losing the manifest edit.
+Delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty `agents/` and `knowledge-bases/` parent directories behind; that is harmless.
 
 `delete` is local-only. The next deploy leaves the previously deployed agent in Charlotte AI > AgentWorks as an unpublished orphan, so recreating one under the same name shows two entries. Remove the orphan by hand in the console, and match agents at runtime by the IDs in `manifest.yml`, not by name. `foundry apps delete` does remove the platform-side agents.
 
@@ -289,7 +289,7 @@ Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an 
 | `input_schema is required when exposure.agent_as_tool is true` | Hand-added `agent_as_tool` to an agent with no input schema | Add `input_schema` to that agent, or set the flag back to `false` |
 | `flag --name is required when --no-prompt flag is used` | `delete` without `--name` | Pass the artifact name as it appears in `manifest.yml` |
 | `still referenced by agent(s): Y` | Deleting a KB an agent still lists | Delete the agent first, or remove the KB from its `knowledge_bases` |
-| `file <name> already exists` | Re-running KB create over existing files | Delete the file or the KB directory first |
+| `file <name> already exists` | Re-running KB create over existing files | Delete the file or the KB directory first. As a deploy `409`: see [knowledge-bases](references/knowledge-bases.md) |
 | System prompt is a file path string | Typo'd `--system-prompt` path fell back to inline text | Read back `agents/<path>/system_prompt.txt` |
 | KB file missing after deploy | `.svg` files are always ignored by the packager | Convert to PNG, or reference it another way |
 | `must be a filename only, not a path` | Subdirectory in a KB `files` entry | Flatten — KB directories cannot nest |

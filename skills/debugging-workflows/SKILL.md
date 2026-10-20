@@ -56,7 +56,7 @@ Function execution fails
 Auth fails
 ├── 401/403 from API   → Check OAuth scopes in manifest
 ├── 403 "access denied, scope not permitted" for every input → The identity making the call lacks the scope (see Which Identity Makes the Call)
-├── 404 or 400 after adding scopes → An input error (name, ID, or search domain), not a permission problem. Read the error message
+├── 404 or 400 after adding scopes, other than "no app artifacts found" → An input error (name, ID, or search domain), not a permission problem. Read the error message
 ├── Login hangs        → Headless environment, no browser — use env vars or profile create --no-prompt
 └── Works locally, fails in CI → Set FOUNDRY_API_CLIENT_ID env vars in CI config
 ```
@@ -67,13 +67,13 @@ Three identities can look alike, and each has its own scopes:
 
 | Identity | Used by | Scopes come from |
 |----------|---------|------------------|
-| The CLI profile (`foundry profile active`) | `deploy`, `release`, `exec`, `test` | The API client in the profile |
+| The CLI profile (`foundry profile active`) | `deploy`, `release`, and starting an `exec` or `test` run | The API client in the profile |
 | Any other API client you hold | FalconPy scripts and MCP servers run on your machine | That API client |
-| The installed app | Deployed functions | `auth.scopes` in `manifest.yml`, accepted when the app is installed or updated |
+| The installed app | Deployed functions, including their FalconPy calls under `exec` and `test` | `auth.scopes` in `manifest.yml`, accepted when the app is installed or updated |
 
-Granting a scope to an API client doesn't change what a deployed function can do. Add the scope to `auth.scopes`, deploy, release, and have the app's users accept the update. The CLI can't list a client's scopes, so test a scope by making the call.
+Granting a scope to an API client doesn't change what a function can do, even under `exec`. Add the scope to `auth.scopes`, deploy, release, and have the app's users accept the update. Until the update is accepted in the App Catalog, the call keeps answering `403`. The CLI can't list a client's scopes, so test a scope by making the call. Don't test with Hosts `query_devices_by_filter`, which has answered `200` with no declared scope.
 
-One exception to the 403 rule above: the NG-SIEM queryjobs API also answers 403 `scope not permitted` for a repository name it won't search (see the `search-all` gotcha in `functions-falcon-api`).
+One exception to the 403 rule above: the NG-SIEM queryjobs API also answers 403 for a real repository it won't search, such as `fusion`, while `search-all` works (see the `search-all` gotcha in `functions-falcon-api`).
 
 ## Local Testing
 
@@ -156,7 +156,7 @@ Read the handler source and compare against log timestamps and error messages.
 |-------------|-------------|-----|
 | `ImportError: No module named X` | Missing from `requirements.txt` | Add dependency, redeploy |
 | `KeyError: 'field'` | Missing field in request body | Add input validation |
-| `401 Unauthorized` from FalconPy | Missing OAuth scope in manifest | Add scope, redeploy |
+| `403` with `access denied, scope not permitted` | Scope missing from `auth.scopes`, or the update that adds it not yet accepted | Add the scope, deploy, release, and accept the update in the App Catalog |
 | `401 Unauthorized` on every call, scopes correct | FalconPy client constructed at module scope (no request token at import) | Construct the client inside the handler |
 | `403` with `app is not installed` | App deployed but not released and installed | `foundry apps release`, then install from the App Catalog |
 | `Timeout` / no logs appear | Function exceeded `max_exec_duration_seconds` | Increase timeout or optimize |

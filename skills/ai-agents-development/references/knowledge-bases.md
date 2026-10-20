@@ -13,7 +13,7 @@ A named directory of files under `knowledge-bases/<path>/`, recorded in `manifes
 - **Local paths** — `./docs/runbook.md`, `/tmp/iocs.csv`. Copied into the KB directory under their basename.
 - **HTTP(S) URLs** — downloaded once, at create time, and written under the URL's basename.
 
-URLs are not live references. The file content is frozen at the moment you run `create`. To refresh it you must re-download and overwrite. Pass multiple files as a comma-separated list or by repeating the flag.
+URLs are not live references. The file content is frozen at the moment you run `create`. To refresh it before the KB's first deploy, re-download and overwrite. After a deploy, files are write-once: see [Changing a deployed knowledge base](#changing-a-deployed-knowledge-base). Pass multiple files as a comma-separated list or by repeating the flag.
 
 Only the basename is stored in the manifest, so two sources with the same basename collide in the KB directory. Rename before adding.
 
@@ -58,7 +58,7 @@ Every agent that lists the KB then fails as a dependent artifact (`Dependent art
 
 To ship new text, deploy it as a new knowledge base:
 
-1. Rename the directory under `knowledge-bases/`, and set the entry's `name` and `path` to the new name.
+1. Set the entry's `name` to a new name and `path` to the sanitized new name (every character outside `[a-zA-Z0-9-_]` becomes `_`, so `Threat Intel Docs v2` becomes `Threat_Intel_Docs_v2`). Rename the directory under `knowledge-bases/` to match `path`.
 2. Delete the entry's `id` key so the next save assigns a new one.
 3. Update `knowledge_bases` on every agent that lists the KB, and any system prompt text that names it.
 

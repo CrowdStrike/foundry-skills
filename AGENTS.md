@@ -156,7 +156,7 @@ foundry agents delete --name "X" --no-prompt                                # De
 foundry knowledge-bases delete --name "X" --no-prompt                       # Delete knowledge base
 ```
 
-> **AI agents and knowledge bases:** subcommands are `create` and `delete` only — there is no `list` or `edit`. Build knowledge bases *before* the agents that reference them; `agents create` validates the references and fails otherwise. Agent exposure is set at create time with `--expose-charlotte-chat`, `--expose-agent-as-tool` (requires `--input-schema`), and `--expose-workflow-system-action`; only `model` and `tools` lack CLI flags and are the one sanctioned reason to hand-edit `manifest.yml`. See the `ai-agents-development` skill.
+> **AI agents and knowledge bases:** subcommands are `create` and `delete` only — there is no `list` or `edit`. Build knowledge bases *before* the agents that reference them; `agents create` validates the references and fails otherwise. Agent exposure is set at create time with `--expose-charlotte-chat`, `--expose-agent-as-tool` (requires `--input-schema`), and `--expose-workflow-system-action`; only `model` and `tools` lack CLI flags. Hand-edit `manifest.yml` only for those, for `auth.scopes` names that `foundry auth scopes add` rejects, and to rename a deployed knowledge base. See the `ai-agents-development` skill.
 
 ## Quality and Thoroughness
 
