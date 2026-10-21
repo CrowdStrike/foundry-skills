@@ -702,3 +702,15 @@ class TestLiveAppLessons:
         assert "can't give you mutual exclusion" in content
         assert "expired lock as free" not in content, "a lock written with PutObject is its own race"
         assert "reverse-time prefix" not in content, "time-based keys break upsert by natural ID"
+
+
+class TestPivotAutocomplete:
+    """A copied x-cs-pivot ID is rewritten at install, so agents shouldn't "fix" it."""
+
+    REF = "skills/api-integrations/references/spec-adaptation-examples.md"
+
+    def test_pivot_id_and_autocomplete_requirement(self):
+        content = _read_skill(self.REF)
+        assert "x-cs-pivot" in content
+        assert "install rewrites the ID" in content
+        assert "not configured for autocomplete" in content
