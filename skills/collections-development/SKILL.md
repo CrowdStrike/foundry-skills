@@ -89,22 +89,22 @@ collections:
         exposed: true
 ```
 
-Exposure is only half the wiring. The agent must also name each operation it may call in its own `tools` list, using `collections.<collection_name>.<Operation>`:
+Exposure is only half the wiring. The agent must also name each operation it may call in its own `tools` list, using `action:collections.<collection_name>.<Operation>`. Without the `action:` prefix, the deploy fails with a bare `500`:
 
 ```yaml
 ai:
     agents:
         - name: Detection Triage Agent
           tools:
-            - collections.triage_notes.CreateObject
-            - collections.triage_notes.SearchObjects
+            - action:collections.triage_notes.CreateObject
+            - action:collections.triage_notes.SearchObjects
 ```
 
 Valid operations, exact casing required: `CreateObject`, `GetObject`, `DeleteObject`, `ListObjects`, `SearchObjects`.
 
 A collection exposed but not listed in `tools` is unreachable by the agent, and vice versa — neither case produces an error, just an agent that silently cannot use the data. `agent_tools_integration` is independent of `workflow_integration`; a collection can be exposed to agents, to Fusion, to both, or to neither.
 
-Agents can also use `collections.generic.<Operation>` — a scratch collection the platform creates per agent at runtime, needing no collection of your own. Use a named app collection when the data must outlive the agent or be readable by other capabilities. See `ai-agents-development`.
+Agents can also use the generic collection, `action:mcp/gce/collections:collections:generic:<Operation>` — a scratch collection the platform creates per agent at runtime, needing no collection of your own. Use a named app collection when the data must outlive the agent or be readable by other capabilities. See `ai-agents-development`.
 
 ## Collection API Access
 

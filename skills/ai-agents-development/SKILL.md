@@ -145,8 +145,7 @@ ai:
           path: Detection_Triage_Agent           # sanitized name
           model: ""                              # empty unless the user named one
           tools:                                 # hand-edited, see below
-            - collections.triage_notes.CreateObject
-            - api_integrations.VirusTotal.Get_a_file_report
+            - action:collections.triage_notes.CreateObject
           system_prompt: system_prompt.txt
           input_format: text
           output_format: json                    # json_with_schema adds output_schema: output_schema.json
@@ -186,7 +185,7 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
   - **Nothing supplied** — leave `""`. The platform default applies.
   - **User named a specific model** — write exactly what they gave you, and tell them it is only checked server-side at deploy. Honoring their choice is correct even if it later fails; guessing a "close enough" ID on their behalf is not.
   - **A value is already there** — leave it alone. Do not blank it out or substitute your own.
-- **`tools`** — a flat list of dotted reference strings, not validated client-side. See below.
+- **`tools`** — a list of `<type>:<reference>` strings, not validated client-side. See below.
 
 **No other tuning knobs exist.** Agents have no temperature or token settings, and knowledge bases have no chunk size, embedding, similarity, or `top_k`; indexing is server-side. Never add such keys to the manifest. Tell the user those settings aren't available.
 
@@ -221,23 +220,21 @@ Adding or removing exposure after create means editing `manifest.yml` (or deleti
 
 ## Agent Tool References
 
-Each `tools` entry is a dotted string. The artifact must be exposed on its own side *and* named here — one without the other produces an agent that silently cannot call it, with no error at validate or deploy.
+Each `tools` entry is `<type>:<reference>`. The artifact must be exposed on its own side *and* named here — one without the other produces an agent that silently cannot call it, with no error at validate or deploy.
 
-> **Manifest tools don't deploy yet** (2026-10-05): leave `tools` out of the manifest and have a function do the reads and writes. See [manifest-schema](references/manifest-schema.md#tools-dont-deploy-yet).
+| Target | Entry |
+|--------|-------|
+| App collection | `action:collections.<collection_name>.<Operation>` |
+| Agent runtime collection | `action:mcp/gce/collections:collections:generic:<Operation>` |
+| API integration | `action:mcp/gce/integration:<integration id>~<hash>` (its platform tool ID) |
 
-| Target | Format | Example |
-|--------|--------|---------|
-| App collection | `collections.<collection_name>.<Operation>` | `collections.triage_notes.CreateObject` |
-| Agent runtime collection | `collections.generic.<Operation>` | `collections.generic.ListObjects` |
-| API integration | `api_integrations.<name>.<agent_tools.name>` | `api_integrations.VirusTotal.Get_a_file_report` |
+Any other form fails the whole deploy, usually with a bare `500`. An API-integration tool ID exists only after the integration deploys, so deploy without that entry, look the ID up, then add it. See [manifest-schema](references/manifest-schema.md#tool-reference-format).
 
 Valid collection operations — exact casing required:
 
 `CreateObject`, `GetObject`, `DeleteObject`, `ListObjects`, `SearchObjects`
 
-`collections.generic.*` refers to a scratch collection the platform creates for the agent at runtime. Use it for agent working memory; use a named app collection when the data must outlive the agent or be readable by other capabilities.
-
-For API integrations the final segment is the operation's name from the OpenAPI spec's `x-cs-operation-config.agent_tools.name`, not the raw path.
+The generic collection is a scratch collection the platform creates for the agent at runtime. Use it for agent working memory; use a named app collection when the data must outlive the agent or be readable by other capabilities.
 
 ### Exposing the target artifact
 
@@ -294,6 +291,7 @@ Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an 
 | KB file missing after deploy | `.svg` files are always ignored by the packager | Convert to PNG, or reference it another way |
 | `must be a filename only, not a path` | Subdirectory in a KB `files` entry | Flatten — KB directories cannot nest |
 | Agent cannot call an exposed collection | Exposed but not listed in `tools` | Both sides are required |
+| Bare `500` from deploy, agent has `tools` | An entry isn't in a form from Agent Tool References | Fix the entry |
 | `output_schema must be "output_schema.json"` (or `input_schema ...`) on any command, or `output schema is required when using JSON format` at deploy | Schema file not named `output_schema.json` (`input_schema.json`), or an inline schema | Put the schema at `agents/<path>/output_schema.json` (`input_schema.json`) and set the manifest key to that name |
 | Deploy `Failed` with `output schema at root.properties.X uses unsupported schema keyword ...` in App manager "Show errors" | Schema keyword the agent's model provider rejects (`minimum`/`maximum` for Claude on Bedrock) | Drop the keyword and state the constraint in `description`; for OpenAI models also set `additionalProperties: false` on every object and list every property in `required` |
 | `model <id> does not support structured output` at deploy | `json_with_schema` on a model without it (Bedrock Claude and Nemotron, as of 2026-09) | Use `output_format: json` for that agent, or a model that supports it (`openai.gpt-5.5` does) |

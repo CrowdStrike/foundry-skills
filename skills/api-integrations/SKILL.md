@@ -184,15 +184,7 @@ paths:
 
 The two blocks are independent — an operation can be exposed to agents, to workflows, to both, or to neither. `expose_to_agent` must be nested under `agent_tools`, exactly as `expose_to_workflow` must be nested under `workflow`.
 
-The agent must also name the operation in its own `tools` list as `api_integrations.<integration_name>.<name>`, where `<name>` is the `agent_tools.name` value — not the `operationId` and not the URL path:
-
-```yaml
-ai:
-    agents:
-        - name: Detection Triage Agent
-          tools:
-            - api_integrations.VirusTotal.Get_a_file_report
-```
+The agent must also name the operation in its own `tools` list, by the tool's platform ID: `action:mcp/gce/integration:<integration id>~<hash>`. The ID exists only after the integration deploys, so deploy first, look the ID up (AgentWorks **Add tools**, or the AgentWorks tools API), then add the entry and deploy again. A name-based entry such as `api_integrations.<name>.<agent_tools.name>` fails the whole app's deploy with a bare `500`, so don't add one, even as a placeholder. See `ai-agents-development`'s manifest-schema reference for the lookup.
 
 Exposure without the `tools` entry (or the reverse) yields an agent that silently cannot call the operation. See `ai-agents-development`.
 
