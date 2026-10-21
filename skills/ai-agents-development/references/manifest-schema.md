@@ -70,15 +70,33 @@ The field is a pointer with `omitempty`, so the whole block is **absent** from t
 
 `agent_as_tool: true` is the only switch with a validation rule: the agent must also declare `input_schema`, checked both at create time (`--input-schema is required when --expose-agent-as-tool is set`) and on every manifest load. The other two are unvalidated client-side, so a misspelled key surfaces only at deploy.
 
-### Tools don't deploy yet
+### Tool reference format
 
-Verified on us-2 with CLI 2.1.1 on 2026-10-05. Any deploy that sends the definition of an agent with a `tools` list fails, whether the agent is new or its system prompt or description changed:
+Each `tools` entry is `<type>:<reference>`. Every agent tool has type `action`. The reference is either an alias the deploy resolves or the tool's platform ID, as AgentWorks lists it:
 
-- The documented `collections.<name>.<Operation>` form (including `collections.generic.*`) makes the package upload (`POST /foundry/entities/deploy-package/v1`) return `500 Internal Server Error` before any deployment is created.
-- The platform's own tool ID (`mcp/gce/collections:<app id>:<hash>:<Operation>`, as listed by AgentWorks' **Add tools** picker) gets past the upload, and the deployment fails with `failed to validate tool used` (App manager > **Show errors**).
-- A change to `tools` alone isn't a deployable change (`no deployable artifacts found`). Bundled with another artifact change it deploys, but the agent isn't resent, so the platform-side agent never gets the tool.
+| Target | Entry | Platform tool ID it becomes |
+|--------|-------|-----------------------------|
+| App collection | `action:collections.<name>.<Operation>` (alias) | `mcp/gce/collections:<app id>:<hash>:<Operation>` |
+| Agent runtime collection | `action:mcp/gce/collections:collections:generic:<Operation>` | The same |
+| API integration | `action:mcp/gce/integration:<integration id>~<hash>` | The same |
 
-Exposing the collection works: after `--agent-tools-expose`, its operations appear in the **Add tools** picker. Only the agent's reference fails. Until this is fixed, leave `tools` out of the manifest and have a function do the agent's reads and writes.
+Verified on us-2 with CLI 2.1.2 (2026-10-21): an agent with all three deployed, and one invocation called the API-integration operation and then wrote the result with CreateObject, with no function involved. A later deploy that changed only the system prompt kept the tools. The collection alias also deployed and wrote records with CLI 2.1.1 (2026-10-14).
+
+**API-integration tool IDs.** Exposing an operation (`agent_tools.expose_to_agent: true`) creates a tool record when the integration deploys, so the ID doesn't exist before the first deploy. `<integration id>` is the integration's `id` in `manifest.yml`. `<hash>` isn't derived from the operationId, path, or `agent_tools.name`; it stayed the same when the operation's summary and parameters changed. Find the ID after deploying:
+
+- AgentWorks: create or edit an agent, open **Add tools**, and find the operation (titled from the integration name and operationId, such as `Probeapi getEcho`).
+- API: `GET /agentic-studio/queries/tools/v1?filter=category:'integrations'`, then `GET /agentic-studio/entities/tools/v1?ids=<id>` to confirm the title. Both need the `charlotte-ai-agent-definition:read` scope.
+
+Then add `action:` plus that ID to `tools` and deploy again, with a change to the system prompt or description so the agent is resent (with CLI 2.1.1, a change to `tools` alone was `no deployable artifacts found`). Because `<integration id>` is the manifest's own ID, an app that blanks its IDs for installation into other CIDs gets a new ID, so the entry has to be looked up again there.
+
+Other forms fail, and one bad entry fails the whole app's deploy. None of these errors names the cause:
+
+| Entry | Result |
+|-------|--------|
+| No `action:` prefix (`collections.<name>.<Operation>`, or a platform ID) | `500 Internal Server Error` from the package upload (`POST /foundry/entities/deploy-package/v1`), or `failed to validate tool used` (CLI 2.1.1) |
+| `action:collections.generic.<Operation>` | The upload is accepted, then the agent fails with `ARTIFACT_DISTRIBUTION_FAILED` (`foundry apps logs`) |
+| `action:api_integrations.<name>.<agent_tools.name>` or `.<operationId>` | `500 Internal Server Error` at upload |
+| `action:integration.<name>.<operationId>` | `ARTIFACT_DISTRIBUTION_FAILED` |
 
 ## Knowledge base fields
 
@@ -139,10 +157,8 @@ ai:
           path: Detection_Triage_Agent
           model: ""
           tools:
-            - collections.triage_notes.CreateObject
-            - collections.triage_notes.SearchObjects
-            - collections.generic.ListObjects
-            - api_integrations.VirusTotal.Get_a_file_report
+            - action:collections.triage_notes.CreateObject
+            - action:collections.triage_notes.SearchObjects
           system_prompt: system_prompt.txt
           input_format: text
           output_format: json_with_schema
@@ -174,4 +190,4 @@ knowledge-bases/Threat_Intel_Docs/runbook.md
 knowledge-bases/Threat_Intel_Docs/iocs.csv
 ```
 
-And the referenced tools must be exposed on their own side: `collections.triage_notes` created with `--agent-tools-expose`, and the VirusTotal spec operation carrying `x-cs-operation-config.agent_tools.expose_to_agent: true`. `collections.generic.*` needs no exposure — it is the agent's runtime scratch collection.
+And the referenced collection must be exposed on its own side: `collections.triage_notes` created with `--agent-tools-expose`.

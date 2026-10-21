@@ -341,12 +341,12 @@ class TestAIAgentsSkill:
     def test_tools_reference_formats(self):
         """All three tools reference shapes, with exact operation casing."""
         content = _read_skill(self.SKILL)
-        assert "collections.<collection_name>.<Operation>" in content
-        assert "collections.generic.<Operation>" in content
-        # Final segment is agent_tools.name, NOT the operationId — sending a
-        # reader to the operationId yields a silent tool-reference failure.
-        assert "api_integrations.<name>.<agent_tools.name>" in content
-        assert "api_integrations.<name>.<operationId>" not in content
+        assert "action:collections.<collection_name>.<Operation>" in content
+        assert "action:mcp/gce/collections:collections:generic:<Operation>" in content
+        # API-integration tools are referenced by platform tool ID; a
+        # name-based alias fails the whole deploy with a bare 500.
+        assert "action:mcp/gce/integration:<integration id>~<hash>" in content
+        assert "api_integrations.<name>.<agent_tools.name>" not in content
         for op in ("CreateObject", "GetObject", "DeleteObject",
                    "ListObjects", "SearchObjects"):
             assert op in content, f"missing collection operation {op}"
@@ -428,16 +428,29 @@ class TestAIAgentsSkill:
         workflows = _read_skill("skills/workflows-development/SKILL.md")
         assert "${data['action_key.<schema field>']}" in workflows
 
-    def test_manifest_tools_do_not_deploy_yet(self):
-        """Agents with a `tools` list fail deploy, so the skill says to leave tools out for now."""
+    def test_tools_need_the_action_prefix(self):
+        """App collection tools deploy only as action:<alias>; unprefixed, deploy returns a bare 500."""
         content = _read_skill(self.SKILL)
-        assert "Manifest tools don't deploy yet" in content
-        assert "leave `tools` out of the manifest" in content
+        assert "Manifest tools don't deploy yet" not in content
+        assert "- action:collections.triage_notes.CreateObject" in content
+        assert "Any other form fails the whole deploy, usually with a bare `500`" in content
         ref = _read_skill("skills/ai-agents-development/references/manifest-schema.md")
-        assert "### Tools don't deploy yet" in ref
+        assert "### Tool reference format" in ref
         assert "500 Internal Server Error" in ref
+        assert "ARTIFACT_DISTRIBUTION_FAILED" in ref
         assert "failed to validate tool used" in ref
-        assert "no deployable artifacts found" in ref
+        assert "category:'integrations'" in ref, "must say how to look up an API-integration tool ID"
+        for skill in ("skills/collections-development/SKILL.md",
+                      "skills/ai-agents-development/references/manifest-schema.md"):
+            assert "            - collections." not in _read_skill(skill), \
+                f"{skill} shows an unprefixed collection tool, which fails deploy"
+
+    def test_api_integration_tools_use_the_platform_tool_id(self):
+        """Only the platform tool ID deploys, and it exists only after a first deploy."""
+        api = _read_skill("skills/api-integrations/SKILL.md")
+        assert "action:mcp/gce/integration:<integration id>~<hash>" in api
+        assert "deploy first, look the ID up" in api
+        assert "            - api_integrations." not in api
 
     def test_no_invented_tuning_knobs(self):
         """No temperature, chunk size, similarity, or top_k keys exist to set."""
@@ -484,11 +497,10 @@ class TestAgentToolExposure:
         assert "agent_tools" in content
         assert "expose_to_agent" in content
 
-    def test_api_tools_ref_uses_agent_tools_name_not_operation_id(self):
-        """The last segment is agent_tools.name, not the operationId."""
+    def test_api_tools_ref_is_not_a_name_based_alias(self):
+        """A name-based API-integration tools entry fails deploy, so the skill warns against one."""
         content = _read_skill(self.API)
-        assert "api_integrations." in content
-        assert "not the `operationId`" in content
+        assert "fails the whole app's deploy with a bare `500`" in content
 
     def test_both_halves_required_is_stated_in_all_three(self):
         """Every skill that mentions exposure must warn it is only half."""
