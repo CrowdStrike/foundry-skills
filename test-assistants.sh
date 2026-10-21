@@ -81,6 +81,13 @@
 
 set -uo pipefail
 
+# Fail fast on macOS's /bin/bash (3.2, frozen in 2006 and in range of Shellshock /
+# CVE-2014-6271) instead of partway through; see the bash note above.
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
+  echo "test-assistants.sh needs bash 4.3+ (brew install bash)" >&2
+  exit 1
+fi
+
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPORT_AT=""  # default set below: near the end of the run, which differs by mode
 TIMEOUT=""    # default set below: higher in parallel, where agents contend
@@ -193,7 +200,7 @@ EOF
 # The comma form matches how the eval harness spells its filter.
 add_selectors() {   # array_name csv
   local -n arr="$1"
-  local IFS=','
+  local IFS=',' _parts
   read -r -a _parts <<< "$2"
   local v
   for v in ${_parts[@]+"${_parts[@]}"}; do
