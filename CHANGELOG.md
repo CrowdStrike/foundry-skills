@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Fixed
 
 - **Generic error text from function handlers** — the rule to return a failed Falcon API call's own status and `errors[].message` lived only in `functions-development`'s code review checklist, so a generated handler logged the API error and returned "failed to query devices". `SKILL.md`'s error-handling section now states it.
+- **`.pyc` files in function deploys** — running a handler locally leaves `__pycache__/`, and the deploy packages it unless `ignored:` excludes it. That guidance lived only in `development-workflow`'s advanced-patterns reference, so generated apps shipped the bytecode. `functions-development`'s `SKILL.md` now gives the `ignored:` pattern.
 - **`authorization failed` from `exec` and `test`** — `debugging-workflows` said this meant a missing `custom-apps:write` scope on the API client, but no scope by that name can be added in the API client editor (the relevant one is **Apps**). It now says to confirm the CLI profile has Apps read and write, and to report the trace ID as a platform permission problem if it does.
 - **`--function` default** — `functions-development` said `--function` could be omitted only when an app has exactly one function. The CLI actually falls back to the first function in `manifest.yml`, so the skill now explains that default and still says to pass `--function` in multi-function apps.
 - **Function log delay** — logs take 5-10 minutes to arrive, matching `foundry functions logs --help`, not about 5.

@@ -358,6 +358,8 @@ crowdstrike-foundry-function==1.1.4
 crowdstrike-falconpy
 ```
 
+Local handler runs leave `__pycache__/`, which deploys unless `ignored:` has `(^|/)__pycache__(/|$)`.
+
 ## Workflow Array Output
 
 When a function returns array data to a workflow, wrap the array in a JSON object. Direct array returns are not supported by the workflow engine:

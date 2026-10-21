@@ -625,6 +625,11 @@ class TestFunctionErrorText:
         content = _read_skill(self.SKILL)
         assert "When a Falcon API call fails, return its status and `errors[].message`" in content
 
+    def test_skill_body_says_to_ignore_pycache(self):
+        """A local handler run leaves .pyc files that the deploy otherwise packages."""
+        content = _read_skill(self.SKILL)
+        assert "`(^|/)__pycache__(/|$)`" in content
+
 
 class TestLiveAppLessons:
     """Verify facts from a live app build that the CLI and API don't explain.
