@@ -611,6 +611,26 @@ class TestSkillLinksStayInPackage:
 # ── Lessons from a live Next-Gen SIEM app ───────────────────────────────────
 
 
+class TestFunctionErrorText:
+    """Handlers must pass the Falcon API's error back, not a generic message.
+
+    The rule lived only in the code review checklist, and a generated
+    host-lookup handler logged the API error but returned "failed to query
+    devices". The SKILL.md body is what an agent reads while writing a handler.
+    """
+
+    SKILL = "skills/functions-development/SKILL.md"
+
+    def test_skill_body_says_to_return_the_platform_error(self):
+        content = _read_skill(self.SKILL)
+        assert "When a Falcon API call fails, return its status and `errors[].message`" in content
+
+    def test_skill_body_says_to_ignore_pycache(self):
+        """A local handler run leaves .pyc files that the deploy otherwise packages."""
+        content = _read_skill(self.SKILL)
+        assert "`(^|/)__pycache__(/|$)`" in content
+
+
 class TestLiveAppLessons:
     """Verify facts from a live app build that the CLI and API don't explain.
 

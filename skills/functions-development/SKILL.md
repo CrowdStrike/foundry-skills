@@ -358,6 +358,8 @@ crowdstrike-foundry-function==1.1.4
 crowdstrike-falconpy
 ```
 
+Local handler runs leave `__pycache__/`, which deploys unless `ignored:` has `(^|/)__pycache__(/|$)`.
+
 ## Workflow Array Output
 
 When a function returns array data to a workflow, wrap the array in a JSON object. Direct array returns are not supported by the workflow engine:
@@ -383,6 +385,8 @@ except ValueError as e:
 except Exception:
     return Response(body={"error": {"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"}}, code=500)
 ```
+
+When a Falcon API call fails, return its status and `errors[].message`, not a generic message or a guessed cause. See [references/code-review-checklist.md](references/code-review-checklist.md).
 
 For the full `FunctionError` class with enum codes, see [references/python-patterns.md](references/python-patterns.md).
 
