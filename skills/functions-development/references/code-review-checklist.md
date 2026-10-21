@@ -10,6 +10,7 @@ Foundry functions are debugged after the fact through `foundry functions logs <e
 - Failures log **actionable context**, not just `"error"` — include the operation attempted and identifiers (e.g. `logger.error("collection write failed for host_id=%s: %s", host_id, err)`), but see the sensitive-data check below for what NOT to log.
 - External calls (Falcon API, API-integration proxy, collection ops) log on failure, and ideally a debug/info line on entry so the sequence of events is reconstructable.
 - Non-trivial branches (validation rejections, early returns, retries) emit at least one log line, so a 4xx/short-circuit is distinguishable from a crash in the logs.
+- **Errors returned to the caller carry the platform's own words.** When a Falcon API call fails, put its HTTP status, `errors[].message`, and `trace_id` into the error the handler returns, capped in length. That is the API's own error, not a stack trace or internal state, so it fits the generic-error rule in `security-patterns`. Flag returned or UI error text that guesses a cause (for example "possibly missing permission"). A guessed cause sends debugging down the wrong path, while the platform's message usually names the real one.
 
 Handlers receive a `logger` parameter (Python `logging.Logger`, Go `*slog.Logger`) — flag handlers that never use it, and error branches that don't.
 

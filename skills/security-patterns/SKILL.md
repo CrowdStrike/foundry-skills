@@ -39,11 +39,14 @@ Scopes control which Falcon Platform APIs the app can access. Format: `<source>:
 | API integrations, Collections, Dashboards, Queries, UI navigation, UI sockets, Workflows | Functions, UI extensions, UI pages, RTR scripts |
 
 ```bash
-foundry auth roles create --name "Analyst" --description "Read-only analyst access"
-foundry auth scopes add --scope "devices:read" --scope "detects:read"
+foundry auth roles create --name "Analyst" --description "Read-only analyst access" --no-prompt
+foundry auth scopes add --scopes "devices:read,detects:read" --no-prompt
 ```
 
 Only use `foundry auth scopes add` for Falcon Platform API scopes needed by functions, UI extensions, UI pages, or RTR scripts. OAuth scopes for CLI-created artifacts are managed automatically.
+
+- **Adding a scope makes the next release a major version**, and the app's users must accept the new permission before it takes effect. Decide the app's scopes before its first release, but don't add ones it may never use (see Minimal Scope Principle).
+- **`scopes add` rejects some valid scope names.** Its built-in list is incomplete (as of CLI 2.1.2 it rejects `humio-auth-proxy:read`, which Falcon Next-Gen SIEM searches need, and `ngsiem-persisted-aggregations:read`). When the API's swagger names a scope the CLI rejects, add it to `auth.scopes` in `manifest.yml` by hand. `foundry apps validate` and deploy accept it.
 
 ### Minimal Scope Principle
 

@@ -301,6 +301,10 @@ auth:
 
 - [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — background on async LogScale querying from Foundry, plus CSV export. Note that this post reaches for `FoundryLogScale` with `mode="async"`; the `NGSIEM` pattern above is what has been verified end-to-end against the queryjobs API in a deployed app. Use the pattern above, and treat the post as context for the surrounding workflow (time ranges, result handling, export).
 
+## Falcon Next-Gen SIEM Content APIs
+
+Dashboards, saved queries, lookup files, and persisted aggregations take different search domain names, and a wrong one answers `404` or `400`, not `403`. See [ngsiem-content-apis](references/ngsiem-content-apis.md).
+
 ## Charlotte AI AgentWorks (`/agentic-studio/*`)
 
 Use the `Agents`, `Spans`, `AgentInvocation`, `AgentVersions`, and `Models` classes with the `charlotte-ai-agent-definition` scopes (`read`; `write` to invoke and poll). Filter spans on `attributes.aw_agent.id` (not `aw_agent.agent_id`, which silently matches nothing). Route-to-method map: [advanced-patterns](references/advanced-patterns.md).
@@ -376,6 +380,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
 | `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Verified against a live CID (200 + results); see LogScale Queries section |
+| `NGSIEM` | `/ngsiem-content/` calls | See [ngsiem-content-apis](references/ngsiem-content-apis.md) | Live CID |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
@@ -399,7 +404,7 @@ auth:
 
 If you're using a FalconPy method not in this table:
 1. Check the method's HTTP verb and API path in FalconPy source — GET typically needs `:read`, POST/PUT/PATCH/DELETE typically needs `:write`
-2. The scope prefix is usually the **API path prefix** (e.g., `/iocs/...` → `iocs`, `/devices/...` → `devices`), but exceptions exist (`Hosts` → `devices`, `NGSIEM` → `humio-auth-proxy`)
+2. The scope prefix is usually the **API path prefix** (e.g., `/iocs/...` → `iocs`, `/devices/...` → `devices`), but exceptions exist (`Hosts` → `devices`, `/humio/` → `humio-auth-proxy`, `/ngsiem-content/` → one per type)
 3. When ambiguous, **ask the user** which scopes to include rather than guessing
 
 ## Falcon Severity Values

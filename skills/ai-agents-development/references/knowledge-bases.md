@@ -13,7 +13,7 @@ A named directory of files under `knowledge-bases/<path>/`, recorded in `manifes
 - **Local paths** — `./docs/runbook.md`, `/tmp/iocs.csv`. Copied into the KB directory under their basename.
 - **HTTP(S) URLs** — downloaded once, at create time, and written under the URL's basename.
 
-URLs are not live references. The file content is frozen at the moment you run `create`. To refresh it you must re-download and overwrite. Pass multiple files as a comma-separated list or by repeating the flag.
+URLs are not live references. The file content is frozen at the moment you run `create`. To refresh it before the KB's first deploy, re-download and overwrite. After a deploy, files are write-once: see [Changing a deployed knowledge base](#changing-a-deployed-knowledge-base). Pass multiple files as a comma-separated list or by repeating the flag.
 
 Only the basename is stored in the manifest, so two sources with the same basename collide in the KB directory. Rename before adding.
 
@@ -44,7 +44,25 @@ Removes the manifest entry and the `knowledge-bases/<path>/` directory. Notes:
 - The manifest is saved before the directory is removed. If removal fails you get an explicit orphaned-directory message naming the path to clean up by hand.
 - The empty `knowledge-bases/` parent directory is left in place after the last KB is deleted. Harmless.
 
-There is no `knowledge-bases list` or `edit`. To change a KB's files, delete and re-create it, or edit the `files` list and the directory contents together.
+There is no `knowledge-bases list` or `edit`. Before a KB's first deploy, change its files by editing the `files` list and the directory contents together, or delete and re-create it. After it has been deployed, see the next section.
+
+## Changing a deployed knowledge base
+
+Files in a deployed knowledge base are write-once. Changing a file's content under the same name and deploying again fails the KB with:
+
+```
+{"code":409,"message":"a file with name '<file>' already exists in this knowledge base"}
+```
+
+Every agent that lists the KB then fails as a dependent artifact (`Dependent artifact failed (400)`, "Fix the failed dependent Knowledge base with name ..."). The reason appears only in App manager "Show errors", not in the CLI.
+
+To ship new text, deploy it as a new knowledge base:
+
+1. Set the entry's `name` to a new name and `path` to the sanitized new name (every character outside `[a-zA-Z0-9-_]` becomes `_`, so `Threat Intel Docs v2` becomes `Threat_Intel_Docs_v2`). Rename the directory under `knowledge-bases/` to match `path`.
+2. Delete the entry's `id` key so the next save assigns a new one.
+3. Update `knowledge_bases` on every agent that lists the KB, and any system prompt text that names it.
+
+The old KB stays in the tenant, unreferenced. Delete it in the console when nothing needs it.
 
 ## Deploy packaging gotchas
 
