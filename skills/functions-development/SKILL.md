@@ -384,6 +384,8 @@ except Exception:
     return Response(body={"error": {"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"}}, code=500)
 ```
 
+When a Falcon API call fails, return its status and `errors[].message`, not a generic message or a guessed cause. See [references/code-review-checklist.md](references/code-review-checklist.md).
+
 For the full `FunctionError` class with enum codes, see [references/python-patterns.md](references/python-patterns.md).
 
 ## Common Pitfalls
