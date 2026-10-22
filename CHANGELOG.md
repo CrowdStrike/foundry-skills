@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **debugging-workflows: preview/dist checks, jammed releases, shell noise** — grep the built dist bundle to confirm a fix shipped when in-console preview is unreliable; recover a jammed release pipeline (stop retrying → support ticket + fresh app_id, pull `meta.trace_id` from DevTools); and identify benign Falcon console-shell noise (`deserializeSitemap` / `uilogging 400`) that is not your app.
 - **`xdr.cases.details` socket (CLI 2.1.2+)** — `ui-development` lists the new Next-Gen SIEM cases details socket, and the CLI guard accepts it. The table also fixes the label for `xdr.cases.panel`, which is the cases panel, not the details section.
 - **Scopes the CLI rejects** — `scopes add` rejects some valid names (`humio-auth-proxy:read` and the Falcon Next-Gen SIEM persisted aggregation scopes, as of CLI 2.1.2), so `security-patterns` says to add them to `auth.scopes` by hand. Adding a scope makes the next release a major version that users must accept. `development-workflow` and `AGENTS.md` list this edit, and renaming a deployed KB, as sanctioned manifest edits.
 - **Which identity makes the call** — `debugging-workflows` separates the CLI profile's API client, other API clients used by local scripts, and the installed app. The app's `auth.scopes` are the only scopes a function has, including under `exec` and `test`. A missing scope returns `403` for every input; an input error returns `404` or `400` (queryjobs is the exception).
