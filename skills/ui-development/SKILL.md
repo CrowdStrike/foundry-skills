@@ -54,6 +54,8 @@ foundry ui extensions create --name "my-ext" --description "Description" --from-
 
 **Vanilla JS** needs no `npm install` or `npm run build`. The importmap loads foundry-js from CDN. Use it for simple extensions that display data or make API calls without complex state management. Deploy works with just the raw `src/` files.
 
+> **`--homepage` / `homepage:` designation ≠ a navigation link.** It sets the app's root page only; it does NOT add a side-menu entry. Only `ui.navigation.links` (via `foundry ui navigation add`) creates a menu item — an app can be reachable at root yet absent from the menu. Add an explicit nav link for every page you want listed.
+
 The blueprint output is deterministic — see [references/blueprint-templates.md](references/blueprint-templates.md) for exact file contents, Shoelace import patterns, and API integration calling examples.
 
 > **🚫 DO NOT MODIFY `path` or `entrypoint` in manifest.yml**
@@ -234,6 +236,8 @@ const data = await cloudFunction.path('/items?status=active').get();
 await cloudFunction.path('/items/123').delete();
 ```
 
+> **Invoke by `name`, not `id` — clone-portable.** `falcon.cloudFunction({ name })` resolves at runtime, so it survives an app clone. A hardcoded `falcon.cloudFunction({ id })` — and any hardcoded page-ID constants used for cross-page nav — point at the ORIGINAL app's IDs after a clone, because Foundry re-mints every id. Prefer `name` wherever foundry-js supports it.
+
 ### LogScale
 
 ```javascript
@@ -339,6 +343,9 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 > **Note:** The first three pitfalls below about `vite.config.js`, `npm install`, and `npm run build` apply to the React template only. Vanilla JS extensions have no build step — deploy the raw `src/` files directly.
 
 - **Running `foundry` commands from a UI subdirectory.** After `cd ui/extensions/my-ext && npm install && npm run build`, you MUST `cd` back to the app root before running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run`. The CLI resolves manifest paths relative to cwd — running from a subdirectory produces doubled paths like `ui/extensions/my-ext/ui/extensions/my-ext/src/dist/index.html`.
+- **`npm install` fails `E401` against a corporate registry/Artifactory.** The blueprint's deps won't resolve behind a corp proxy. Workaround: symlink an identical sibling app's `node_modules` into the page dir, run `vite build`, then REMOVE the symlink before `foundry apps deploy` (a symlinked `node_modules` must not ship in the bundle).
+- **Hardcoding page or function IDs.** After an app clone Foundry re-mints every page/function id, so hardcoded `cloudFunction({id})` or `SETTINGS_PAGE_ID`/`DASH_PAGE_ID` constants silently target the ORIGINAL app — function probes return `error`/`[object Object]`, nav buttons jump to the old app. Invoke functions by `name`; resolve page IDs at runtime. Reads as a runtime bug, but it's a clone-portability bug.
+- **Cross-page navigation with `type: 'internal'`.** Each Foundry page is a separate SPA; `navigation.navigateTo({ type: 'internal' })` routes WITHIN the current SPA and silently falls back to its home (the "Settings button just reloads the dashboard" bug). Use `type: 'falcon'` with a RELATIVE path (`/foundry/page/<id>`). The console's `new URL(path)` throws `Invalid URL` on a relative path — but navigation still works, so that console error is cosmetic; do NOT "fix" it by passing an absolute URL, which forces the page to open in a NEW TAB (worse UX).
 - **NEVER edit manifest.yml `path` or `entrypoint` values.** The CLI sets these correctly. The format `ui/extensions/my-ext/src/dist/index.html` is NOT a doubled path — it is correct. If you see a deploy path error, you likely changed `vite.config.js` — revert your changes.
 - **NEVER modify `vite.config.js`.** The blueprint is turnkey. Do not change `base: './'` to `''` or anything else. Do not change `root: 'src'`. Do not remove `noAttr()`. Just edit your React/JS code and deploy.
 - **Omitting `--sockets` on extension create.** This launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"` on the command line. Run `foundry ui extensions list-sockets` to see available sockets — do not guess or fabricate socket names.

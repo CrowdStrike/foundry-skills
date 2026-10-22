@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Function output paths in workflows** — a function action's output is `<action key>.FaaS.<function>.<handler>.<field>`, and a loop item's field is `...<field>.#.<item field>`.
 - **What mock executions can test** — `foundry workflows executions start` always runs a mock execution, which fails an app's own `functions.` references with `action not found`. Test through the installed app instead, using a near-term schedule for scheduled workflows.
 - **Privacy policy URL for Codex** — the Codex plugin manifest sets `privacyPolicyURL`, so the OpenAI Plugins Directory shows the CrowdStrike privacy notice.
+- **UI gotchas that read as runtime bugs** — `ui-development` adds four: invoke cloud functions by `name` (hardcoded function/page IDs break on clone — Foundry re-mints every id); cross-page `navigateTo` must use `type:'falcon'` + a relative path (`type:'internal'` reloads the current SPA; the `new URL` console error is cosmetic — going absolute forces a new tab); `homepage:` designation ≠ a nav link (only `ui.navigation.links` lists a page); and the corporate-Artifactory `E401` npm-install symlink-a-sibling-`node_modules` workaround.
 
 ### Changed
 
