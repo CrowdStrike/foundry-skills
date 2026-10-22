@@ -256,4 +256,4 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 
 4. **Run tests:** `cd e2e && npm test`
 
-5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)
+5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest). **This revert applies ONLY to throwaway e2e runs of the public `foundry-sample-*` repos, which commit blanked IDs so the app installs into any CID. For an app you own and operate, do the OPPOSITE — commit the IDs the first deploy writes back (see `SKILL.md` → Manifest Coordination); reverting them makes the next deploy mint a new app instead of updating yours.**

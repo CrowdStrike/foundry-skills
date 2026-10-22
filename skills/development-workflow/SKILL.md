@@ -236,6 +236,8 @@ foundry ui run
 
 **Deploy once, poll `list-deployments`** for the deployment version `deploy` printed (release numbers differ). Re-deploying duplicates it.
 
+> **`foundry apps deploy --re-deploy` replays the PREVIOUS bundle — never use it to test an edit.** It re-runs the last deployment's source and ignores your working-tree changes, so a code fix won't be in it (this quietly costs full cold-build cycles). To test an edit, run a plain `foundry apps deploy`. `--re-deploy` IS the correct escape when a plain deploy reports `no deployable artifacts found` — a failed version poisons the incremental diff base — but only then, not to iterate on a change.
+
 **A `Failed` deployment has no reason in the CLI.** Read it in the console: **App manager > the app > "Show errors (N)"** (per capability). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`; wait, it is not a manifest error.
 
 ```bash
@@ -247,7 +249,16 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 **Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**. That option only exists if the app had settings at first install. If ⋮ shows only **Uninstall app**, release with `--change-type Major`; **Accept update** then shows the credential form, and Modify settings works after that. Don't reinstall; dependent workflows can break.
 
+> **After an update, hard-refresh before you trust what you see.** The Falcon console iframe caches the built bundle, so a correctly released change can keep showing the old UI or logic until a hard refresh (Cmd/Ctrl+Shift+R). If a visual or behavioral change doesn't appear, hard-refresh first — do NOT re-deploy to "fix" it. Content-hashed asset names help, but the console shell still caches. When in doubt, confirm the fix is actually in the build by grepping the built `dist/` before assuming the deploy failed.
+
 `foundry ui run` only serves UI locally — backend capabilities (API integrations, functions, collections) resolve from the cloud. Deploy those first.
+
+> **Three version numbers — don't conflate them.**
+> - **App Catalog version** (`v0.1.x`) — bumped by `foundry apps release --change-type`; authoritative; what App Manager shows.
+> - **Pre-release deploy number** (`v0.1.x-pre-release`) — bumped by every `foundry apps deploy`; shown in `list-deployments`; unrelated to the catalog version.
+> - **Display-only `UI_BUILD` const** (if the app keeps one in source) — set it to the version THIS release will produce (current catalog version + 1, since the release bumps it). It is cosmetic, not the release number.
+>
+> `release --deployment-id` takes the *deploy* number and produces the next *catalog* version — the deploy number is NOT the release number.
 
 ## Multi-Cloud Deployment
 
@@ -284,6 +295,7 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 **Dependency order:** Collections → Functions → Knowledge bases → Agents → Workflows → UI (each may depend on the previous)
 
 - **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" (rename only). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
+- **The first (cold) deploy writes the provisioned `app_id` + page/function/workflow/agent IDs back into `manifest.yml` — COMMIT those.** They identify your app on that cloud; later deploys need them to target the existing app instead of minting a new one. This is the OPPOSITE of the e2e-sample `git checkout manifest.yml` step (see `references/advanced-patterns.md` → Testing an Existing App Locally), which is for throwaway CI runs of the public `foundry-sample-*` repos that commit blanked IDs to install into any CID. For an app you own and operate, keep the written-back IDs.
 - **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
 - OAuth scopes are auto-managed for CLI-created artifacts — MUST NOT manually add `api-integrations:read`
