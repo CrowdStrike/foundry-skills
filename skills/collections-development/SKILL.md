@@ -233,12 +233,11 @@ export class IncidentCollection {
   }
 
   async get(id: string): Promise<Incident | null> {
-    try {
-      return await this.collection.get(id);
-    } catch (error) {
-      if (error.code === 'NOT_FOUND') return null;
-      throw error;
-    }
+    const obj = await this.collection.get(id);
+    // A never-created key resolves to a TRUTHY not-found envelope, not null and not a throw.
+    // Gate on a field the record must have — never on truthiness.
+    if (!obj || !obj.id) return null;
+    return obj;
   }
 
   async update(id: string, updates: Partial<Incident>): Promise<Incident> {
@@ -379,12 +378,16 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 - **Invalid collection names.** Names must be 5-200 chars, start/end with letter or number, and contain only letters, numbers, and underscores.
 - **Commas or other punctuation in `--description`.** `collections create` accepts them; `foundry apps validate` and deploy reject them. Stick to letters, numbers, spaces, dashes, periods, parentheses, and underscores.
 - **Editing a schema file and redeploying does not change an existing collection.** Writes keep validating against the schema the collection was created with (observed: a new top-level field rejected as `additional properties not allowed` after the schema that declared it was deployed). Ship `"additionalProperties": true` at the top level if fields may be added later, and treat any breaking schema change as a new collection name.
+- **Custom-storage collections are effectively immutable — decide schema + TTL at create time.** Once a collection is written via `custom_storage_object_key` (the standard app pattern: `collections.*.create` with `custom_storage_object_key`, and foundry-js `collection.write(key, obj)`), you can no longer add a `ttl` or tighten its schema (`additionalProperties: false`, a new `maxLength`, etc.). The deploy fails with `Invalid Collection - {"code":400,"message":"custom_storage_object_key is a reserved input property"}`. Confirmed by isolation — reverting the schema to its exact original and changing *only* `ttl` still failed, on every custom-storage-written collection in the diff: you can neither declare `custom_storage_object_key` in the schema (rejected as reserved) nor omit it (Foundry injects it during re-provision validation). Bake per-object expiry and strict validation into the INITIAL definition. Compounding trap: a failed collection deploy poisons the diff base — later plain deploys report `no deployable artifacts found` or keep replaying the error, and `--re-deploy` only retries the failed bundle. Recover with `git checkout` of the collection/manifest changes (the failed deploys never went live).
+- **There is no in-place collection rename.** Foundry has no rename operation; changing a collection's `name` provisions a NEW empty collection and orphans every object written under the old name — unrecoverable, since collection data is UI-only readable. Rename a collection only if you can afford to lose its contents; for a brand/display rename, leave the internal collection names untouched. (This is also why a breaking schema change is handled as a new collection name — see the bullet above.)
+- **A deleted collection name tombstones per `app_id`.** After CrowdStrike support deletes an app's collections, redeploying into the same `app_id` fails with `Invalid Collection - resource <app_id>:<name> existed previously, but was deleted`. Collection names are namespaced per `app_id`, and a previously-deleted name cannot be recreated in that same `app_id`. Escape: strip the `app_id` (and all other provisioned ids) from the manifest and cold-deploy a fresh `app_id` — the names are free in the new namespace.
 - **Concurrent writers lose fields.** `PutObject` replaces the whole object, and there is no compare-and-set or version check. When two handlers can update the same key at once, read the object right before the write, merge your fields into it, and write it back. That narrows the window but doesn't close it. Collections can't give you mutual exclusion: a lock object would be written with the same `PutObject`, so taking the lock is its own race. When lost writes matter, send every update to the key through one writer, and make sure two runs of that writer can't overlap.
 - **Not configuring workflow share settings.** Set `workflow_integration.system_action: true` for app-only workflow access, or `false` to also expose collections as Falcon Fusion SOAR actions.
 - **Trying to delete collections via CLI.** Collections can only be deleted from the Falcon Foundry UI.
 - **Trying to manage objects via CLI.** Collection CRUD requires the CrowdStrike API or `foundry-js` SDK.
 - **Schema field names must match exactly.** If a field name in your write payload doesn't match the collection schema (e.g., writing `score` when the schema defines `severity`), the write fails and returns errors in the response body — but the SDK does not throw. Without checking `result.errors`, the failure is invisible. Always read the collection schema file before writing seed data; verify required fields, enum values, and exact field names.
 - **Not checking write responses for errors.** The SDK does not throw on server-side validation failures. Always check `result?.errors?.length` after write operations — errors include specific messages like `"missing property 'severity'"` or `"value must be one of 'low', 'medium', 'high', 'critical'"`. Verify persistence with a follow-up read or list call.
+- **Reading a never-created key returns a truthy NOT-FOUND envelope — not `null`, not a throw, not `{}`.** On the foundry-js side, `collection.get()`/`.read()` of a key that was never written resolves to a truthy-but-empty not-found envelope object. Two traps follow: `if (obj)` takes the "load existing" branch for a missing key (an empty-state gate that always thinks data exists — so the record's first write never fires), and spreading that envelope into a read-modify-write **poisons the payload** — `PutObject` returns 200 but the stored object is unreadable garbage. Gate on a real field the record must carry (`obj.run_id || obj.collected_at`), and sanitize a read before merging it into a write. Same bug as the Python 404 caveat above, surfacing on the JS side.
 
 ## Reading Guide
 
