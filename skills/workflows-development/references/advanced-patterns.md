@@ -160,6 +160,47 @@ actions:
 
 > **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
 
+## Diamond joins & the 2001 cyclic reference
+
+Fusion builds a DAG. A node inside a parallel branch must not reach a downstream join **both directly and through a child** — Fusion treats that as a cycle and fails the deploy with `2001 cyclic reference to previously seen node`. This bites whenever one parallel sibling also feeds another sibling that converges on the same join.
+
+**❌ Fails — `Services` fans to the `ELP` join both directly and via `Partner`:**
+
+```yaml
+actions:
+    ExecSummary:
+        next: [Services, ModuleGap]
+    Services:
+        next: [ELP, Partner]      # direct edge to the join …
+    Partner:
+        next: [ELP]               # … AND via a child → cycle
+    ModuleGap:
+        next: [ELP]
+    ELP:
+        next: [StoreResults]
+# → 2001 cyclic reference to previously seen node … FROM_Partner_TO_parallel_Services
+```
+
+**✅ Fixed — linearize the `Services → Partner` leg so each node is a single-path ancestor of the join:**
+
+```yaml
+actions:
+    ExecSummary:
+        next: [Services, ModuleGap]
+    Services:
+        next: [Partner]           # linear chain, no direct ELP edge
+    Partner:
+        next: [ELP]
+    ModuleGap:
+        next: [ELP]
+    ELP:
+        next: [StoreResults]
+```
+
+`Services`' data pill still reaches `ELP` because `Services` remains an ancestor via `Partner` — you do **not** need the direct edge, and adding it is exactly what creates the cycle.
+
+**Silent variant — the empty pill.** The same shape fails *without any error* when a store/aggregator reads `${data['X.response']}` off a node `X` that sits on a diamond fork: at the join the pill resolves to an **empty string**, not an error, so the workflow "succeeds" with blank data. The fix is identical — make any node whose `.response` you read a single-path ancestor of the reader (linearize the fork), never a shared fork feeding the join two ways.
+
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |

@@ -24,7 +24,9 @@ Falcon Foundry Workflows are YAML-defined automation units executed by the Falco
 - **Workflow Author role** is required in addition to the Falcon Developer role
 - Workflows are YAML templates that can be provisioned as active workflow instances
 - Up to **25 workflows** can be provisioned from a single template
-- Set `provision_on_install: true` to auto-provision when the app is installed
+- **`provision_on_install: true` is REQUIRED** in the workflow YAML (not optional). Without it the workflow deploys **"Successful" but never instantiates** into Fusion SOAR — no error, nothing to run.
+
+> **⚠️ Silent failure:** a missing `provision_on_install: true` is invisible at deploy time — the CLI reports success and the workflow simply never appears in Fusion. Treat it as a checklist item on every workflow, not a footnote.
 
 ## CLI Scaffolding
 
@@ -151,6 +153,8 @@ If a function was created without it, recreate the function. That changes its `w
 ```
 ❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
 ```
+
+> **⚠️ Every non-empty `properties:` on a function action needs a declared `request_schema`.** If the action passes `properties` but the function's manifest handler has `request_schema: null`, Foundry **silently drops the inputs** — the handler receives empty strings, not an error. Symptom: a function that "runs fine" but behaves as if it got blank input. Declare the schema at create time via `foundry functions create … --input-schema` (hand-editing the manifest does not bind it).
 
 **Calling the app's own AI agent**: use `id: ai_agents.<agent name>` (the manifest `name`) with `input` for the prompt and `version_constraint: ~1`; the agent needs `exposure.workflows.system_action: true`. `apps validate` doesn't resolve it, so check the deploy output. See the `ai-agents-development` skill's `references/workflow-invocation.md`.
 
@@ -321,6 +325,27 @@ conditions:
 
 See [references/workflow-examples.md](references/workflow-examples.md) for full loop and condition examples from production apps.
 
+## Join Resolution & Cyclic References
+
+Fusion builds a DAG. A node inside a parallel branch MUST NOT reach a downstream join **both directly and through a child** — Fusion reads that as a cycle and fails the deploy:
+
+❌ `A.next: [Join, B]` + `B.next: [Join]` → `2001 cyclic reference to previously seen node … FROM_B_TO_parallel_A`
+
+**Fix: linearize.** Make every node whose output a consumer reads a *single-path ancestor* of that consumer — `A → B → Join`. The pill from `A` still reaches `Join` because `A` stays an ancestor.
+
+> **Silent variant (no error):** a store/aggregator that reads `${data['X.response']}` off a node `X` sitting on a **diamond fork** resolves **EMPTY** at the join — the pill comes back blank, not an error, which is very hard to diagnose. Same rule, same fix: any node whose `.response` you read must be a single-path ancestor of the reader, never a shared fork.
+
+> **Parallel-branch output needs an explicit edge.** A parallel branch's data pill is visible downstream only if the branch action names the consumer in its `next: [Downstream]`. A branch that fans out but doesn't list the consumer deploys fine, yet its output never reaches that consumer (blank pill). Wire every producer→consumer edge explicitly.
+
+See [references/advanced-patterns.md](references/advanced-patterns.md) for a worked `ExecSummary → {A, B, C} → Merge` diamond showing the failure and the linearized rewrite.
+
+### Collection writes must be terminal
+
+A `collections.*.create` (store) action must be a **leaf** — no outgoing `next`. Hanging a `next` off a store action fails the build **silently** (no CLI error; the step just never runs). To run a step *after* a write, attach it to the upstream **function's** `next` fan-out instead:
+
+❌ `store_result.next: [notify]`
+✅ `my_function.next: [store_result, notify]`
+
 ## The "0" Gotcha
 
 See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha) for the "0" gotcha and fix pattern. Key point: check for both null and `"0"` in loop conditions.
@@ -331,11 +356,24 @@ Workflow names must be unique across all apps in the same tenant. If two apps de
 
 ## NEVER Delete and Recreate Workflows
 
-> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures requiring a fresh app to recover.
+> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures. Recover with the sticky-409 recipe below (rename + strip the id) — no fresh app needed.
 
 Removing a workflow from the manifest does NOT delete its server-side artifact. Recreating with the same name → `409 name must be unique for an app`. A once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys.
 
 **Instead, update in place** — edit the workflow YAML and redeploy. To re-bind a workflow to a recreated function, update the `id: functions.{name}.{handler}` reference in the YAML. Only delete a workflow if you genuinely no longer need it and won't recreate it with the same name.
+
+### Sticky-409 recovery (structural change re-provisions and 409s)
+
+Any structural edit that re-provisions a workflow — a new action, an edited `next`/edge, an added trigger parameter, or a rename — can fail with `Duplicate workflow name (409)` / `system definition with id … already provisioned on cid …`. **Deleting the Fusion workflow does NOT free the name — a used name stays reserved**, so re-deploying the same name keeps 409ing. This is the single most common cause of a stuck release and recurs on *every* later structural change.
+
+**Reliable escape — rename to a brand-new unique name AND strip the id:**
+
+1. In `workflows/*.yaml`, change `name:` to a new, never-used value.
+2. In `manifest.yml`, change the matching `workflows: - name:` to that same new value **and delete the entry's `id:`**.
+3. Deploy. Foundry provisions a fresh workflow and writes a new `id` back into the manifest (commit it). The old workflow is a harmless orphan.
+4. If the UI triggers the workflow by name, update the `WORKFLOW_NAME` constant(s) — a stale name is a silent 404 at run time.
+
+> Stripping the `id` alone is not enough; the **name** is what's reserved. Rename + id-strip together is what forces a clean re-provision — no fresh app needed.
 
 ## Workflow Sharing
 
