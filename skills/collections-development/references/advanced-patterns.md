@@ -20,6 +20,130 @@ export interface Incident {
 }
 ```
 
+## Full CRUD Client (TypeScript)
+
+A typed collection client wrapping the `foundry-js` `Collection` for create/get/update/delete/list. Note the `get()` guard: a never-created key resolves to a truthy not-found envelope, so gate on a field the record must have (`obj.id`), never on truthiness (see the not-found-envelope pitfall in SKILL.md).
+
+```typescript
+import { Collection } from '@crowdstrike/foundry-js';
+
+export class IncidentCollection {
+  private collection: Collection<Incident>;
+
+  constructor() {
+    this.collection = new Collection<Incident>('incidents');
+  }
+
+  async create(data: Omit<Incident, 'id' | 'created_at' | 'updated_at'>): Promise<Incident> {
+    const incident: Incident = {
+      ...data,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await this.collection.create(incident.id, incident);
+    return incident;
+  }
+
+  async get(id: string): Promise<Incident | null> {
+    const obj = await this.collection.get(id);
+    // A never-created key resolves to a TRUTHY not-found envelope, not null and not a throw.
+    // Gate on a field the record must have — never on truthiness.
+    if (!obj || !obj.id) return null;
+    return obj;
+  }
+
+  async update(id: string, updates: Partial<Incident>): Promise<Incident> {
+    const existing = await this.get(id);
+    if (!existing) throw new Error(`Incident ${id} not found`);
+    const updated: Incident = {
+      ...existing,
+      ...updates,
+      id: existing.id,
+      created_at: existing.created_at,
+      updated_at: new Date().toISOString(),
+    };
+    await this.collection.update(id, updated);
+    return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.collection.delete(id);
+  }
+
+  async list(options?: { status?: string; limit?: number; offset?: number }) {
+    const filters: Record<string, any> = {};
+    if (options?.status) filters.status = options.status;
+    return this.collection.query(filters, {
+      limit: options?.limit ?? 50,
+      offset: options?.offset ?? 0,
+      sort: [{ field: 'created_at', order: 'desc' }],
+    });
+  }
+}
+```
+
+## CRUD Operations (Python — from Functions)
+
+Use `CustomStorage` (Service Class) to access collections from Python functions. Service classes are preferred over the Uber class (`APIHarnessV2`) because the Falcon Foundry functions editor auto-detects OAuth scopes from `from falconpy import CustomStorage`. See the `functions-development` skill's `references/python-patterns.md` for a complete handler example with Uber class alternative.
+
+```python
+import json
+import os
+from falconpy import CustomStorage
+
+def _app_headers() -> dict:
+    app_id = os.environ.get("APP_ID")
+    if app_id:
+        return {"X-CS-APP-ID": app_id}
+    return {}
+
+# Construct inside the handler in a real function — a module-scope client has no request
+# token in Foundry and returns 401 on every call (see functions-development).
+client = CustomStorage(ext_headers=_app_headers())
+
+# Create or update (PutObject = upsert). Pass body as a dict.
+client.PutObject(collection_name="incidents", object_key="incident-123",
+                 body={"id": "incident-123", "title": "Suspicious process", "severity": 7})
+
+# Read — GetObject returns bytes on success, dict on error
+response = client.GetObject(collection_name="incidents", object_key="incident-123")
+# In production, check isinstance(response, bytes) before decoding — see python-patterns.md for full error handling
+incident = json.loads(response.decode("utf-8"))
+
+# Delete
+client.DeleteObject(collection_name="incidents", object_key="incident-123")
+
+# Search (FQL filter — only indexed fields)
+response = client.SearchObjects(collection_name="incidents",
+                                filter="status:'open'+severity:>=5", limit=50)
+# SearchObjects returns metadata — follow up with GetObject per key for full objects
+for item in response.get("body", {}).get("resources", []):
+    obj = client.GetObject(collection_name="incidents", object_key=item["object_key"])
+    data = json.loads(obj.decode("utf-8"))
+
+# List every key — ListObjects pages by starting key, not a cursor
+keys, start = [], None
+while True:
+    params = {"start": start} if start else {}
+    batch = client.ListObjects(collection_name="incidents", limit=100, **params)["body"].get("resources", [])
+    batch = [k for k in batch if k != start]  # drop the start key if it comes back
+    if not batch:
+        break
+    keys.extend(batch)
+    start = batch[-1]
+```
+
+Key points:
+- `CustomStorage(ext_headers=_app_headers())` applies `X-CS-APP-ID` to all requests (needed for local dev; Foundry sets it automatically in production)
+- `PutObject` acts as upsert (creates or overwrites by key). Pass body as a dict.
+- `GetObject` returns bytes directly — decode with `json.loads(response.decode("utf-8"))`
+- **A missing key returns a 404** (see `get_incident` in the `functions-development` skill's `references/python-patterns.md`). Only a 404 means missing; don't treat *every* non-bytes reply that way: a transient 429 or 5xx then reads as "no record", and code that writes the record back erases it.
+- `SearchObjects` returns metadata only, not full objects
+- `ListObjects` returns keys (alphabetical) in `body.resources` and takes `start`/`end` keys. Pass the last key as the next `start` and stop only on an empty batch — stopping when a page is shorter than `limit` ends early if the service caps page size
+- **List before you read.** Calling `GetObject` on every *candidate* key (most of them misses) is slow; list the keys once and read only the ones that exist. In one app, that cut a 519-item page load from about 25 s to about 7 s
+- FQL filters only work on fields marked `x-cs-indexable: true` in the collection schema
+
 ## Extended Schema Properties
 
 When defining schemas for production use, include detailed descriptions and additional fields beyond the minimum:
