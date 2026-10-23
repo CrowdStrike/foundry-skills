@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Function output paths in workflows** — a function action's output is `<action key>.FaaS.<function>.<handler>.<field>`, and a loop item's field is `...<field>.#.<item field>`.
 - **What mock executions can test** — `foundry workflows executions start` always runs a mock execution, which fails an app's own `functions.` references with `action not found`. Test through the installed app instead, using a near-term schedule for scheduled workflows.
 - **Privacy policy URL for Codex** — the Codex plugin manifest sets `privacyPolicyURL`, so the OpenAI Plugins Directory shows the CrowdStrike privacy notice.
+- **Cases and RTR scopes** — `functions-falcon-api`'s scope table lists `CaseManagement` (`cases:read`, `cases:write`), `RealTimeResponse` (`real-time-response:read` and `:write`, which covers `runscript`), and `RealTimeResponseAdmin` (`real-time-response-admin:write` for `put` and `run`).
 
 ### Changed
 
