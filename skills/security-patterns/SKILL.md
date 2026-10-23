@@ -50,7 +50,7 @@ Two undocumented constraints, each a silent first-attempt failure if missed: **`
 
 > **Prefix the key and role name with your app name.** Permission and role names are unique CID-wide; a generic name (`app:access`, `Operator`) collides with other apps' identically-named entries on the same tenant and the deploy fails with no useful error.
 
-**2. Role** — appears automatically under `auth.roles` after step 1. Inspect it there; don't create it separately.
+**2. Role** — appears automatically under `auth.roles` after step 1; inspect it there, and do NOT run `foundry auth roles create` for it (that would orphan a duplicate role). Reserve standalone `foundry auth roles create` for a role built *independently* of `permissions create` — e.g. one that bundles permission keys that already exist (via `--permissions`); it creates a role but no permission.
 
 **3. Artifact gates** — reference the permission **key** in the `permissions:` list of each artifact. Gating a page does NOT hide its nav link — gate both:
 
@@ -78,7 +78,7 @@ collections:
 `foundry auth permissions create` / `foundry auth roles create` prints: *"Your new role will be automatically assigned to all Falcon Administrators and can later be assigned to other users individually."* Implications:
 
 - The console role view shows **"0 users"** — that counts only *explicit* assignments; the Falcon Admin grant is implicit and invisible there. The role is active even at zero.
-- **You cannot make an app admin-exclusive via RBAC** — admins always hold the permission and bypass every gate (consistent with Workflows being non-gateable above).
+- **RBAC can't exclude Falcon Administrators** — admins always hold the permission and bypass every gate, so you can't lock them *out* (consistent with Workflows being non-gateable above). Restricting an app *to* admins is the easy direction: create the permission and simply never assign its role to a non-admin.
 - It **cushions lockout**: if your own account is a Falcon Admin you keep implicit access even if you forget to assign the role before release. Assign explicitly anyway.
 
 ### Lockout-safe RBAC rollout
@@ -91,10 +91,9 @@ Turning on RBAC is the one change that can lock you out of your own app mid-rele
 4. **Release only after you've confirmed your own access** — open the app and verify you can still reach it.
 5. Upgrade in the App Catalog; users need the role assigned before the gate applies to them.
 
-**Rollback needs no app access** — App Manager upgrade/uninstall are console-admin capabilities the app's own RBAC cannot block:
+**Rollback needs no app access** — App Manager upgrade/uninstall are console-admin capabilities the app's own RBAC cannot block. Do NOT `git checkout manifest.yml` to roll back: that also discards the `app_id` and per-artifact IDs the deploy wrote back, so the next deploy fails with *"an app with the provided name already exists."* Revert only the RBAC additions, leaving every deploy-written ID in place — delete the `auth.permissions` and `auth.roles` entries you added, and remove the `permissions:` gate list from each artifact you gated (or commit the deploy-written IDs first, then revert just those sections). Then:
 
 ```bash
-git checkout manifest.yml       # reverts the permission, role, and all artifact gates
 foundry apps deploy --no-prompt
 foundry apps release --change-type patch --no-prompt
 ```
@@ -114,7 +113,6 @@ Scopes control which Falcon Platform APIs the app can access. Format: `<source>:
 | API integrations, Collections, Dashboards, Queries, UI navigation, UI sockets, Workflows | Functions, UI extensions, UI pages, RTR scripts |
 
 ```bash
-foundry auth roles create --name "Analyst" --description "Read-only analyst access" --no-prompt
 foundry auth scopes add --scopes "devices:read,detects:read" --no-prompt
 ```
 

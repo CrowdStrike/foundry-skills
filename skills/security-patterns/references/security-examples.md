@@ -560,9 +560,10 @@ foundry apps validate --no-prompt && foundry apps deploy --no-prompt
 foundry apps release --change-type minor --no-prompt
 ```
 
-Rollback (needs no app access):
+Rollback (needs no app access). Do NOT `git checkout manifest.yml` — that discards the `app_id` and per-artifact IDs the deploy wrote back, and the next deploy fails with `an app with the provided name already exists`. Instead revert only the RBAC additions (delete the `auth.permissions` / `auth.roles` entries you added and the per-artifact `permissions:` gates), leaving the deploy-written IDs in place:
 
 ```bash
-git checkout manifest.yml && foundry apps deploy --no-prompt && foundry apps release --change-type patch --no-prompt
+# after reverting only the auth.permissions / auth.roles entries + artifact permissions: gates
+foundry apps deploy --no-prompt && foundry apps release --change-type patch --no-prompt
 # then upgrade in the App Catalog
 ```
