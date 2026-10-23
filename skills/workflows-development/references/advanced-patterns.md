@@ -160,6 +160,47 @@ actions:
 
 > **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
 
+## Diamond joins & the 2001 cyclic reference
+
+Fusion builds a DAG. A node inside a parallel branch must not reach a downstream join **both directly and through a child** — Fusion treats that as a cycle and fails the deploy with `2001 cyclic reference to previously seen node`. This bites whenever one parallel sibling also feeds another sibling that converges on the same join.
+
+**❌ Fails — `Services` fans to the `ELP` join both directly and via `Partner`:**
+
+```yaml
+actions:
+    ExecSummary:
+        next: [Services, ModuleGap]
+    Services:
+        next: [ELP, Partner]      # direct edge to the join …
+    Partner:
+        next: [ELP]               # … AND via a child → cycle
+    ModuleGap:
+        next: [ELP]
+    ELP:
+        next: [StoreResults]
+# → 2001 cyclic reference to previously seen node … FROM_Partner_TO_parallel_Services
+```
+
+**✅ Fixed — linearize the `Services → Partner` leg so each node is a single-path ancestor of the join:**
+
+```yaml
+actions:
+    ExecSummary:
+        next: [Services, ModuleGap]
+    Services:
+        next: [Partner]           # linear chain, no direct ELP edge
+    Partner:
+        next: [ELP]
+    ModuleGap:
+        next: [ELP]
+    ELP:
+        next: [StoreResults]
+```
+
+`Services`' data pill still reaches `ELP` because `Services` remains an ancestor via `Partner` — you do **not** need the direct edge, and adding it is exactly what creates the cycle.
+
+**Silent variant — the empty pill.** The same shape fails *without any error* when a store/aggregator reads `${data['X.response']}` off a node `X` that sits on a diamond fork: at the join the pill resolves to an **empty string**, not an error, so the workflow "succeeds" with blank data. The fix is identical — make any node whose `.response` you read a single-path ancestor of the reader (linearize the fork), never a shared fork feeding the join two ways.
+
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |
@@ -195,3 +236,14 @@ If you catch yourself:
 
 - [API Pagination Strategies for Falcon Foundry Functions and Workflows](https://www.crowdstrike.com/tech-hub/ng-siem/api-pagination-strategies-for-falcon-foundry-functions-and-workflows/)
 - [Build API Integrations with Falcon Fusion SOAR HTTP Actions](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/)
+
+## Sticky-409 recovery
+
+Any structural edit that re-provisions a workflow (new action, edited `next`/edge, added trigger parameter, rename) can 409 with `Duplicate workflow name` / `system definition with id … already provisioned on cid …`. Deleting the Fusion workflow does NOT free the name — a used name stays reserved. Reliable escape — rename to a brand-new unique name AND strip the id:
+
+1. In `workflows/*.yaml`, change `name:` to a new, never-used value.
+2. In `manifest.yml`, change the matching `workflows: - name:` to that same new value AND delete the entry's `id:`.
+3. Deploy. Foundry provisions a fresh workflow and writes a new `id` back into the manifest (commit it). The old workflow is a harmless orphan.
+4. If the UI triggers the workflow by name, update the `WORKFLOW_NAME` constant(s) — a stale name is a silent 404 at run time.
+
+Stripping the `id` alone is not enough; the name is what's reserved. Rename + id-strip together forces a clean re-provision — no fresh app needed.

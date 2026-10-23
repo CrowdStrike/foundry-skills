@@ -58,3 +58,18 @@ Workflows can invoke Charlotte AI (CrowdStrike's LLM) as a workflow action. Use 
 ## CEL Expressions and Variable Injection
 
 CEL handles data transformation and field access; all variable references use `${data['...']}` syntax (NOT `${steps.*.output}` or `${secrets.*}`, which do not resolve). For the full pattern catalog — null-safe access, the `has()` vs `!= null` distinction, optionals, and CrowdStrike extensions — see [cel-expressions.md](cel-expressions.md).
+
+## Common platform action IDs
+
+Verified identical across us-1, us-2, and eu-1 clouds. For any action not listed, use `foundry workflows actions view --name "..." --no-prompt` (there are 9,000+ platform actions — never guess an ID).
+
+| Action Name | ID |
+|------------|-----|
+| Create variable | `702d15788dbbffdf0b68d8e2f3599aa4` |
+| Update variable | `6c6eab39063fa3b72d98c82af60deb8a` |
+| Print data | `aadbf530e35fc452a032f5f8acaaac2a` |
+| Sleep | `4f1af1ae4c13dc1e3bcd725f8dc0f63b` |
+| Send email | `07413ef9ba7c47bf5a242799f59902cc` |
+| Request human input - Send email | `d6731c10b24834e2e0f4bd9d390a29c8` |
+| Get device details | `6265dc947cc2252f74a5f25261ac36a9` |
+| Contain device | `bec9fbeb4999d207937854fd56088107` |
