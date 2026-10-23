@@ -81,7 +81,7 @@ Functions called via `id: functions.{name}.{handler}` must have `workflow_integr
 
 > **⚠️ Every non-empty `properties:` on a function action needs a declared `request_schema`.** If the action passes `properties` but the function's manifest handler has `request_schema: null`, Foundry **silently drops the inputs** — the handler receives empty strings, not an error. Symptom: a function that "runs fine" but behaves as if it got blank input. Declare the schema at create time via `foundry functions create … --input-schema` (hand-editing the manifest does not bind it).
 
-**Calling the app's own AI agent**: `id: ai_agents.<agent name>` with `input` (the prompt) and `version_constraint: ~1`; the agent needs `exposure.workflows.system_action: true`. `apps validate` doesn't resolve it — check the deploy output. See `ai-agents-development`'s `references/workflow-invocation.md`.
+**Calling the app's own AI agent**: `id: ai_agents.<agent name>` with `input` (the prompt) and `version_constraint: ~1`; the agent needs `exposure.workflows.system_action: true`, and its reply is read downstream as `${data['action_key.response']}`. `apps validate` doesn't resolve it — check the deploy output. Full walkthrough (aliasing, the `(2018) Action was not found` trap, `json_with_schema` field access) in the `ai-agents-development` skill's `references/workflow-invocation.md`.
 
 > **⚠️ Reading Falcon alerts/detections/incidents? Depends on whether the workflow already holds the object.** *Enriching* one the workflow was triggered on (query by its ID) → Event Query action, schemaless. *Fetching a population you don't have* ("summarize all high-severity alerts") → source-of-truth API: a native platform action (e.g. Cases → Search Cases) or a FalconPy `Alerts`/`Detects` function — an Event Query can silently return nothing (NG-SIEM contents are connector-dependent). See [references/event-query-vs-api.md](references/event-query-vs-api.md).
 
@@ -117,7 +117,7 @@ CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842
 
 ## Control Flow
 
-**Loops** iterate over arrays or paginate with cursor-based conditions. They are self-contained sub-workflows at the root `loops:` level; the action before a loop MUST name it in its `next:` list or the loop deploys but never runs. A loop item is referenced with `${<input>.#}`, and a loop item's field is `...<field>.#.<item field>`.
+**Loops** iterate over arrays or paginate with cursor-based conditions. They are self-contained sub-workflows at the root `loops:` level; the action before a loop must name it in its `next:` list or the loop deploys but never runs. A loop item is referenced with `${<input>.#}`, and a loop item's field is `...<field>.#.<item field>`.
 
 **Conditions** route with an FQL-style `expression:` or a CEL `cel_expression:`, each with an optional `else:` fallback branch.
 
