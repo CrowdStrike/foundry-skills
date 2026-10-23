@@ -173,7 +173,6 @@ actions:
             - UpdateVariable
         id: functions.anomali-ioc-ingest.Anomali Ingest
         properties:
-            fail_fast_enabled: false
             limit: 1000
             repository: search-all
             status: active
@@ -219,7 +218,6 @@ loops:
                     - UpdateVariable2
                 id: functions.anomali-ioc-ingest.Anomali Ingest
                 properties:
-                    fail_fast_enabled: false
                     limit: 1000
                     next: ${data['WorkflowCustomVariable.next']}
                     repository: search-all

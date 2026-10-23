@@ -132,6 +132,8 @@ agent "my_agent" input_schema is required when input_format is json
 >
 > Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors": for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put ranges in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
 
+`output_format: json` drops replies that aren't valid JSON, and agents the app creates are app-owned: see [manifest-schema](references/manifest-schema.md#output-format-json-and-long-replies).
+
 ## Manifest Structure
 
 Everything lands under one top-level `ai:` key, which is omitted entirely when empty:

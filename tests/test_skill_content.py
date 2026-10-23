@@ -789,3 +789,125 @@ class TestAppUpgrades:
 
     def test_falcon_prefix(self):
         assert "Falcon Foundry" in _read_skill(self.SKILL)
+
+
+class TestLiveAppLessonsRound2:
+    """More facts from live app builds that cost a wrong release or a redesign.
+
+    An unbuilt UI that ships the previous bundle, agent replies thrown away by
+    output_format json, agents users can't edit, a workflow flag that was only
+    a function input, threads with no token, and integrations with no role check.
+    """
+
+    WORKFLOW = "skills/development-workflow/SKILL.md"
+    DEPLOY_PATTERNS = "skills/development-workflow/references/advanced-patterns.md"
+    AGENT_MANIFEST = "skills/ai-agents-development/references/manifest-schema.md"
+    AUTH_EXAMPLES = "skills/api-integrations/references/auth-examples.md"
+    AGENTS_SKILL = "skills/ai-agents-development/SKILL.md"
+    INVOCATION = "skills/ai-agents-development/references/workflow-invocation.md"
+    WF_SKILL = "skills/workflows-development/SKILL.md"
+    WF_PATTERNS = "skills/workflows-development/references/advanced-patterns.md"
+    WF_EXAMPLES = "skills/workflows-development/references/workflow-examples.md"
+    FALCON_API = "skills/functions-falcon-api/SKILL.md"
+    FALCON_API_PATTERNS = "skills/functions-falcon-api/references/advanced-patterns.md"
+    SECURITY = "skills/security-patterns/SKILL.md"
+    INTEGRATIONS = "skills/api-integrations/SKILL.md"
+
+    def test_deploy_does_not_build_ui_and_release_numbering(self):
+        content = _read_skill(self.WORKFLOW)
+        assert "Deploy never builds a UI" in content
+        assert "foundry apps deploy --diff-only --no-prompt" in content
+        patterns = _read_skill(self.DEPLOY_PATTERNS)
+        assert "ships the previous bundle with no error" in patterns
+        assert "a release continues from the last release" in patterns
+
+    def test_json_output_discards_invalid_replies(self):
+        assert "drops replies that aren't valid JSON" in _read_skill(self.AGENTS_SKILL)
+        content = _read_skill(self.AGENT_MANIFEST)
+        assert "output_format_error" in content
+        assert "use `output_format: text`, ask for JSON in the system prompt" in content
+
+    def test_app_created_agents_are_app_owned(self):
+        assert "agents the app creates are app-owned" in _read_skill(self.AGENTS_SKILL)
+        content = _read_skill(self.AGENT_MANIFEST)
+        assert "### Who owns an agent" in content
+        assert "customer-supplied API client through an API integration" in content
+
+    def test_invocation_default_duration_matches_cli(self):
+        content = _read_skill(self.INVOCATION)
+        assert "the default is 30 and the maximum 900" in content, "foundry functions create --help: default 30"
+        assert "gateway `500`" in content
+
+    def test_continue_on_error_replaces_fail_fast_enabled(self):
+        for path in (self.WF_SKILL, self.WF_PATTERNS, self.WF_EXAMPLES):
+            content = _read_skill(path)
+            assert "fail_fast_enabled: false" not in content, \
+                f"{path}: fail_fast_enabled is a function input, not a workflow flag"
+        patterns = _read_skill(self.WF_PATTERNS)
+        assert "continue_on_error: true" in patterns
+        assert "ErrorCode`, `ErrorType`, `HandledBy`, `Message`, and `SourceNodeID`" in patterns
+        assert "validate_only` import both accept unknown action keys and broken CEL" in patterns
+        assert "continue_on_error: true" in _read_skill(self.WF_SKILL)
+
+    def test_threads_shared_cid_and_workflows_api(self):
+        patterns = _read_skill(self.FALCON_API_PATTERNS)
+        assert "contextvars.copy_context().run" in patterns
+        assert "## Listing on a Shared CID" in patterns
+        assert "never use a first call's total as the loop bound" in patterns
+        assert "unsupported workflow artifact operation" in patterns
+        assert "worker threads" in _read_skill(self.FALCON_API)
+
+    def test_integration_role_gap_and_install_form(self):
+        assert "An API integration has no role check, so gate the page that calls it" in _read_skill(self.SECURITY)
+        content = _read_skill(self.INTEGRATIONS)
+        assert "Put setup steps in `info.description`" in content
+        assert "stray `[object Object]` entry" in _read_skill(self.AUTH_EXAMPLES)
+
+
+class TestUiPlatformFacts:
+    """Facts checked in a deployed Foundry page (falcon-shoelace 0.4.0, US-2, 2026-10-23).
+
+    The default CSP allows the jsdelivr CDN and data: URLs, local SVG icons can't
+    ship, falcon-shoelace has no tag or badge styles and one stylesheet, and the
+    console theme arrives as theme-light/theme-dark on <html>.
+    """
+
+    UI = "skills/ui-development"
+
+    def _all(self):
+        root = os.path.join(_ROOT, self.UI)
+        out = {}
+        for dirpath, _, files in os.walk(root):
+            for name in files:
+                if name.endswith(".md"):
+                    rel = os.path.relpath(os.path.join(dirpath, name), _ROOT)
+                    out[rel] = _read_skill(rel)
+        return out
+
+    def test_no_badge_or_tag_in_examples(self):
+        for path, content in self._all().items():
+            for bad in ("<sl-badge", "<SlBadge", "<sl-tag", "<SlTag"):
+                assert bad not in content, f"{path}: falcon-shoelace doesn't style {bad}"
+
+    def test_falcon_shoelace_has_no_themes_folder(self):
+        for path, content in self._all().items():
+            assert "falcon-shoelace/dist/themes/" not in content, f"{path}: only dist/style.css exists"
+
+    def test_theme_comes_from_console_not_os(self):
+        theming = _read_skill(f"{self.UI}/references/falcon-theming.md")
+        assert "classList.toggle('sl-theme-dark'" not in theming
+        assert "never reads `sl-theme-*` classes" in theming
+
+    def test_icon_csp_facts(self):
+        theming = _read_skill(f"{self.UI}/references/falcon-theming.md")
+        assert "already allows `https://cdn.jsdelivr.net` and `data:`" in theming
+        assert "Don't serve icons from the app's own package" in theming
+        assert "copy icon assets to your `dist/`" not in _read_skill(f"{self.UI}/SKILL.md")
+
+    def test_shoelace_quirks(self):
+        ref = _read_skill(f"{self.UI}/references/shoelace-reference.md")
+        assert "Option values cannot include a space" in ref
+        assert "two tab stops" in ref
+        assert "`sl-radio[checked]` selector matches nothing" in ref
+        assert "if (e.target === e.currentTarget) setOpen(false)" in ref
+        assert "Without these overrides, dialogs appear with a white background" not in ref
