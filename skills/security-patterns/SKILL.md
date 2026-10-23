@@ -50,7 +50,13 @@ Two undocumented constraints, each a silent first-attempt failure if missed: **`
 
 > **Prefix the key and role name with your app name.** Permission and role names are unique CID-wide; a generic name (`app:access`, `Operator`) collides with other apps' identically-named entries on the same tenant and the deploy fails with no useful error.
 
-**2. Role** — appears automatically under `auth.roles` after step 1; inspect it there, and do NOT run `foundry auth roles create` for it (that would orphan a duplicate role). Reserve standalone `foundry auth roles create` for a role built *independently* of `permissions create` — e.g. one that bundles permission keys that already exist (via `--permissions`); it creates a role but no permission.
+**2. Role** — appears automatically under `auth.roles` after step 1; inspect it there, and do NOT run `foundry auth roles create` for it (that would orphan a duplicate role). Reserve standalone `foundry auth roles create` for a role built *independently* of `permissions create` — e.g. one that bundles permission keys that already exist (via `--permissions`); it creates a role but no permission:
+
+```bash
+foundry auth roles create --name "Analyst" --permissions "myapp:access,myapp:report" --description "Read-only analyst access" --no-prompt
+```
+
+That makes a second role carrying already-created permission keys; it does NOT create a new permission. Use it only when you deliberately want a role separate from the one `permissions create` already made — never to "add" the role from step 1.
 
 **3. Artifact gates** — reference the permission **key** in the `permissions:` list of each artifact. Gating a page does NOT hide its nav link — gate both:
 
