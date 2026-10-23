@@ -33,7 +33,7 @@ For exposing external APIs to Foundry via OpenAPI specs, see **api-integrations*
 
 | Topic | Reference |
 |-------|-----------|
-| Retry decorator with exponential backoff, multi-API enrichment, counter-rationalizations table | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Retry, worker threads, shared-CID listing, Workflows API as the app, enrichment | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Python: Zero-Argument Authentication
 
