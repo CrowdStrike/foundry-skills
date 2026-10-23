@@ -1,6 +1,6 @@
 # Collections Advanced Patterns
 
-Reference material for schema migrations, testing, pagination, and extended collection patterns. Load when implementing advanced collection features beyond basic CRUD.
+Reference material for the full CRUD client walkthroughs (TypeScript and Python), schema migrations, testing, pagination, and extended collection patterns. Load when implementing collection CRUD or advanced features beyond the basics in SKILL.md.
 
 ## Full Incident TypeScript Interface
 
