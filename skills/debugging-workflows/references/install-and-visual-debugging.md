@@ -10,7 +10,7 @@ When a Foundry app fails to install with no useful error message, isolate the pr
 
 > **Example:** Apps failed to install with no detail. API integration tested fine. Editing the workflow in the console revealed "unknown variable" on the Print data action — the CEL variable path was missing the `Custom_` prefix the platform adds to all API integration names. The install error gave no hint; the workflow editor showed it immediately.
 
-# Visual Debugging with Screenshots
+## Visual Debugging with Screenshots
 
 Claude Code can read images directly. When the Falcon console shows something unexpected — a blank page, an error modal, a disabled button — a screenshot is often the fastest way to diagnose the issue.
 
