@@ -191,3 +191,36 @@ knowledge-bases/Threat_Intel_Docs/iocs.csv
 ```
 
 And the referenced collection must be exposed on its own side: `collections.triage_notes` created with `--agent-tools-expose`.
+
+## Schema file names are fixed
+
+The Foundry API reads only `input_schema.json` and `output_schema.json` from the agent directory, ignoring any other filename or an inline schema. Name the local file passed to `--output-schema` / `--input-schema` that way first (download a URL source if needed). CLI 2.1.2+ writes the schema under that name whatever you pass and rejects any other value on every manifest load, so a wrong name breaks every command in the app:
+
+```
+agent "my_agent" output_schema must be "output_schema.json": rename agents/my_agent/verdict.json to output_schema.json and set output_schema: output_schema.json in manifest.yml
+```
+
+CLI 2.1.1 and earlier keep the source name, pass `apps validate`, and fail deploy with `output schema is required when using JSON format` (verified 2026-09-22). Either way, put the schema at `agents/<path>/output_schema.json` (`input_schema.json`) and set the matching key to that name.
+
+Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors" — e.g. `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put ranges in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
+
+## Exposing an artifact as an agent tool
+
+The artifact must be exposed on its own side AND named in the agent's `tools` list — one without the other silently can't be called, with no error at validate or deploy.
+
+```bash
+# Collections: one flag at create time
+foundry collections create --name "triage_notes" --schema /tmp/schema.json \
+  --description "Agent triage notes" --agent-tools-expose --no-prompt
+```
+
+That writes `agent_tools_integration: {exposed: true}` onto the collection (see `collections-development`). API integrations opt in per operation inside the OpenAPI spec, alongside the workflow config (see `api-integrations`):
+
+```json
+"x-cs-operation-config": {
+  "agent_tools": { "name": "Get_a_file_report", "description": "get a file report", "expose_to_agent": true },
+  "workflow": { "name": "Get a file report", "description": "Get a file report", "system": false }
+}
+```
+
+`agent_tools` and `workflow` are independent — an operation can be exposed to agents, to workflows, to both, or to neither. No other artifact type supports agent-tool exposure: functions, workflows, and RTR scripts have no equivalent flag; to let an agent reach a function, expose the function to workflows and have the agent trigger the workflow.

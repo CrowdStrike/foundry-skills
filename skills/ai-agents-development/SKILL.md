@@ -40,35 +40,21 @@ The agent directory is rolled back, so nothing is left half-created.
 
 ## Naming and Description Constraints
 
-Both artifacts share the CLI's standard validators at create time. These bite constantly:
-
-| Constraint | Rule |
-|-----------|------|
-| Name length | **5–100 characters** at create — `kb`, `agent`, and `bot` all fail |
-| Name characters | Alphanumeric plus space and `' [ ] ( ) . _ -` — must start with alphanumeric |
-| Description length | 3–500 characters when present (optional, but `-d "x"` fails) |
-| Description characters | Alphanumeric, whitespace, and `: ' [ ] ( ) , . / _ -` |
-| Uniqueness | Agent names unique among agents; KB names unique among KBs |
-
-Knowledge bases are the one asymmetry: the create command enforces the 5-character floor, but the *manifest* validator only requires 1 character and no longer checks the description at all. So `--name "kb"` is rejected by `knowledge-bases create`, but a manifest that already carries a short KB name passes `foundry apps validate`.
-
-The on-disk directory is a sanitized form of the name: every character outside `[a-zA-Z0-9-_]` becomes `_`. `--name "Threat Intel Docs"` yields `knowledge-bases/Threat_Intel_Docs/` and records `path: Threat_Intel_Docs`. The manifest resolves files against `path`, never against `name`.
+Both artifacts share the CLI's create-time validators, which bite constantly: **names are 5–100 chars** (must start alphanumeric; `kb`, `agent`, `bot` all fail), **descriptions 3–500 chars** when present (`-d "x"` fails), agent names unique among agents and KB names among KBs. KBs are the one asymmetry — `knowledge-bases create` enforces the 5-char floor, but the *manifest* validator accepts a 1-char KB name (and no longer checks the description), so a short name already in the manifest passes `apps validate`. The on-disk directory is a sanitized form of the name (every char outside `[a-zA-Z0-9-_]` → `_`): `--name "Threat Intel Docs"` yields `knowledge-bases/Threat_Intel_Docs/` and records `path: Threat_Intel_Docs`; the manifest resolves files against `path`, never `name`. Full regex/length table: [references/manifest-schema.md](references/manifest-schema.md#shared-validators).
 
 ## CLI Scaffolding
 
 Both artifacts support `create` and `delete`. There is no `list` or `edit` — to rename or reconfigure an existing agent beyond the hand-editable fields, delete it and create it again.
 
 ```bash
-# 1. Knowledge base FIRST. --files is REQUIRED with --no-prompt.
-#    Accepts local paths and HTTP(S) URLs (downloaded at create time).
+# 1. Knowledge base FIRST (--files REQUIRED with --no-prompt; accepts local paths and HTTP(S) URLs).
 foundry knowledge-bases create \
   --name "Threat Intel Docs" \
   --description "Runbooks and IOC references" \
   --files ./runbook.md,./iocs.csv \
   --no-prompt
 
-# 2. Agent SECOND, referencing the KB by NAME (not id, not path).
-#    Plain json needs no schema. For enforced structure use json_with_schema with
+# 2. Agent SECOND, referencing the KB by NAME. Plain json needs no schema; json_with_schema needs
 #    --output-schema pointing at a file named output_schema.json (see below).
 foundry agents create \
   --name "Detection Triage Agent" \
@@ -84,30 +70,18 @@ foundry agents create \
 
 ### Deleting agents and knowledge bases
 
-`delete` removes the manifest entry **and** the artifact's directory. It takes `--name` plus the usual `--no-prompt`, exactly like every other Foundry command:
+`delete` removes the manifest entry **and** the artifact's directory. It takes `--name` (matching `manifest.yml`) plus `--no-prompt` (required — an unknown name then fails fast instead of opening a picker):
 
 ```bash
 foundry agents delete --name "Detection Triage Agent" --no-prompt
 foundry knowledge-bases delete --name "Threat Intel Docs" --no-prompt
 ```
 
-`--name` must match the name in `manifest.yml`; with `--no-prompt` it is required (`flag --name is required when --no-prompt flag is used`) and an unknown name fails fast rather than opening a picker.
-
-A knowledge base still referenced by an agent cannot be deleted:
-
-```
-cannot delete knowledge base "Threat Intel Docs": still referenced by agent(s): Detection Triage Agent
-```
-
-Delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty `agents/` and `knowledge-bases/` parent directories behind; that is harmless.
-
-`delete` is local-only. The next deploy leaves the previously deployed agent in Charlotte AI > AgentWorks as an unpublished orphan, so recreating one under the same name shows two entries. Remove the orphan by hand in the console, and match agents at runtime by the IDs in `manifest.yml`, not by name. `foundry apps delete` does remove the platform-side agents.
+A KB still referenced by an agent cannot be deleted (`cannot delete knowledge base "X": still referenced by agent(s): …`) — delete the agent first, or remove the KB from its `knowledge_bases` list. Deleting the last artifact leaves the empty parent dirs behind (harmless). `delete` is local-only: the next deploy leaves the previously deployed agent in Charlotte AI > AgentWorks as an unpublished orphan (recreating under the same name shows two entries), so remove the orphan by hand and match agents at runtime by the IDs in `manifest.yml`, not by name. `foundry apps delete` does remove the platform-side agents.
 
 ### The `--system-prompt` value is a path *or* literal text
 
-The CLI tries to read the value as a file path or URL first, and silently falls back to treating it as inline prompt text when that fails. Either way the content is written to `agents/<path>/system_prompt.txt`, always under that exact filename.
-
-Consequence: a typo'd path becomes your system prompt. `--system-prompt ./prmopts/triage.md` produces an agent whose entire instruction set is the string `./prmopts/triage.md`, with no error. **Always read back `agents/<path>/system_prompt.txt` after creating an agent.** Omitting the flag entirely yields a generic default prompt.
+The CLI reads the value as a file path/URL first and silently falls back to treating it as inline prompt text when that fails — always writing to `agents/<path>/system_prompt.txt`. So a typo'd path (`./prmopts/triage.md`) becomes your entire system prompt with no error. **Always read back `agents/<path>/system_prompt.txt` after creating an agent.** Omitting the flag yields a generic default prompt.
 
 ### Input and output formats
 
@@ -116,21 +90,9 @@ Consequence: a typo'd path becomes your system prompt. `--system-prompt ./prmopt
 | `--input-format` | `text`, `json` | `text` | `json` requires `--input-schema`, and the file **must be named `input_schema.json`** |
 | `--output-format` | `text`, `json`, `json_with_schema`, `markdown`, `html` | `text` | `json_with_schema` requires `--output-schema`, and the file **must be named `output_schema.json`** (see below) |
 
-Note the asymmetry: `output_format: json` needs **no** schema, only `json_with_schema` does. Omitting the paired schema is caught late, when the manifest is saved:
+Note the asymmetry: `output_format: json` needs **no** schema; only `json_with_schema` does. Omitting the paired schema is caught late at manifest save (`agent "my_agent" input_schema is required when input_format is json`).
 
-```
-agent "my_agent" input_schema is required when input_format is json
-```
-
-> **The schema file name is fixed.** The Foundry API reads only `input_schema.json` and `output_schema.json` from the agent directory, ignoring any other filename or an inline schema. Give the local file passed to `--output-schema` (`--input-schema`) that name first, downloading a URL source if needed. CLI 2.1.2 and later write the schema under that name whatever you pass, and reject any other value on every manifest load, so a wrong name breaks every command in the app:
->
-> ```
-> agent "my_agent" output_schema must be "output_schema.json": rename agents/my_agent/verdict.json to output_schema.json and set output_schema: output_schema.json in manifest.yml
-> ```
->
-> CLI 2.1.1 and earlier keep the source name, pass `apps validate`, and fail deploy with `output schema is required when using JSON format` (verified 2026-09-22). Either way, put the schema at `agents/<path>/output_schema.json` (`input_schema.json`) and set the matching key to that name.
->
-> Once bound, the schema is validated against the agent's model at deploy, and that failure is only visible in App manager > app > deployment > "Show errors": for example `output schema at root.properties.score uses unsupported schema keyword maximum, minimum` for Claude on Bedrock. Stick to `type`, `properties`, `required`, `enum`, `description`, and `additionalProperties: false`; put ranges in `description`. OpenAI models also need `additionalProperties: false` on every object and every property in `required`.
+> **The schema file name is fixed** — it must be `input_schema.json` / `output_schema.json` in the agent directory (any other filename or an inline schema is rejected and breaks every CLI command in the app), and the bound schema is re-validated against the agent's model at deploy (unsupported keywords like `minimum`/`maximum` surface only in App manager "Show errors"). Full error strings + allowed keywords: [references/manifest-schema.md](references/manifest-schema.md#schema-file-names-are-fixed).
 
 ### Keeping a large-JSON agent from bailing to prose or timing out
 
@@ -143,57 +105,15 @@ An agent asked for a big structured object fails two ways: it emits a prose prea
 
 ## Manifest Structure
 
-Everything lands under one top-level `ai:` key, which is omitted entirely when empty:
-
-```yaml
-ai:
-    agents:
-        - id: cfa84addde80471fb2ffcb67460ca688   # CLI-generated, 32 hex chars
-          name: Detection Triage Agent
-          description: Triages detections against the runbooks
-          path: Detection_Triage_Agent           # sanitized name
-          model: ""                              # empty unless the user named one
-          tools:                                 # hand-edited, see below
-            - action:collections.triage_notes.CreateObject
-          system_prompt: system_prompt.txt
-          input_format: text
-          output_format: json                    # json_with_schema adds output_schema: output_schema.json
-          knowledge_bases:
-            - Threat Intel Docs                  # by NAME
-          exposure:                              # omitted entirely when nothing is exposed
-            workflows:
-                system_action: false
-            charlotte_chat: true
-            agent_as_tool: false
-    knowledge_bases:
-        - id: 328ff55985c24616ad895336b855c90d
-          name: Threat Intel Docs
-          description: Runbooks and IOC references
-          encrypt: false
-          path: Threat_Intel_Docs
-          files:                                 # bare filenames only
-            - runbook.md
-            - iocs.csv
-```
-
-On disk:
-
-```
-agents/Detection_Triage_Agent/system_prompt.txt
-knowledge-bases/Threat_Intel_Docs/runbook.md
-knowledge-bases/Threat_Intel_Docs/iocs.csv
-```
+Everything lands under one top-level `ai:` key (omitted when empty): `ai.agents[]` (id, name, description, path, model, tools, system_prompt, input/output_format, knowledge_bases by NAME, exposure) and `ai.knowledge_bases[]` (id, name, description, encrypt, path, bare-filename files). System prompts live at `agents/<path>/system_prompt.txt`; KB files at `knowledge-bases/<path>/<file>`. Full annotated YAML + on-disk layout: [references/manifest-schema.md](references/manifest-schema.md#full-worked-example).
 
 ## Two Fields the CLI Cannot Set
 
 `model` and `tools` have **no CLI flags**. `foundry agents create` always writes `model: ""` and omits `tools`. Configuring them means editing `manifest.yml` directly.
 
-> **This is a narrow, explicit exception to the plugin-wide rule against editing `manifest.yml`**, which protects the CLI-owned `id`, `path`, `entrypoint`, and scopes. These two fields have no CLI path at all. Edit **only** these keys under `ai.agents[]` (plus a schema key that names the wrong file; see above); leave `id`, `path`, `system_prompt`, and every other artifact's entries alone.
+> **This is a narrow, explicit exception to the plugin-wide rule against editing `manifest.yml`** (which protects the CLI-owned `id`, `path`, `entrypoint`, scopes). Edit **only** `model`/`tools` under `ai.agents[]` (plus a schema key naming the wrong file); leave everything else alone.
 
-- **`model`** — **never invent a model ID.** There is no client-side list of valid IDs, so anything you make up produces a manifest that validates locally and fails server-side at deploy. Three cases:
-  - **Nothing supplied** — leave `""`. The platform default applies.
-  - **User named a specific model** — write exactly what they gave you, and tell them it is only checked server-side at deploy. Honoring their choice is correct even if it later fails; guessing a "close enough" ID on their behalf is not.
-  - **A value is already there** — leave it alone. Do not blank it out or substitute your own.
+- **`model`** — **never invent a model ID** (there's no client-side list, so a made-up ID validates locally and fails server-side at deploy). Nothing supplied → leave `""` (platform default). User named one → write it verbatim and note it's only checked at deploy; don't guess a "close enough" ID. Already set → leave it.
 - **`tools`** — a list of `<type>:<reference>` strings, not validated client-side. See below.
 
 **No other tuning knobs exist.** Agents have no temperature or token settings, and knowledge bases have no chunk size, embedding, similarity, or `top_k`; indexing is server-side. Never add such keys to the manifest. Tell the user those settings aren't available.
@@ -212,18 +132,7 @@ Three behaviors worth knowing:
 
 - **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted (same as all three `false`), and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
 - **An AgentWorks-managed agent must be PUBLISHED before the workflow that references it deploys.** The `--expose-workflow-system-action` flow above is for CLI-scaffolded agents this app owns. When the agent is instead built or edited in Charlotte AI > AgentWorks (outside the CLI tree) and called from a workflow as `ai_agents.<name>`, it is *publishing it in AgentWorks* that registers the dispatchable Fusion action. Deploy the referencing workflow before that publish and Fusion rejects it with `(2015) action <name>_<cid> does not exist` — the action isn't there yet. Publish the agent, confirm it reads as published, then deploy the workflow.
-- **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature to invoke this one. The check runs before any files are written:
-
-  ```
-  --input-schema is required when --expose-agent-as-tool is set
-  ```
-
-  The same rule is enforced on the manifest, so hand-adding `agent_as_tool: true` to an agent with no `input_schema` breaks every subsequent CLI command in that app:
-
-  ```
-  agent "X" input_schema is required when exposure.agent_as_tool is true
-  ```
-
+- **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature; the check runs before any files are written (`--input-schema is required when --expose-agent-as-tool is set`), and the same rule is enforced on the manifest, so hand-adding `agent_as_tool: true` without an `input_schema` breaks every subsequent CLI command in the app.
 - **Nothing else here is validated client-side.** A misspelled key under `exposure` surfaces only at deploy.
 
 Adding or removing exposure after create means editing `manifest.yml` (or deleting and re-creating the agent) — there is no `agents edit`.
@@ -246,36 +155,7 @@ Valid collection operations — exact casing required:
 
 The generic collection is a scratch collection the platform creates for the agent at runtime. Use it for agent working memory; use a named app collection when the data must outlive the agent or be readable by other capabilities.
 
-### Exposing the target artifact
-
-```bash
-# Collections: one flag at create time
-foundry collections create --name "triage_notes" --schema /tmp/schema.json \
-  --description "Agent triage notes" --agent-tools-expose --no-prompt
-```
-
-That writes `agent_tools_integration: {exposed: true}` onto the collection. See `collections-development` for schema design.
-
-API integrations opt in per operation inside the OpenAPI spec, alongside the workflow config:
-
-```json
-"x-cs-operation-config": {
-  "agent_tools": {
-    "name": "Get_a_file_report",
-    "description": "get a file report",
-    "expose_to_agent": true
-  },
-  "workflow": {
-    "name": "Get a file report",
-    "description": "Get a file report",
-    "system": false
-  }
-}
-```
-
-`agent_tools` and `workflow` are independent — an operation can be exposed to agents, to workflows, to both, or to neither. See `api-integrations` for spec adaptation.
-
-No other artifact type supports agent-tool exposure. Functions, workflows, and RTR scripts have no equivalent flag; to let an agent reach a function, expose the function to workflows and have the agent trigger the workflow.
+Exposing the target artifact on its own side — the collection `--agent-tools-expose` flag and the API-integration `x-cs-operation-config.agent_tools` block — is covered in [references/manifest-schema.md](references/manifest-schema.md#exposing-an-artifact-as-an-agent-tool) (and owned by `collections-development` / `api-integrations`). No other artifact type supports agent-tool exposure; to reach a function, expose it to workflows and have the agent trigger the workflow.
 
 ## Invoking an Agent from Code
 
@@ -302,8 +182,8 @@ Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an 
 | `must be a filename only, not a path` | Subdirectory in a KB `files` entry | Flatten — KB directories cannot nest |
 | Agent cannot call an exposed collection | Exposed but not listed in `tools` | Both sides are required |
 | Bare `500` from deploy, agent has `tools` | An entry isn't in a form from Agent Tool References | Fix the entry |
-| `output_schema must be "output_schema.json"` (or `input_schema ...`) on any command, or `output schema is required when using JSON format` at deploy | Schema file not named `output_schema.json` (`input_schema.json`), or an inline schema | Put the schema at `agents/<path>/output_schema.json` (`input_schema.json`) and set the manifest key to that name |
-| Deploy `Failed` with `output schema at root.properties.X uses unsupported schema keyword ...` in App manager "Show errors" | Schema keyword the agent's model provider rejects (`minimum`/`maximum` for Claude on Bedrock) | Drop the keyword and state the constraint in `description`; for OpenAI models also set `additionalProperties: false` on every object and list every property in `required` |
+| `output_schema must be "output_schema.json"` (or `input_schema …`), or `output schema is required when using JSON format` at deploy | Schema file misnamed, or an inline schema | Name it `output_schema.json` / `input_schema.json` under `agents/<path>/`; see [manifest-schema](references/manifest-schema.md#schema-file-names-are-fixed) |
+| Deploy `Failed` with `output schema … uses unsupported schema keyword …` in App manager "Show errors" | Keyword the agent's model provider rejects (`minimum`/`maximum` on Claude/Bedrock) | Drop it, state the constraint in `description`; see [manifest-schema](references/manifest-schema.md#schema-file-names-are-fixed) |
 | `model <id> does not support structured output` at deploy | `json_with_schema` on a model without it (Bedrock Claude and Nemotron, as of 2026-09) | Use `output_format: json` for that agent, or a model that supports it (`openai.gpt-5.5` does) |
 | Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by the IDs in `manifest.yml`, not by name |
 | Deploy fails with `model <id> is not available`, and still fails after setting `model: ""` | Model IDs are CID-specific, and a failed deploy leaves the pinned model on the platform-side agent | Pick an ID from `/agentic-studio/queries/models/v1` in that CID, or remove the agent and create it again |
