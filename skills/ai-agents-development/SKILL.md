@@ -40,7 +40,7 @@ The agent directory is rolled back, so nothing is left half-created.
 
 ## Naming and Description Constraints
 
-Both artifacts share the CLI's create-time validators, which bite constantly: **names are 5–100 chars** (must start alphanumeric; `kb`, `agent`, `bot` all fail), **descriptions 3–500 chars** when present (`-d "x"` fails), agent names unique among agents and KB names among KBs. KBs are the one asymmetry — `knowledge-bases create` enforces the 5-char floor, but the *manifest* validator accepts a 1-char KB name (and no longer checks the description), so a short name already in the manifest passes `apps validate`. The on-disk directory is a sanitized form of the name (every char outside `[a-zA-Z0-9-_]` → `_`): `--name "Threat Intel Docs"` yields `knowledge-bases/Threat_Intel_Docs/` and records `path: Threat_Intel_Docs`; the manifest resolves files against `path`, never `name`. Full regex/length table: [references/manifest-schema.md](references/manifest-schema.md#shared-validators).
+Both artifacts share the CLI's create-time validators, which bite constantly: **names are 5–100 chars** (must start alphanumeric; `kb`, `agent`, `bot` all fail), **descriptions 3–500 chars** when present (`-d "x"` fails), agent names unique among agents and KB names among KBs. KBs are the one asymmetry — `knowledge-bases create` enforces the 5-char floor, but the *manifest* validator accepts a KB name as short as 1 character (and no longer checks the description), so a short name already in the manifest passes `apps validate`. The on-disk directory is a sanitized form of the name (every char outside `[a-zA-Z0-9-_]` → `_`): `--name "Threat Intel Docs"` yields `knowledge-bases/Threat_Intel_Docs/` and records `path: Threat_Intel_Docs`; the manifest resolves files against `path`, never `name`. Full regex/length table: [references/manifest-schema.md](references/manifest-schema.md#shared-validators).
 
 ## CLI Scaffolding
 
@@ -105,7 +105,17 @@ An agent asked for a big structured object fails two ways: it emits a prose prea
 
 ## Manifest Structure
 
-Everything lands under one top-level `ai:` key (omitted when empty): `ai.agents[]` (id, name, description, path, model, tools, system_prompt, input/output_format, knowledge_bases by NAME, exposure) and `ai.knowledge_bases[]` (id, name, description, encrypt, path, bare-filename files). System prompts live at `agents/<path>/system_prompt.txt`; KB files at `knowledge-bases/<path>/<file>`. Full annotated YAML + on-disk layout: [references/manifest-schema.md](references/manifest-schema.md#full-worked-example).
+Both artifact lists live under one top-level `ai:` key (omitted when empty) — never a top-level `agents:` key:
+
+```yaml
+ai:
+  agents:           # ai.agents[]: id, name, description, path, model, tools,
+    - id: …         #   system_prompt, input/output_format, knowledge_bases (by NAME), exposure
+  knowledge_bases:  # ai.knowledge_bases[]: id, name, description, encrypt, path, bare-filename files
+    - id: …
+```
+
+System prompts live at `agents/<path>/system_prompt.txt`; KB files at `knowledge-bases/<path>/<file>`. Full annotated YAML + on-disk layout: [references/manifest-schema.md](references/manifest-schema.md#full-worked-example).
 
 ## Two Fields the CLI Cannot Set
 
@@ -130,7 +140,7 @@ Everything lands under one top-level `ai:` key (omitted when empty): `ai.agents[
 
 Three behaviors worth knowing:
 
-- **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted (same as all three `false`), and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
+- **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted entirely when nothing is exposed (the same as all three `false`) — an absent block is correct, not a missing default to "repair" — and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
 - **An AgentWorks-managed agent must be PUBLISHED before the workflow that references it deploys.** The `--expose-workflow-system-action` flow above is for CLI-scaffolded agents this app owns. When the agent is instead built or edited in Charlotte AI > AgentWorks (outside the CLI tree) and called from a workflow as `ai_agents.<name>`, it is *publishing it in AgentWorks* that registers the dispatchable Fusion action. Deploy the referencing workflow before that publish and Fusion rejects it with `(2015) action <name>_<cid> does not exist` — the action isn't there yet. Publish the agent, confirm it reads as published, then deploy the workflow.
 - **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature; the check runs before any files are written (`--input-schema is required when --expose-agent-as-tool is set`), and the same rule is enforced on the manifest, so hand-adding `agent_as_tool: true` without an `input_schema` breaks every subsequent CLI command in the app.
 - **Nothing else here is validated client-side.** A misspelled key under `exposure` surfaces only at deploy.
@@ -147,7 +157,14 @@ Each `tools` entry is `<type>:<reference>`. The artifact must be exposed on its 
 | Agent runtime collection | `action:mcp/gce/collections:collections:generic:<Operation>` |
 | API integration | `action:mcp/gce/integration:<integration id>~<hash>` (its platform tool ID) |
 
-Any other form fails the whole deploy, usually with a bare `500`. An API-integration tool ID exists only after the integration deploys, so deploy without that entry, look the ID up, then add it. See [manifest-schema](references/manifest-schema.md#tool-reference-format).
+Any other form fails the whole deploy, usually with a bare `500`. A concrete `tools` entry (note the required `action:` prefix) looks like:
+
+```yaml
+tools:
+  - action:collections.triage_notes.CreateObject
+```
+
+An API-integration tool ID exists only after the integration deploys, so deploy without that entry, look the ID up, then add it. See [manifest-schema](references/manifest-schema.md#tool-reference-format).
 
 Valid collection operations — exact casing required:
 
