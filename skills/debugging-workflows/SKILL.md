@@ -120,58 +120,7 @@ foundry functions exec list --function my-fn --no-prompt
 
 ### Function Runtime Debugging
 
-When a deployed function returns unexpected results or errors:
-
-**Step 1: Execute and observe**
-```bash
-foundry functions exec --handler <handler> --logs '{"test": "input"}' --no-prompt
-```
-
-Note the exec_id and status code from the output.
-
-**Step 2: Retrieve logs if not already displayed**
-```bash
-foundry functions logs <exec_id>
-```
-
-Logs arrive 5-10 minutes after execution via the Firehose pipeline. The CLI polls automatically with a countdown.
-
-**Step 3: Correlate logs against source**
-
-The function source lives at the path in `manifest.yml`:
-```yaml
-functions:
-  - name: my-function
-    path: functions/my-function
-    handlers:
-      - name: my_handler
-        method: POST
-        api_path: /api/process
-```
-
-Read the handler source and compare against log timestamps and error messages.
-
-**Step 4: Common runtime failures**
-
-| Log Pattern | Likely Cause | Fix |
-|-------------|-------------|-----|
-| `ImportError: No module named X` | Missing from `requirements.txt` | Add dependency, redeploy |
-| `KeyError: 'field'` | Missing field in request body | Add input validation |
-| `403` with `access denied, scope not permitted` | Scope missing from `auth.scopes`, or the update that adds it not yet accepted | Add the scope, deploy, release, and accept the update in the App Catalog |
-| `401 Unauthorized` on every call, scopes correct | FalconPy client constructed at module scope (no request token at import) | Construct the client inside the handler |
-| `403` with `app is not installed` | App deployed but not released and installed | `foundry apps release`, then install from the App Catalog |
-| `Timeout` / no logs appear | Function exceeded `max_exec_duration_seconds` | Increase timeout or optimize |
-| Status 202, no result | Async execution | Poll: `foundry functions exec status <exec_id>` |
-| Logs say "available" but empty | Logs not yet in pipeline | Wait 5-10 min or use `--refresh` |
-
-**Step 5: Fix, redeploy, verify**
-```bash
-# After fixing the code:
-foundry apps deploy --change-type Patch --change-log "fix handler error" --no-prompt
-
-# Re-execute to verify
-foundry functions exec --handler <handler> --logs '{"test": "input"}' --no-prompt
-```
+When a deployed function returns unexpected results or errors, work the exec → logs → correlate-to-source → fix → re-verify loop, and match the symptom in the runtime-failure table (ImportError, module-scope FalconPy 401, scope 403, async 202, empty logs, …). Full step-by-step + the table: [references/function-runtime-debugging.md](references/function-runtime-debugging.md).
 
 ### RTR Script Testing
 
@@ -195,11 +144,11 @@ foundry workflows executions view <execution_id>
 
 ### Deployment Diagnostics
 
-Deployment is two-phase: validation (checks manifest and schemas) then artifact build. Use `foundry apps validate --no-prompt` to dry-run the validation phase after adding API integrations or collections (catches spec/schema issues in seconds). Don't validate right before deploy — deploy runs the same validation plus workflow semantics and name uniqueness checks.
+Deployment is two-phase: validation (manifest + schemas) then artifact build. Use `foundry apps validate --no-prompt` to dry-run validation after adding API integrations or collections (catches spec/schema issues in seconds). Don't validate right before deploy — deploy re-runs the same validation plus workflow semantics and name-uniqueness checks.
 
 ### Preview Is Unreliable — Grep the Built Bundle Before Trusting a Release
 
-`foundry ui run` serves the UI locally, but backend capabilities (functions, collections, API integrations) still resolve from the cloud — and on some apps the in-console preview is effectively broken, so the only reliable way to see a UI change is deploy → release. Because of that, don't diagnose a "released fix that didn't work" from the running app alone: grep the built `dist` bundle for the change first (the literal string, new token, renamed symbol). If it isn't in the bundle, the build/package step is the problem, not the runtime — a confidence check independent of console caching and release propagation.
+`foundry ui run` resolves backend capabilities from the cloud, and on some apps the in-console preview is effectively broken — so don't diagnose a "released fix that didn't work" from the running app alone. Grep the built `dist` bundle for the change first (literal string, new token, renamed symbol). If it isn't in the bundle, the build/package step is the problem, not the runtime — independent of console caching and release propagation.
 
 ## CLI Troubleshooting
 
@@ -317,32 +266,11 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 
 ## Debugging App Install Failures
 
-When a Foundry app fails to install with no useful error message, isolate the problem by testing each component in the Falcon console:
-
-1. **Test the API integration first** — In the Falcon console, use the credentials from the install config to test the operation directly (e.g., run `listUsers` with the Okta domain and API key). This proves whether the spec and credentials work independently of the app.
-
-2. **Eliminate unlikely suspects** — Static UI files (extensions, pages) don't cause install failures. If the API integration works, the problem is almost certainly in a workflow.
-
-3. **Inspect the workflow in the console** — Open Falcon Fusion SOAR, edit the workflow, and look at each action's configuration. The workflow editor shows validation errors (like unknown variable references in CEL expressions) that the install API doesn't surface.
-
-> **Example:** Apps failed to install with no detail. API integration tested fine. Editing the workflow in the console revealed "unknown variable" on the Print data action — the CEL variable path was missing the `Custom_` prefix the platform adds to all API integration names. The install error gave no hint; the workflow editor showed it immediately.
+When an app fails to install with no useful error, isolate by component in the console: test the API integration directly first, rule out static UI files, then open the workflow in Fusion SOAR — its editor surfaces CEL/variable errors the install API doesn't. Worked example + steps: [references/install-and-visual-debugging.md](references/install-and-visual-debugging.md).
 
 ## Visual Debugging with Screenshots
 
-Claude Code can read images directly. When the Falcon console shows something unexpected — a blank page, an error modal, a disabled button — a screenshot is often the fastest way to diagnose the issue.
-
-**Without Playwright MCP (fastest):** Ask the user to take a screenshot of what they're seeing and paste or drag it into the conversation. Claude reads it immediately and can identify error messages, missing elements, wrong page states, or styling issues without any setup.
-
-**With Playwright MCP:** If Playwright MCP is configured (`claude mcp add playwright -- npx @playwright/mcp@latest`), Claude can take screenshots directly via `browser_take_screenshot`. This is useful for interactive debugging sessions. See `e2e-testing/references/debugging-with-mcp.md` for details.
-
-**From test failure artifacts:** When e2e tests fail, Playwright saves screenshots to `test-results/`. Read the `.png` file directly — it shows the exact page state at the moment of failure.
-
-Screenshots are particularly effective for:
-- Blank pages after deploy (missing iframe, broken Vite config)
-- Extension buttons that don't appear or expand
-- Error banners or modals with messages not surfaced by the CLI
-- `foundry ui run` rendering issues (dark mode, missing Shoelace styles)
-- App install dialogs with unexpected form fields
+Claude Code reads images directly, so a screenshot is often the fastest way to diagnose a blank page, error modal, or disabled button — pasted in by the user, via Playwright MCP, or from a test's `test-results/` artifacts. Details: [references/install-and-visual-debugging.md](references/install-and-visual-debugging.md).
 
 ## Recovery Strategies
 
