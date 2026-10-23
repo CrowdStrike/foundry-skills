@@ -746,3 +746,20 @@ class TestPivotAutocomplete:
         assert "x-cs-pivot" in content
         assert "install rewrites the ID" in content
         assert "not configured for autocomplete" in content
+
+
+class TestScopeTableCasesAndRtr:
+    """Cases and RTR scopes, from the API swagger and the RTR role table.
+
+    An eval app called get_cases with only alerts:read, and a judge claimed
+    runscript needs the admin API, which Active Responder covers.
+    """
+
+    SKILL = "skills/functions-falcon-api/SKILL.md"
+
+    def test_cases_and_rtr_rows(self):
+        content = _read_skill(self.SKILL)
+        assert "| `CaseManagement` |" in content
+        assert "`cases:read` / `cases:write`" in content
+        assert "`batch_active_responder_command` (incl. `runscript`)" in content
+        assert "`real-time-response-admin:write`" in content
