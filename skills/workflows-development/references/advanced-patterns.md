@@ -236,3 +236,14 @@ If you catch yourself:
 
 - [API Pagination Strategies for Falcon Foundry Functions and Workflows](https://www.crowdstrike.com/tech-hub/ng-siem/api-pagination-strategies-for-falcon-foundry-functions-and-workflows/)
 - [Build API Integrations with Falcon Fusion SOAR HTTP Actions](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/)
+
+## Sticky-409 recovery
+
+Any structural edit that re-provisions a workflow (new action, edited `next`/edge, added trigger parameter, rename) can 409 with `Duplicate workflow name` / `system definition with id … already provisioned on cid …`. Deleting the Fusion workflow does NOT free the name — a used name stays reserved. Reliable escape — rename to a brand-new unique name AND strip the id:
+
+1. In `workflows/*.yaml`, change `name:` to a new, never-used value.
+2. In `manifest.yml`, change the matching `workflows: - name:` to that same new value AND delete the entry's `id:`.
+3. Deploy. Foundry provisions a fresh workflow and writes a new `id` back into the manifest (commit it). The old workflow is a harmless orphan.
+4. If the UI triggers the workflow by name, update the `WORKFLOW_NAME` constant(s) — a stale name is a silent 404 at run time.
+
+Stripping the `id` alone is not enough; the name is what's reserved. Rename + id-strip together forces a clean re-provision — no fresh app needed.
