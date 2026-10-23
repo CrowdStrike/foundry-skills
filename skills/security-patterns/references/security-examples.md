@@ -509,3 +509,61 @@ logger.info(f"Processing user {email} with token {api_token}")
 - Function implementation (input validation, error handling)
 - UI component development (XSS prevention, sandboxing)
 - Pre-deployment validation (security checklist completion)
+
+## RBAC — Complete Manifest Wiring Example
+
+End-to-end RBAC for an app with one page, one nav link, and one collection — the artifact-gate step from the RBAC section of the parent skill.
+
+```yaml
+# manifest.yml (relevant sections)
+auth:
+  scopes: []
+  permissions:                     # written by `foundry auth permissions create`
+    "myapp:access":
+      id: "abc123..."              # CLI-written — do not hand-edit
+      name: "My App Access"
+      description: "Access to My App"   # ≤ 50 chars (enforced)
+  roles:
+    - id: "role-id..."
+      name: "My App Operator"
+      description: "My App operator role"
+      permissions: [ "myapp:access" ]
+
+ui:
+  pages:
+    - name: dashboard
+      path: /
+      permissions: [ "myapp:access" ]
+  navigation:
+    links:
+      - name: Dashboard            # gated SEPARATELY — page gate alone won't hide the menu entry
+        path: /
+        permissions: [ "myapp:access" ]
+
+collections:
+  - name: app_config
+    schema: collections/app_config.json
+    permissions: [ "myapp:access" ]   # without this, any CID user can CRUD the data
+```
+
+CLI sequence:
+
+```bash
+# 1. permission + role (colon key; ≤50-char description)
+foundry auth permissions create --key "myapp:access" --name "My App Access" \
+  --description "Access to My App" --role-name "My App Operator" \
+  --role-description "My App operator role" --no-prompt
+# 2. validate (free dry-run)      3. deploy (gate in code, not live)
+foundry apps validate --no-prompt && foundry apps deploy --no-prompt
+# 4. assign the role to yourself in the console and VERIFY access — before releasing
+# 5. release (minor: adding a permission requires users to accept it)
+foundry apps release --change-type minor --no-prompt
+```
+
+Rollback (needs no app access). Do NOT `git checkout manifest.yml` — that discards the `app_id` and per-artifact IDs the deploy wrote back, and the next deploy fails with `an app with the provided name already exists`. Instead revert only the RBAC additions (delete the `auth.permissions` / `auth.roles` entries you added and the per-artifact `permissions:` gates), leaving the deploy-written IDs in place:
+
+```bash
+# after reverting only the auth.permissions / auth.roles entries + artifact permissions: gates
+foundry apps deploy --no-prompt && foundry apps release --change-type patch --no-prompt
+# then upgrade in the App Catalog
+```
