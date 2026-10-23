@@ -54,6 +54,8 @@ const statusCode = resource?.status_code;    // HTTP status from the external AP
 const body = resource?.response_body;         // Parsed response body
 ```
 
+**Gotcha — parameter types must match the OpenAPI spec.** `execute()` types params as `Record<string, unknown>`, so a quoted number compiles and ships, then fails server-side at runtime with `got string want integer`; the extension still renders, so it reads as an API/credential error, not a code bug. Check each parameter's `schema.type` — numbers and booleans unquoted, only `type: string` takes quotes (`{ query: { limit: 25 } }` ✅, `{ query: { limit: '25' } }` ❌).
+
 UI extensions run in sandboxed iframes and cannot make arbitrary HTTP requests. All external API calls must go through `falcon.apiIntegration()`. See [calling-patterns.md](../../api-integrations/references/calling-patterns.md) for calling API integrations from Python and Go functions.
 
 ## Workflow Execution (Async Polling)
@@ -79,6 +81,8 @@ async function executeWorkflow(falcon: FalconApi, workflowId: string, input: obj
   throw new Error('Workflow timed out after 20 attempts');
 }
 ```
+
+**On-demand workflows by name (UI path).** Trigger with `falcon.api.workflows.postEntitiesExecuteV1({ ...input }, { name: 'My Workflow', depth: 0 })`, take the execution id from `resources[0]`, then poll `falcon.api.workflows.getEntitiesExecutionResultsV1({ ids: [execId] })` until `resources[0].status` is `Completed` / `Failed` / `Cancelled`. The workflow NAME must match byte-for-byte — names are CID-unique and a mismatch 404s silently.
 
 ## LogScale Operations
 
@@ -118,6 +122,8 @@ const data = await falcon.cloudFunction()
 ```
 
 Use cloud functions as an escape hatch when you need to call Falcon API endpoints outside the allowlisted `falcon.api` namespaces.
+
+**Invoke by `name`, not `id` — clone-portable.** `falcon.cloudFunction({ name })` resolves at runtime and survives an app clone; a hardcoded `id` (and any hardcoded page-ID constants used for cross-page nav) point at the ORIGINAL app's IDs after a clone, because Foundry re-mints every id.
 
 ## Events (Inter-Extension Communication)
 
