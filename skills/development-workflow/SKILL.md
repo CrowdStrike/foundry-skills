@@ -31,6 +31,9 @@ What does the user need?
 Create a new Foundry app
 └── Follow the App Creation Flow below
 
+Upgrade a template-installed app
+└── app-upgrades
+
 Add a capability to an existing app
 ├── API integration       → api-integrations
 ├── Workflow              → workflows-development
@@ -53,7 +56,7 @@ Debug a function failure
 ├── "function returning errors"               → debugging-workflows
 └── "no logs available"                       → debugging-workflows
 
-Implement a known pattern (pagination, enrichment, ingestion, etc.)
+Implement a known pattern (pagination, enrichment, ingestion)
 └── Search use-cases/*.md for matching pattern → load for context
 
 Debug / troubleshoot      → debugging-workflows
@@ -274,10 +277,10 @@ To deploy the same app to multiple clouds (US-1, US-2, US-3, EU-1, etc.):
 
 ## Existing App Workflow
 
-When `manifest.yml` already exists, work is primarily editing existing files. Use CLI only for:
+With an existing `manifest.yml`, edit files; use the CLI only for:
 - `foundry apps run` / `foundry ui run` — local development
 - `foundry apps deploy` / `foundry apps release` — deployment
-- `foundry api-integrations create` etc. — adding new capabilities
+- `foundry api-integrations create` etc. — adding capabilities
 
 ## Manifest Coordination
 

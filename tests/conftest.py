@@ -13,6 +13,7 @@ _SCRIPT_DIRS = [
     os.path.join(_ROOT, "skills", "api-integrations", "scripts"),
     os.path.join(_ROOT, "skills", "development-workflow", "scripts"),
     os.path.join(_ROOT, "skills", "workflows-development", "scripts"),
+    os.path.join(_ROOT, "skills", "app-upgrades", "scripts"),
 ]
 for script_dir in _SCRIPT_DIRS:
     if script_dir not in sys.path:
