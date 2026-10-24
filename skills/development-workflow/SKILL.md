@@ -31,6 +31,9 @@ What does the user need?
 Create a new Foundry app
 └── Follow the App Creation Flow below
 
+Upgrade an app installed from a template to a newer template version
+└── app-upgrades (works even with no local manifest.yml, e.g. a console-installed app)
+
 Add a capability to an existing app
 ├── API integration       → api-integrations
 ├── Workflow              → workflows-development
@@ -278,13 +281,14 @@ When `manifest.yml` already exists, work is primarily editing existing files. Us
 - `foundry apps run` / `foundry ui run` — local development
 - `foundry apps deploy` / `foundry apps release` — deployment
 - `foundry api-integrations create` etc. — adding new capabilities
+- Upgrading an app installed from a template to a newer template version → `app-upgrades`
 
 ## Manifest Coordination
 
 **Dependency order:** Collections → Functions → Knowledge bases → Agents → Workflows → UI (each may depend on the previous)
 
 - **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" (rename only). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
-- **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
+- **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), the ID merge in `app-upgrades`, and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
 - OAuth scopes are auto-managed for CLI-created artifacts — MUST NOT manually add `api-integrations:read`
 - Use `npx @redocly/cli lint` for OpenAPI validation (not Python/Ruby YAML parsers)

@@ -746,3 +746,46 @@ class TestPivotAutocomplete:
         assert "x-cs-pivot" in content
         assert "install rewrites the ID" in content
         assert "not configured for autocomplete" in content
+
+
+# ── Upgrading template-installed apps (app-upgrades) ────────────────────────
+
+
+class TestAppUpgrades:
+    """Verify the app-upgrades skill documents the in-place upgrade procedure."""
+
+    SKILL = "skills/app-upgrades/SKILL.md"
+
+    def test_syncs_into_scratch_not_working_copy(self):
+        content = _read_skill(self.SKILL)
+        assert "foundry apps sync --app-id" in content
+        assert "-d . " not in content
+
+    def test_every_cli_command_has_no_prompt(self):
+        """--no-prompt is required only on sync/validate/deploy/release/delete.
+
+        `foundry apps list` and `list-deployments` have no --no-prompt flag on
+        CLI 2.1.2, so checking every `foundry apps` line would fail against
+        this skill's own text.
+        """
+        for line in _read_skill(self.SKILL).splitlines():
+            words = line.strip().split()
+            if words[:2] == ["foundry", "apps"] and words[2] in (
+                "sync", "validate", "deploy", "release", "delete",
+            ):
+                assert "--no-prompt" in line, line
+
+    def test_deploy_has_change_type_and_log(self):
+        deploys = [l for l in _read_skill(self.SKILL).splitlines()
+                   if "foundry apps deploy" in l and l.strip().startswith("foundry")]
+        assert deploys and all("--change-type" in l and "--change-log" in l for l in deploys)
+
+    def test_confirmation_on_exit_code_2(self):
+        content = _read_skill(self.SKILL)
+        assert "exit code 2" in content.lower() or "exits 2" in content
+
+    def test_never_strip_ids_to_recover(self):
+        assert "creates a second app" in _read_skill(self.SKILL)
+
+    def test_falcon_prefix(self):
+        assert "Falcon Foundry" in _read_skill(self.SKILL)
