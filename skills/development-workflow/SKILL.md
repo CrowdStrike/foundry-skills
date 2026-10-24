@@ -31,8 +31,8 @@ What does the user need?
 Create a new Foundry app
 └── Follow the App Creation Flow below
 
-Upgrade an app installed from a template to a newer template version
-└── app-upgrades (works even with no local manifest.yml, e.g. a console-installed app)
+Upgrade a template-installed app
+└── app-upgrades
 
 Add a capability to an existing app
 ├── API integration       → api-integrations
@@ -56,7 +56,7 @@ Debug a function failure
 ├── "function returning errors"               → debugging-workflows
 └── "no logs available"                       → debugging-workflows
 
-Implement a known pattern (pagination, enrichment, ingestion, etc.)
+Implement a known pattern (pagination, enrichment, ingestion)
 └── Search use-cases/*.md for matching pattern → load for context
 
 Debug / troubleshoot      → debugging-workflows
@@ -277,18 +277,17 @@ To deploy the same app to multiple clouds (US-1, US-2, US-3, EU-1, etc.):
 
 ## Existing App Workflow
 
-When `manifest.yml` already exists, work is primarily editing existing files. Use CLI only for:
+With an existing `manifest.yml`, edit files; use the CLI only for:
 - `foundry apps run` / `foundry ui run` — local development
 - `foundry apps deploy` / `foundry apps release` — deployment
-- `foundry api-integrations create` etc. — adding new capabilities
-- Upgrading an app installed from a template to a newer template version → `app-upgrades`
+- `foundry api-integrations create` etc. — adding capabilities
 
 ## Manifest Coordination
 
 **Dependency order:** Collections → Functions → Knowledge bases → Agents → Workflows → UI (each may depend on the previous)
 
 - **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" (rename only). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
-- **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), the ID merge in `app-upgrades`, and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
+- **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
 - OAuth scopes are auto-managed for CLI-created artifacts — MUST NOT manually add `api-integrations:read`
 - Use `npx @redocly/cli lint` for OpenAPI validation (not Python/Ruby YAML parsers)
