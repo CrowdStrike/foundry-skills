@@ -41,7 +41,7 @@ foundry ui run fails
 └── Blank page / CORS error → noAttr() or base path removed from vite.config.js (see ui-development)
 
 Released change doesn't show
-└── Fix missing from the app → Check the built bundle first (see Confirm a Fix Is in the Built Bundle)
+└── UI fix missing from the app → Grep src/dist; rebuild if it's absent (see Confirm a Fix Is in the Built Bundle)
 
 Function execution fails
 ├── Status 500 + "Server Error"  → Check function logs: foundry functions logs <exec_id>
@@ -150,7 +150,7 @@ Deployment is two-phase: validation (manifest + schemas) then artifact build. Us
 
 ### Confirm a Fix Is in the Built Bundle
 
-Don't diagnose a "released fix that didn't work" from the running app alone. Grep the built `dist` bundle for the change first (literal string, new token, renamed symbol). If it isn't in the bundle, the build/package step is the problem, not the runtime — independent of console caching and release propagation.
+When a released UI fix doesn't show, don't diagnose it from the running app alone. Grep the page's or extension's built `src/dist` for the change (a literal string, new token, or renamed symbol). If it isn't there, the deploy shipped the previous build: deploy uploads `dist/` as it is and never builds, so run `npm run build` in that UI directory, then deploy and release again (see **Deploy never builds a UI** in `development-workflow`'s `references/advanced-patterns.md`). If it is there, hard-refresh the console before suspecting the release. This applies to UI only; functions have no `dist`.
 
 ## CLI Troubleshooting
 
@@ -264,7 +264,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Dialog white background in dark mode | Older falcon-shoelace or a custom panel (0.4.0 dialogs follow the theme) | Set `--sl-panel-background-color: var(--ground-floor)` on the element |
 | App install fails with no detail | Workflow CEL expression error | Test API integration in console, then inspect workflow editor for errors |
 | Releases stuck "In progress", never finish | Jammed release queue from repeated failed releases | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id under a new name to keep shipping |
-| Console errors `deserializeSitemap`/`loadSitemapFromLegacy` + `/api2/uilogging 400` | Falcon console shell (`maverick.js`), not your app — corrupted tenant navigation sitemap + its telemetry | Ignore; non-fatal (console falls back to default nav). Not fixable from an app — a Falcon admin resets the tenant's customized navigation if it's disruptive |
+| Console errors `deserializeSitemap`/`loadSitemapFromLegacy` + `/api2/uilogging 400` | Falcon console shell (`maverick.js`), not your app | Ignore; non-fatal (the console falls back to its default navigation). Nothing in the app causes or fixes it |
 
 ## Debugging App Install Failures
 
@@ -295,7 +295,7 @@ Don't restore `manifest.yml` from git (`git checkout manifest.yml`) after a depl
 
 ### Jammed Release Pipeline
 
-Repeated failed `foundry apps release` attempts pile up as stuck "In progress" releases that never drain, and firing another while one is in progress stacks it worse. The queue cannot be cleared from the CLI — it needs a CrowdStrike support ticket (force-uninstall / clear the release queue). Don't retry releases blindly once one is stuck. Practical escape to keep shipping meanwhile: cold-deploy a fresh `app_id` (strip the provisioned IDs, give the app a new `name`, and deploy it as a new app; the stuck app still holds the old name, so reusing it fails with `an app with the provided name already exists`). For the support ticket, give them app_id + deployment id + CID + region + approximate time. The CLI emits no trace ID even with `--verbose` — pull `meta.trace_id` from the console `/api2/...` response in the browser DevTools Network tab.
+Repeated failed `foundry apps release` attempts pile up as stuck "In progress" releases that never drain, and firing another while one is in progress stacks it worse. The queue cannot be cleared from the CLI — it needs a CrowdStrike support ticket (force-uninstall / clear the release queue). Don't retry releases blindly once one is stuck. Practical escape to keep shipping meanwhile: deploy it as a new app. Strip the provisioned IDs with the `yq` command in `development-workflow` → Multi-Cloud Deployment and give the app a new `name` (the stuck app still holds the old one, so reusing it fails with `an app with the provided name already exists`). A new app has to be installed again, its install settings entered again, and its collections start empty, so tell the user before you do it. For the support ticket, give them app_id + deployment id + CID + region + approximate time. The CLI emits no trace ID even with `--verbose` — pull `meta.trace_id` from the console `/api2/...` response in the browser DevTools Network tab.
 
 ## Pre-Escalation Checklist
 
