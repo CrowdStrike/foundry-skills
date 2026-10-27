@@ -41,7 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Server variables with a fixed set of hosts** — `api-integrations` shows an `enum` of Falcon API hosts with a `default`, and notes that `info.description` is the text at the top of the install form.
 - **Shoelace quirks checked in a deployed page** — `ui-development` notes that `sl-option` values can't contain spaces, that `sl-radio-group` gets two tab stops after a click and never reflects `checked`, and that dialog events bubble from children like `sl-details`, so handlers should check `event.target`.
 - **Cases and RTR scopes** — `functions-falcon-api`'s scope table lists `CaseManagement` (`cases:read`, `cases:write`), `RealTimeResponse` (`real-time-response:read` and `:write`, which covers `runscript`), and `RealTimeResponseAdmin` (`real-time-response-admin:write` for `put` and `run`).
-- **Falcon Fusion workflow gotchas that fail silently** — `workflows-development` covers recovering from a sticky `409` by renaming the workflow and removing its `id`, keeping `provision_on_install: true`, avoiding the `2001` cyclic reference at a diamond join, keeping collection writes at the end of a branch, and declaring a `request_schema` for functions that receive `properties`.
+- **Falcon Fusion workflow gotchas that fail silently** — `workflows-development` covers recovering from a sticky `409` by renaming the workflow and removing its `id`, keeping `provision_on_install: true`, avoiding the `2001` cyclic reference at a diamond join, and declaring a `request_schema` for functions that receive `properties`.
 
 ### Changed
 

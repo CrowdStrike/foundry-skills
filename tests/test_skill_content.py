@@ -949,3 +949,6 @@ class TestWorkflowRecoveryAndJoins:
         content = _read_skill(self.SKILL)
         assert "A consumer can only read an ancestor's output" in content
         assert "#diamond-joins--the-2001-cyclic-reference" in content
+        patterns = _read_skill("skills/workflows-development/references/advanced-patterns.md")
+        assert "## Diamond joins & the 2001 cyclic reference" in patterns, "anchor target heading"
+        assert "added trigger parameter, rename)" not in patterns, "a rename is the fix, not a trigger"

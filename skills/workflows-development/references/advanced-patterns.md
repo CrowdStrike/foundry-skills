@@ -135,7 +135,7 @@ loops:
 
 There is no per-action retry. Have the step that can fail write its failure state somewhere the UI can read, such as a collection.
 
-**Test a new error-handling shape in a scratch app.** `foundry apps validate` and a Fusion `validate_only` import both accept unknown action keys and broken CEL, so neither proves the YAML works, and a failed workflow artifact can block later deploys of the app that holds it. To make an agent action fail on purpose, send it empty input (`length of input is 0, which does not meet the minimum length of 5`).
+**Test a new error-handling shape in a scratch app.** `foundry apps validate` and a Falcon Fusion `validate_only` import both accept unknown action keys and broken CEL, so neither proves the YAML works, and a failed workflow artifact can block later deploys of the app that holds it. To make an agent action fail on purpose, send it empty input (`length of input is 0, which does not meet the minimum length of 5`).
 
 No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [pagination-patterns.md](pagination-patterns.md).
 
@@ -171,11 +171,11 @@ actions:
     #     properties: {}
 ```
 
-> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
+> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, and use the `api_integrations.{name}.{operationId}` pattern for API integration actions. Set `provision_on_install: false` only for an action ID you can't find, and have the user configure it in the Falcon console (see Platform Action Fallback Strategy).
 
 ## Diamond joins & the 2001 cyclic reference
 
-Fusion builds a DAG. A node inside a parallel branch must not reach a downstream join **both directly and through a child** — Fusion treats that as a cycle and fails the deploy with `2001 cyclic reference to previously seen node`. This bites whenever one parallel sibling also feeds another sibling that converges on the same join.
+Falcon Fusion SOAR builds a DAG. A node inside a parallel branch must not reach a downstream join **both directly and through a child** — Falcon Fusion SOAR treats that as a cycle and fails the deploy with `2001 cyclic reference to previously seen node`. This bites whenever one parallel sibling also feeds another sibling that converges on the same join.
 
 **❌ Fails — `Services` fans to the `ELP` join both directly and via `Partner`:**
 
@@ -212,13 +212,13 @@ actions:
 
 `Services`' data pill still reaches `ELP` because `Services` remains an ancestor via `Partner` — you do **not** need the direct edge, and adding it is exactly what creates the cycle.
 
-**Silent variant — the empty pill.** The same shape fails *without any error* when a store/aggregator reads `${data['X.response']}` off a node `X` that sits on a diamond fork: at the join the pill resolves to an **empty string**, not an error, so the workflow "succeeds" with blank data. The fix is identical — make any node whose `.response` you read a single-path ancestor of the reader (linearize the fork), never a shared fork feeding the join two ways.
+**Silent variant — the empty pill.** The same shape fails *without any error* when a store/aggregator reads a node `X`'s output (`${data['X.<field>']}`) when `X` sits on a diamond fork: at the join the pill resolves to an **empty string**, not an error, so the workflow "succeeds" with blank data. The fix is identical — make any node whose `.response` you read a single-path ancestor of the reader (linearize the fork), never a shared fork feeding the join two ways.
 
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |
 |-------------|---------|
-| "YAML is simple, I don't need patterns" | Fusion YAML has execution semantics that standard YAML doesn't |
+| "YAML is simple, I don't need patterns" | Falcon Fusion YAML has execution semantics that standard YAML doesn't |
 | "I can chain API calls directly in code" | Workflows handle state persistence and parallelism automatically |
 | "I'll add error handling later" | Without conditional routing on `Workflow.Execution.Errors` and loop `continue_on_partial_execution`, failures abort the workflow and lose context |
 | "RTR is just like SSH" | RTR has session management, host targeting, and result aggregation built-in |
@@ -252,11 +252,11 @@ If you catch yourself:
 
 ## Sticky-409 recovery
 
-Any structural edit that re-provisions a workflow (new action, edited `next`/edge, added trigger parameter, rename) can 409 with `Duplicate workflow name` / `system definition with id … already provisioned on cid …`. Deleting the Fusion workflow does NOT free the name — a used name stays reserved. Reliable escape — rename to a brand-new unique name AND strip the id:
+Any structural edit that re-provisions a workflow (new action, edited `next`/edge, added trigger parameter) can 409 with `Duplicate workflow name` / `system definition with id … already provisioned on cid …`. Deleting the Falcon Fusion SOAR workflow does NOT free the name — a used name stays reserved. Reliable escape — rename to a brand-new unique name AND strip the id:
 
 1. In `workflows/*.yaml`, change `name:` to a new, never-used value.
 2. In `manifest.yml`, change the matching `workflows: - name:` to that same new value AND delete the entry's `id:`.
 3. Deploy. Foundry provisions a fresh workflow and writes a new `id` back into the manifest (commit it). The old workflow is a harmless orphan.
 4. If the UI triggers the workflow by name, update the `WORKFLOW_NAME` constant(s) — a stale name is a silent 404 at run time.
 
-Stripping the `id` alone is not enough; the name is what's reserved. Rename + id-strip together forces a clean re-provision — no fresh app needed.
+Do both: either one alone still 409s. Rename + id-strip together forces a clean re-provision — no fresh app needed.

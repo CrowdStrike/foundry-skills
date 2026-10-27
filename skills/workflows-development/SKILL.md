@@ -1,6 +1,6 @@
 ---
 name: workflows-development
-description: Create and configure Falcon Fusion SOAR workflow YAML for Falcon Foundry apps. TRIGGER when user asks to "create a workflow", "build an automation", "configure Fusion SOAR", "add an on-demand workflow", runs `foundry workflows create`, or needs help with Fusion YAML syntax, triggers, actions, or variable references. DO NOT TRIGGER for UI pages, functions, or collection schemas — use the appropriate sub-skill.
+description: Create and configure Falcon Fusion SOAR workflow YAML for Falcon Foundry apps. TRIGGER when user asks to "create a workflow", "build an automation", "configure Falcon Fusion SOAR", "add an on-demand workflow", runs `foundry workflows create`, or needs help with Falcon Fusion YAML syntax, triggers, actions, or variable references. DO NOT TRIGGER for UI pages, functions, or collection schemas — use the appropriate sub-skill.
 version: 1.6.0
 updated: 2026-10-01
 tags: [foundry, workflows, fusion-soar, yaml]
@@ -13,7 +13,7 @@ metadata:
 
 # Foundry Workflows Development
 
-> Write every workflow definition in Fusion YAML, validate step dependencies before running it, and handle failures with conditional routing and action-level flags ([Error Handling](#error-handling)) — Fusion has no `onError` blocks and no built-in retry.
+> Write every workflow definition in Falcon Fusion YAML, validate step dependencies before running it, and handle failures with conditional routing and action-level flags ([Error Handling](#error-handling)) — Fusion has no `onError` blocks and no built-in retry.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
@@ -125,24 +125,17 @@ See [references/workflow-examples.md](references/workflow-examples.md#control-fl
 
 ## Join Resolution & Cyclic References
 
-Fusion builds a DAG. A node inside a parallel branch MUST NOT reach a downstream join **both directly and through a child** — Fusion reads that as a cycle and fails the deploy:
+Falcon Fusion SOAR builds a DAG. A node inside a parallel branch MUST NOT reach a downstream join **both directly and through a child** — Falcon Fusion SOAR reads that as a cycle and fails the deploy:
 
 ❌ `A.next: [Join, B]` + `B.next: [Join]` → `2001 cyclic reference to previously seen node … FROM_B_TO_parallel_A`
 
 **Fix: linearize.** Make every node whose output a consumer reads a *single-path ancestor* of that consumer — `A → B → Join`. The pill from `A` still reaches `Join` because `A` stays an ancestor.
 
-> **Silent variant (no error):** a store/aggregator that reads `${data['X.response']}` off a node `X` sitting on a **diamond fork** resolves **EMPTY** at the join — the pill comes back blank, not an error, which is very hard to diagnose. Same rule, same fix: any node whose `.response` you read must be a single-path ancestor of the reader, never a shared fork.
+> **Silent variant (no error):** a store/aggregator that reads a node `X`'s output (`${data['X.<field>']}`) when `X` sits on a **diamond fork** resolves **EMPTY** at the join — the pill comes back blank, not an error, which is very hard to diagnose. Same rule, same fix: any node whose output you read must be a single-path ancestor of the reader, never a shared fork.
 
 > **A consumer can only read an ancestor's output.** A parallel branch whose `next:` chain never leads to the consumer deploys fine, yet its pill comes back blank there. Make the producer an ancestor of the consumer: add a direct `next:` edge when nothing else the producer feeds also reaches the consumer, and otherwise linearize as above, since a direct edge plus a path through a sibling is the `2001` cycle.
 
 See [Diamond Joins](references/advanced-patterns.md#diamond-joins--the-2001-cyclic-reference) for a worked diamond showing the failure and the linearized rewrite.
-
-### Collection writes must be terminal
-
-A `collections.*.create` (store) action must be a **leaf** — no outgoing `next`. Hanging a `next` off a store action fails the build **silently** (no CLI error; the step just never runs). To run a step *after* a write, attach it to the upstream **function's** `next` fan-out instead:
-
-❌ `store_result.next: [notify]`
-✅ `my_function.next: [store_result, notify]`
 
 ## The "0" Gotcha
 
@@ -158,13 +151,13 @@ Removing a workflow from the manifest does NOT delete its server-side artifact �
 
 ### Sticky-409 recovery (structural change re-provisions and 409s)
 
-A structural edit that re-provisions a workflow (a new action, an edited `next`/edge, an added trigger parameter) can fail with `Duplicate workflow name (409)` / `system definition with id … already provisioned on cid …`. **Deleting the Fusion workflow does NOT free the name — a used name stays reserved**, so re-deploying the same name keeps 409ing. The reliable escape is to **rename to a brand-new unique name AND strip the `id`** (rename alone or id-strip alone is not enough — the name is what's reserved) — the full step-by-step recovery is in [references/advanced-patterns.md](references/advanced-patterns.md#sticky-409-recovery).
+A structural edit that re-provisions a workflow (a new action, an edited `next`/edge, an added trigger parameter) can fail with `Duplicate workflow name (409)` / `system definition with id … already provisioned on cid …`. **Deleting the Falcon Fusion SOAR workflow does NOT free the name — a used name stays reserved**, so re-deploying the same name keeps 409ing. The reliable escape is to **rename to a brand-new unique name AND strip the `id`** (do both; either one alone still 409s) — the full step-by-step recovery is in [references/advanced-patterns.md](references/advanced-patterns.md#sticky-409-recovery).
 
 ## Workflow Sharing
 
 Declare workflow sharing with a `workflow_integration` block on the manifest `workflows:` entry — `id`, `disruptive: false`, and `system_action`.
 
-> **⚠️ SOAR action visibility:** `system_action: false` = appears as a Fusion SOAR response action (analysts trigger from detections/incidents); `true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
+> **⚠️ SOAR action visibility:** `system_action: false` = appears as a Falcon Fusion SOAR response action (analysts trigger from detections/incidents); `true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
 
 ## Error Handling
 
