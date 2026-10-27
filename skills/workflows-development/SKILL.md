@@ -133,9 +133,9 @@ Fusion builds a DAG. A node inside a parallel branch MUST NOT reach a downstream
 
 > **Silent variant (no error):** a store/aggregator that reads `${data['X.response']}` off a node `X` sitting on a **diamond fork** resolves **EMPTY** at the join — the pill comes back blank, not an error, which is very hard to diagnose. Same rule, same fix: any node whose `.response` you read must be a single-path ancestor of the reader, never a shared fork.
 
-> **Parallel-branch output needs an explicit edge.** A parallel branch's data pill is visible downstream only if the branch action names the consumer in its `next: [Downstream]`. A branch that fans out but doesn't list the consumer deploys fine, yet its output never reaches that consumer (blank pill). A direct edge is safe when the producer reaches the consumer only through that edge. If the consumer is also reachable through another node the producer feeds, as with `A.next: [Join, B]` above, don't add the edge: linearize instead.
+> **A consumer can only read an ancestor's output.** A parallel branch whose `next:` chain never leads to the consumer deploys fine, yet its pill comes back blank there. Make the producer an ancestor of the consumer: add a direct `next:` edge when nothing else the producer feeds also reaches the consumer, and otherwise linearize as above, since a direct edge plus a path through a sibling is the `2001` cycle.
 
-See [references/advanced-patterns.md](references/advanced-patterns.md) for a worked `ExecSummary → {A, B, C} → Merge` diamond showing the failure and the linearized rewrite.
+See [Diamond Joins](references/advanced-patterns.md#diamond-joins--the-2001-cyclic-reference) for a worked diamond showing the failure and the linearized rewrite.
 
 ### Collection writes must be terminal
 
@@ -154,11 +154,11 @@ Workflow names must be unique across all apps in the same tenant. If two apps de
 
 ## NEVER Delete and Recreate Workflows
 
-Removing a workflow from the manifest does NOT delete its server-side artifact — recreating with the same name → `409 name must be unique for an app`, and a once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys. **Update in place instead** — edit the YAML and redeploy; to re-bind to a recreated function, update the `id: functions.{name}.{handler}` reference. Only delete a workflow if you truly won't recreate it with the same name. To recover a stuck 409, use the sticky-409 recipe below (rename + strip the id — no fresh app needed).
+Removing a workflow from the manifest does NOT delete its server-side artifact — recreating with the same name → `409 name must be unique for an app`, and a once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys. **Update in place instead**: keep the manifest entry and its name, edit the YAML, and redeploy; to re-bind to a recreated function, update the `id: functions.{name}.{handler}` reference. Only delete a workflow if you truly won't recreate it with the same name. If an in-place structural edit hits a 409, use the sticky-409 recipe below. A `400 dependent artifact failed` is different: the failed artifact blocks every later deploy of the app, and recovery means a fresh app (see `ai-agents-development`'s `references/workflow-invocation.md`).
 
 ### Sticky-409 recovery (structural change re-provisions and 409s)
 
-Any structural edit that re-provisions a workflow — a new action, an edited `next`/edge, an added trigger parameter, or a rename — can fail with `Duplicate workflow name (409)` / `system definition with id … already provisioned on cid …`. **Deleting the Fusion workflow does NOT free the name — a used name stays reserved**, so re-deploying the same name keeps 409ing. This is the single most common cause of a stuck release and recurs on *every* later structural change. The reliable escape is to **rename to a brand-new unique name AND strip the `id`** (rename alone or id-strip alone is not enough — the name is what's reserved) — the full step-by-step recovery is in [references/advanced-patterns.md](references/advanced-patterns.md#sticky-409-recovery).
+A structural edit that re-provisions a workflow (a new action, an edited `next`/edge, an added trigger parameter) can fail with `Duplicate workflow name (409)` / `system definition with id … already provisioned on cid …`. **Deleting the Fusion workflow does NOT free the name — a used name stays reserved**, so re-deploying the same name keeps 409ing. The reliable escape is to **rename to a brand-new unique name AND strip the `id`** (rename alone or id-strip alone is not enough — the name is what's reserved) — the full step-by-step recovery is in [references/advanced-patterns.md](references/advanced-patterns.md#sticky-409-recovery).
 
 ## Workflow Sharing
 

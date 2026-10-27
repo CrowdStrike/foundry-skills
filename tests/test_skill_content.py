@@ -161,7 +161,7 @@ class TestWorkflowDeletionWarning:
                "name must be unique" in content
 
     def test_recovery_cost_explained(self):
-        """Must explain that recovery often requires a fresh app."""
+        """A 400 dependent-artifact failure still means a fresh app; a 409 doesn't."""
         content = _read_skill(self.SKILL)
         assert "fresh app" in content or \
                "delete the entire app" in content or \
@@ -928,3 +928,24 @@ class TestScopeTableCasesAndRtr:
         assert "`cases:read` / `cases:write`" in content
         assert "`batch_active_responder_command` (incl. `runscript`)" in content
         assert "`real-time-response-admin:write`" in content
+
+
+class TestWorkflowRecoveryAndJoins:
+    """Sticky-409 recovery and join rules from apps that hit them.
+
+    A used workflow name stays reserved, so the escape is a new name plus a
+    removed id; and a consumer reads only an ancestor's output, so a direct
+    edge that also has a path through a sibling is the 2001 cycle.
+    """
+
+    SKILL = "skills/workflows-development/SKILL.md"
+
+    def test_sticky_409_recipe(self):
+        content = _read_skill(self.SKILL)
+        assert "rename to a brand-new unique name AND strip the `id`" in content
+        assert "an added trigger parameter, or a rename" not in content, "a rename is the fix, not a trigger"
+
+    def test_ancestor_rule_and_linearize_agree(self):
+        content = _read_skill(self.SKILL)
+        assert "A consumer can only read an ancestor's output" in content
+        assert "#diamond-joins--the-2001-cyclic-reference" in content
