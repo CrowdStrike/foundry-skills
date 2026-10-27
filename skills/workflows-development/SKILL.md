@@ -353,7 +353,7 @@ workflows:
 
 ## Error Handling
 
-Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware. Key mechanisms: `fail_fast_enabled: false` (function actions), `continue_on_partial_execution` (loop blocks), and `conditions:`/`else:` routing. No built-in retry or backoff exists. For the full table, examples, and pagination-polling pattern, see [references/advanced-patterns.md](references/advanced-patterns.md).
+Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware. Key mechanisms: action-level `continue_on_error: true`, `continue_on_partial_execution` (loops), and `conditions:`/`else:` on `Workflow.Execution.Errors`. No built-in retry or backoff exists. For the full table, examples, and pagination-polling pattern, see [references/advanced-patterns.md](references/advanced-patterns.md).
 
 ## Testing
 

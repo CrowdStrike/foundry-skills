@@ -31,6 +31,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Function output paths in workflows** — a function action's output is `<action key>.FaaS.<function>.<handler>.<field>`, and a loop item's field is `...<field>.#.<item field>`.
 - **What mock executions can test** — `foundry workflows executions start` always runs a mock execution, which fails an app's own `functions.` references with `action not found`. Test through the installed app instead, using a near-term schedule for scheduled workflows.
 - **Privacy policy URL for Codex** — the Codex plugin manifest sets `privacyPolicyURL`, so the OpenAI Plugins Directory shows the CrowdStrike privacy notice.
+- **Deploy never builds a UI** — `foundry apps deploy` uploads each page's `dist/` as it is, so a deploy without `npm run build` ships the previous bundle. `development-workflow` says to build last and check the package with `deploy --diff-only`, and that release numbers continue from the last release, not the deployment name.
+- **Agents the app creates are app-owned** — users can't edit or duplicate them in the console. `ai-agents-development` says to create user-editable agents with a customer API client through an API integration.
+- **`output_format: json` discards invalid replies** — a reply that isn't valid JSON fails with `output_format_error` and is lost. For long replies that code parses, use `text`, ask for JSON in the prompt, and parse tolerantly.
+- **Worker threads in functions** — a thread has no Foundry token. `functions-falcon-api` shows how to build clients on the handler thread and run tasks with `contextvars.copy_context().run`.
+- **Listing on a shared CID** — offset paging over a changing list skips items. Filter, sort explicitly, and don't loop on a first call's total.
+- **Workflows API under the app identity** — the Workflows search APIs answer `400` to a function. Read run history from `#repo=fusion` instead.
+- **API integrations have no role check** — `security-patterns` says to restrict the page that calls one to a role, and to ask for a dedicated customer API client with only the scopes it needs.
+- **Server variables with a fixed set of hosts** — `api-integrations` shows an `enum` of Falcon API hosts with a `default`, and notes that `info.description` is the text at the top of the install form.
+- **Shoelace quirks checked in a deployed page** — `ui-development` notes that `sl-option` values can't contain spaces, that `sl-radio-group` gets two tab stops after a click and never reflects `checked`, and that dialog events bubble from children like `sl-details`, so handlers should check `event.target`.
 
 ### Changed
 
@@ -62,6 +71,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **The CLI guard ignores `--help` calls** — `foundry agents create -h` no longer gets flagged for a missing `--no-prompt` or `--sockets`. A real command chained with a help call is still checked.
 - **`foundry apps logs` gets the `--no-prompt` check**, since it prompts for anything not passed as a flag.
 - **Skill links stay inside their package** — links in `collections-development` and `workflows-development` pointed into sibling skills, which fails awesome-copilot's link check. They now name the target skill and file in prose.
+- **Workflow error handling** — `workflows-development` said `fail_fast_enabled: false` let a workflow continue after a function failed. It's only an input a function can define. The skill now uses action-level `continue_on_error: true` with a `Workflow.Execution.Errors` branch, lists that field's shape, and notes that `validate` accepts unknown action keys and broken CEL.
+- **Function timeout default** — the agent invocation reference said `--max-exec-duration-seconds` defaults to 15. It's 30.
+- **Shoelace icons and the CSP** — `ui-development` said to add `cdn.jsdelivr.net` to the manifest CSP for icons, or to copy icons into `dist/`. The default page CSP already allows jsdelivr and `data:`, while copied icons never load: the deploy drops `.svg` files and `connect-src` blocks the app's own host.
+- **Tags and badges** — the examples used `sl-badge` and `sl-tag`, which falcon-shoelace 0.4.0 doesn't style, so every variant looked the same. They now use spans colored with Toucan's theme tokens.
+- **Theme setup** — `falcon-theming.md` imported `falcon-shoelace/dist/themes/*.css`, which doesn't exist, and toggled `sl-theme-dark` from `prefers-color-scheme`. falcon-shoelace ships one `dist/style.css` and follows the `theme-light`/`theme-dark` class that `falcon.connect()` sets.
+- **Dark dialogs** — a falcon-shoelace 0.4.0 dialog follows the dark theme, so the override is now only for older versions or custom panels.
 
 ## [1.6.0] - 2026-10-01
 
