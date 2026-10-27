@@ -41,7 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Server variables with a fixed set of hosts** — `api-integrations` shows an `enum` of Falcon API hosts with a `default`, and notes that `info.description` is the text at the top of the install form.
 - **Shoelace quirks checked in a deployed page** — `ui-development` notes that `sl-option` values can't contain spaces, that `sl-radio-group` gets two tab stops after a click and never reflects `checked`, and that dialog events bubble from children like `sl-details`, so handlers should check `event.target`.
 - **Cases and RTR scopes** — `functions-falcon-api`'s scope table lists `CaseManagement` (`cases:read`, `cases:write`), `RealTimeResponse` (`real-time-response:read` and `:write`, which covers `runscript`), and `RealTimeResponseAdmin` (`real-time-response-admin:write` for `put` and `run`).
-- **UI gotchas that read as runtime bugs** — `ui-development` adds four fixes for issues that look like runtime failures. Invoke cloud functions by `name` (hardcoded function/page IDs break on clone — Falcon Foundry re-mints every id); cross-page `navigateTo` needs `type:'falcon'` + a relative path (`type:'internal'` reloads the SPA, going absolute forces a new tab, and the `new URL` console error is cosmetic); `homepage:` designation is not a nav link (only `ui.navigation.links` lists a page); and an `E401` from `npm install` is fixed by configuring the registry and its token in `.npmrc`.
+- **UI gotchas that read as runtime bugs** — `ui-development` covers four issues that look like runtime failures: hardcoded IDs that break after an app clone, cross-page navigation that reloads the current page, pages missing from the side menu, and an `E401` from `npm install`.
 
 ### Changed
 
@@ -49,6 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **foundry-js examples in `ui-development`** — `references/foundry-js.md` passed collection keys as objects and called `cloudFunction()` without a name, `.query()`, `falcon.workflow()`, `events.broadcast()`, and `navigation.openModal()`, none of which match foundry-js. The examples now follow the SDK's types and the foundryjs-demo sample: string keys, `cloudFunction({ name })`, `falcon.api.workflows`, `sendBroadcast()`, and `falcon.ui.openModal()`, which opens a page by name. The CSP example in `references/advanced-patterns.md` uses the manifest's `content_security_policy` map.
 - **OpenAPI spec hook with quoted paths** — `api-integrations create` now checks specs passed as quoted paths, paths with escaped spaces, or `--spec=path` instead of skipping adaptation.
 - **OpenAPI import safety** — the hook no longer adapts a spec named inside another command's quoted text, and Swagger 2.0 specs are detected even when a long description comes before the version field.
 - **App-upgrade access controls** — the upgrade plan now requires confirmation when a template removes a role or permission definition, or changes permissions on an existing role or artifact, instead of silently treating the change as a safe add-only upgrade.

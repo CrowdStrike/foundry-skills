@@ -928,3 +928,26 @@ class TestScopeTableCasesAndRtr:
         assert "`cases:read` / `cases:write`" in content
         assert "`batch_active_responder_command` (incl. `runscript`)" in content
         assert "`real-time-response-admin:write`" in content
+
+
+class TestFoundryJsExamples:
+    """foundry-js examples must match the SDK (0.22.0 dist/*.d.ts and the foundryjs-demo sample)."""
+
+    REF = "skills/ui-development/references/foundry-js.md"
+
+    def test_no_invented_calls(self):
+        content = _read_skill(self.REF)
+        for bad in ("collection.write({", "collection.read({", "collection.delete({",
+                    "falcon.cloudFunction()", "  .query({ limit", "falcon.workflow(",
+                    "events.broadcast(", "navigation.openModal("):
+            assert bad not in content, f"{bad} is not foundry-js"
+
+    def test_real_calls(self):
+        content = _read_skill(self.REF)
+        for good in ("collection.write('item-1',", "falcon.cloudFunction({ name:",
+                     "falcon.api.workflows.postEntitiesExecuteV1(", "falcon.sendBroadcast(",
+                     "falcon.ui.openModal({ type: 'page', name:"):
+            assert good in content, good
+
+    def test_csp_uses_the_manifest_key(self):
+        assert "content_security_policy:" in _read_skill("skills/ui-development/references/advanced-patterns.md")
