@@ -66,8 +66,9 @@ Workflows are asynchronous. Trigger an on-demand workflow by name through `falco
 
 ```typescript
 async function executeWorkflow(falcon: FalconApi, name: string, input: Record<string, unknown>) {
-  const trigger = await falcon.api.workflows.postEntitiesExecuteV1(input, { name, depth: 0 });
-  const executionId = trigger.resources?.[0];
+  // The SDK's generated body type is Record<string, never>, so cast the input.
+  const trigger = await falcon.api.workflows.postEntitiesExecuteV1(input as Record<string, never>, { name, depth: 0 });
+  const executionId = trigger.resources?.[0] as string | undefined;
   if (!executionId) throw new Error('No execution ID returned');
 
   for (let i = 0; i < 20; i++) {
@@ -85,6 +86,9 @@ The workflow name must match exactly; names are unique per CID. Each activity's 
 
 ## LogScale Operations
 
+The SDK types `logscale.write` with a second `properties` argument and marks its shape as unsettled; the foundryjs-demo sample calls it with the event alone, as below.
+
+<!-- snippet-check: skip -->
 ```typescript
 // Write an event; the response reports resources[0].rows_written
 await falcon.logscale.write({ message: 'User logged in', userId: '123' });
