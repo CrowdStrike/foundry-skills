@@ -38,8 +38,10 @@ Deploy fails
 foundry ui run fails
 ├── On new app              → Deploy backend capabilities first (API integrations, functions, collections resolve from cloud)
 ├── Permission errors       → Check manifest OAuth scopes, restart server, verify auth
-├── Blank page / CORS error → noAttr() or base path removed from vite.config.js (see ui-development)
-└── Change not visible in preview → Preview can be effectively broken (UI runs locally, backend resolves from cloud); deploy→release is the only reliable view. Before assuming a released fix failed, grep the built dist bundle to confirm the change compiled in
+└── Blank page / CORS error → noAttr() or base path removed from vite.config.js (see ui-development)
+
+Released change doesn't show
+└── Fix missing from the app → Check the built bundle first (see Confirm a Fix Is in the Built Bundle)
 
 Function execution fails
 ├── Status 500 + "Server Error"  → Check function logs: foundry functions logs <exec_id>
@@ -146,9 +148,9 @@ foundry workflows executions view <execution_id>
 
 Deployment is two-phase: validation (manifest + schemas) then artifact build. Use `foundry apps validate --no-prompt` to dry-run validation after adding API integrations or collections (catches spec/schema issues in seconds). Don't validate right before deploy — deploy re-runs the same validation plus workflow semantics and name-uniqueness checks.
 
-### Preview Is Unreliable — Grep the Built Bundle Before Trusting a Release
+### Confirm a Fix Is in the Built Bundle
 
-`foundry ui run` resolves backend capabilities from the cloud, and on some apps the in-console preview is effectively broken — so don't diagnose a "released fix that didn't work" from the running app alone. Grep the built `dist` bundle for the change first (literal string, new token, renamed symbol). If it isn't in the bundle, the build/package step is the problem, not the runtime — independent of console caching and release propagation.
+Don't diagnose a "released fix that didn't work" from the running app alone. Grep the built `dist` bundle for the change first (literal string, new token, renamed symbol). If it isn't in the bundle, the build/package step is the problem, not the runtime — independent of console caching and release propagation.
 
 ## CLI Troubleshooting
 
@@ -261,12 +263,12 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Data not appearing after writes | Schema mismatch or missing error check | Verify field names/enums match schema exactly; check `result?.errors?.length` after writes |
 | Dialog white background in dark mode | Shoelace panel defaults | Override `--sl-panel-background-color` with `var(--ground-floor)` |
 | App install fails with no detail | Workflow CEL expression error | Test API integration in console, then inspect workflow editor for errors |
-| Releases stuck "In progress", never finish | Jammed release queue from repeated failed releases | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id to keep shipping |
+| Releases stuck "In progress", never finish | Jammed release queue from repeated failed releases | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id under a new name to keep shipping |
 | Console errors `deserializeSitemap`/`loadSitemapFromLegacy` + `/api2/uilogging 400` | Falcon console shell (`maverick.js`), not your app — corrupted tenant navigation sitemap + its telemetry | Ignore; non-fatal (console falls back to default nav). Not fixable from an app — a Falcon admin resets the tenant's customized navigation if it's disruptive |
 
 ## Debugging App Install Failures
 
-When an app fails to install with no useful error, isolate by component in the console: test the API integration directly first, rule out static UI files, then open the workflow in Fusion SOAR — its editor surfaces CEL/variable errors the install API doesn't. Worked example + steps: [references/install-and-visual-debugging.md](references/install-and-visual-debugging.md).
+When an app fails to install with no useful error, isolate by component in the console: test the API integration directly first, rule out static UI files, then open the workflow in Falcon Fusion SOAR — its editor surfaces CEL/variable errors the install API doesn't. Worked example + steps: [references/install-and-visual-debugging.md](references/install-and-visual-debugging.md).
 
 ## Visual Debugging with Screenshots
 
@@ -293,7 +295,7 @@ Don't restore `manifest.yml` from git (`git checkout manifest.yml`) after a depl
 
 ### Jammed Release Pipeline
 
-Repeated failed `foundry apps release` attempts pile up as stuck "In progress" releases that never drain, and firing another while one is in progress stacks it worse. The queue cannot be cleared from the CLI — it needs a CrowdStrike support ticket (force-uninstall / clear the release queue). Don't retry releases blindly once one is stuck. Practical escape to keep shipping meanwhile: cold-deploy a fresh `app_id` (strip the provisioned IDs and deploy as a new app). For the support ticket, give them app_id + deployment id + CID + region + approximate time. The CLI emits no trace ID even with `--verbose` — pull `meta.trace_id` from the console `/api2/...` response in the browser DevTools Network tab.
+Repeated failed `foundry apps release` attempts pile up as stuck "In progress" releases that never drain, and firing another while one is in progress stacks it worse. The queue cannot be cleared from the CLI — it needs a CrowdStrike support ticket (force-uninstall / clear the release queue). Don't retry releases blindly once one is stuck. Practical escape to keep shipping meanwhile: cold-deploy a fresh `app_id` (strip the provisioned IDs, give the app a new `name`, and deploy it as a new app; the stuck app still holds the old name, so reusing it fails with `an app with the provided name already exists`). For the support ticket, give them app_id + deployment id + CID + region + approximate time. The CLI emits no trace ID even with `--verbose` — pull `meta.trace_id` from the console `/api2/...` response in the browser DevTools Network tab.
 
 ## Pre-Escalation Checklist
 
