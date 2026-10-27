@@ -71,7 +71,7 @@ Standalone Fusion workflow (no app — trigger + existing actions only)
 
 Sub-skills live beside this one as `../<name>/SKILL.md`. On a single-entry-point install only this skill is discoverable, so capability-level requests land here — that is intended, not a mis-route. Read the sub-skill file from disk before writing any capability content, then:
 
-- **`manifest.yml` already present** — skip Steps 1-2 and Step 4. Run the Step 3 prerequisite check, add the capability with its Step 5 CLI command, and follow Manifest Coordination.
+- **`manifest.yml` already present** — skip Steps 1-2 and Step 4. Run the Step 3 prerequisite check, add the capability with its command from **Capability Create Commands** in [references/advanced-patterns.md](references/advanced-patterns.md), and follow Manifest Coordination.
 - **No app yet** — run the full App Creation Flow.
 
 This never overrides the fusion-redirect skill: a standalone Fusion workflow request is still a redirect, not a capability to add.
@@ -150,7 +150,7 @@ cd app-name
 
 ### Step 5: Add Capabilities (CLI Commands)
 
-Run in dependency order (**API integrations → collections → validate → functions → workflows → knowledge bases → agents → UI pages → extensions**). Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs. The full annotated command sequence for every capability is in [references/advanced-patterns.md](references/advanced-patterns.md) → **Capability Create Commands**.
+Run in dependency order (**API integrations → collections → validate → functions → knowledge bases → agents → workflows → UI pages → extensions**). Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs. The full annotated command sequence for every capability is in [references/advanced-patterns.md](references/advanced-patterns.md) → **Capability Create Commands**.
 
 **Fail fast:** Validate right after API integrations and collections — `foundry apps validate --no-prompt` is a seconds-long dry-run of deploy validation (specs + schemas; NOT workflow semantics or app-name uniqueness, which only deploy checks). If it fails, STOP and fix the spec/schema before building UI on a broken backend; let `adapt_spec_for_foundry.py` fix known spec issues and tell the user what it missed. Don't validate right before deploy — deploy runs the same checks plus more.
 
@@ -216,10 +216,10 @@ With an existing `manifest.yml`, edit files; use the CLI only for:
 
 ## Manifest Coordination
 
-**Dependency order:** Collections → Functions → Knowledge bases → Agents → Workflows → UI (each may depend on the previous)
+**Dependency order:** the Step 5 order (each may depend on the previous)
 
 - **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" (rename only). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
-- **The first (cold) deploy writes the provisioned `app_id` + page/function/workflow/agent IDs back into `manifest.yml` — COMMIT those.** They identify your app on that cloud; later deploys need them to target the existing app instead of minting a new one. This is the OPPOSITE of the e2e-sample `git checkout manifest.yml` step (see `references/advanced-patterns.md` → Testing an Existing App Locally), which is for throwaway CI runs of the public `foundry-sample-*` repos that commit blanked IDs to install into any CID. For an app you own and operate, keep the written-back IDs.
+- **The first (cold) deploy writes the provisioned `app_id` + page/function/workflow/agent IDs back into `manifest.yml` — COMMIT those.** They identify your app on that cloud; without them the next deploy fails with `an app with the provided name already exists`. This is the OPPOSITE of the e2e-sample `git checkout manifest.yml` step (see `references/advanced-patterns.md` → Testing an Existing App Locally), which is for throwaway CI runs of the public `foundry-sample-*` repos that commit blanked IDs to install into any CID. For an app you own and operate, keep the written-back IDs.
 - **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
 - OAuth scopes are auto-managed for CLI-created artifacts — MUST NOT manually add `api-integrations:read`

@@ -260,11 +260,11 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 
 4. **Run tests:** `cd e2e && npm test`
 
-5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest). **This revert applies ONLY to throwaway e2e runs of the public `foundry-sample-*` repos, which commit blanked IDs so the app installs into any CID. For an app you own and operate, do the OPPOSITE — commit the IDs the first deploy writes back (see `SKILL.md` → Manifest Coordination); reverting them makes the next deploy mint a new app instead of updating yours.**
+5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest). **This revert applies ONLY to throwaway e2e runs of the public `foundry-sample-*` repos, which commit blanked IDs so the app installs into any CID. For an app you own and operate, do the OPPOSITE — commit the IDs the first deploy writes back (see `SKILL.md` → Manifest Coordination); reverting them breaks the next deploy, which fails with `an app with the provided name already exists` (see `debugging-workflows` → Manifest Issues).**
 
 ## Capability Create Commands
 
-Full capability-create sequence (from `SKILL.md` → App Creation Flow → Step 5). Run in dependency order. Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs.
+Full capability-create sequence (from `SKILL.md` → App Creation Flow → Step 5). Run in dependency order: knowledge bases before agents, and agents before the workflows that call them. Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs.
 
 ```bash
 # 1. API integrations — delegate spec work to api-integrations sub-skill
@@ -283,25 +283,26 @@ foundry apps validate --no-prompt
 foundry functions create --name "my-fn" --language python --description "desc" \
   --handler-name process --handler-method POST --handler-path /api/process --no-prompt
 
-# 5. Workflows — MUST load workflows-development sub-skill before writing the spec file
-foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
-
-# 5b. Knowledge bases BEFORE agents — the agent create command validates KB refs.
+# 5. Knowledge bases BEFORE agents — the agent create command validates KB refs.
 #     --files is required with --no-prompt (accepts local paths or HTTP(S) URLs).
 foundry knowledge-bases create --name "Runbook Docs" --description "desc" \
   --files /tmp/runbook.md --no-prompt
 
-# 5c. AI agents — reference KBs by NAME. Exposure is set with --expose-* flags;
+# 6. AI agents — reference KBs by NAME. Exposure is set with --expose-* flags;
 #     see ai-agents-development for the model/tools manifest hand-edits.
 foundry agents create --name "My Agent" --description "desc" \
   --system-prompt /tmp/system_prompt.md \
   --knowledge-bases "Runbook Docs" --expose-charlotte-chat --no-prompt
 
-# 6. UI pages (standalone full-page views)
+# 7. Workflows — MUST load workflows-development sub-skill before writing the spec file.
+#    After agents, so a workflow can call one by its ai_agents.<name> alias.
+foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
+
+# 8. UI pages (standalone full-page views)
 foundry ui pages create --name "my-page" --description "desc" --from-template React --homepage --no-prompt
 foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 
-# 6b. UI extensions (sidebar widgets embedded in detection/host/incident pages)
+# 8b. UI extensions (sidebar widgets embedded in detection/host/incident pages)
 # Run `foundry ui extensions list-sockets` to see available socket IDs
 foundry ui extensions create --name "my-ext" --description "desc" --from-template React --sockets "activity.detections.details" --no-prompt
 ```
@@ -324,18 +325,18 @@ Load the relevant sub-skill before writing domain-specific code (from `SKILL.md`
 
 Operational depth behind `SKILL.md` → App Creation Flow → Step 7.
 
-> **`foundry apps deploy --re-deploy` retries the latest failed deployment — never use it to test an edit.** It re-runs that deployment's bundle, not your working tree, so a code fix won't be in it (this quietly costs full cold-build cycles). To test an edit, run a plain `foundry apps deploy`.
+> **`foundry apps deploy --re-deploy` retries the latest failed deployment** (`--help`). It's for retrying that deployment, not for shipping a new edit: to test an edit, run a plain `foundry apps deploy`.
 
 **Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**. That option only exists if the app had settings at first install. If ⋮ shows only **Uninstall app**, release with `--change-type Major`; **Accept update** then shows the credential form, and Modify settings works after that. Don't reinstall; dependent workflows can break.
 
-> **After an update, hard-refresh before you trust what you see.** The Falcon console iframe caches the built bundle, so a correctly released change can keep showing the old UI or logic until a hard refresh (Cmd/Ctrl+Shift+R). If a visual or behavioral change doesn't appear, hard-refresh first — do NOT re-deploy to "fix" it. Content-hashed asset names help, but the console shell still caches. To confirm the fix is in the build before assuming the deploy failed, use the dist-grep check in `debugging-workflows`.
+> **After an update, hard-refresh before you trust what you see.** The Falcon console iframe caches the built bundle, so a correctly released change can keep showing the old UI or logic until a hard refresh (Cmd/Ctrl+Shift+R). If a visual or behavioral change doesn't appear, hard-refresh first — do NOT re-deploy to "fix" it. Content-hashed asset names help, but the console shell still caches. To confirm the fix is in the package before assuming the deploy failed, use the `--diff-only` check under **Deploy never builds a UI** above.
 
 > **Three version numbers — don't conflate them.**
 > - **App Catalog version** (`v0.1.x`) — bumped by `foundry apps release --change-type`; authoritative; what App Manager shows.
-> - **Pre-release deploy number** (`v0.1.x-pre-release`) — bumped by every `foundry apps deploy`; shown in `list-deployments`; unrelated to the catalog version.
+> - **Pre-release deploy number** (`v0.1.x-pre-release`) — bumped by every `foundry apps deploy`, failed ones included; shown in `list-deployments`. It differs from the catalog version a release produces (see the release-numbering note above).
 > - **Display-only `UI_BUILD` const** (if the app keeps one in source) — set it to the version THIS release will produce. It is cosmetic, not the release number.
 >
-> `release --deployment-id` takes the *deploy* number and produces the next *catalog* version — the deploy number is NOT the release number.
+> `foundry apps release --deployment-id` takes the ID of a deployment record from `list-deployments`; the catalog version it produces is not the deployment's number.
 
 ## Multi-Cloud Deployment
 

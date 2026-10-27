@@ -928,3 +928,25 @@ class TestScopeTableCasesAndRtr:
         assert "`cases:read` / `cases:write`" in content
         assert "`batch_active_responder_command` (incl. `runscript`)" in content
         assert "`real-time-response-admin:write`" in content
+
+
+class TestOperatingAnInstalledApp:
+    """Iterating on a deployed app: keep its IDs, and know what --re-deploy does."""
+
+    SKILL = "skills/development-workflow/SKILL.md"
+    PATTERNS = "skills/development-workflow/references/advanced-patterns.md"
+
+    def test_commit_deploy_written_ids(self):
+        content = _read_skill(self.SKILL)
+        assert "COMMIT those" in content
+        assert "an app with the provided name already exists" in content
+        assert "mint a new app" not in _read_skill(self.PATTERNS)
+
+    def test_re_deploy_matches_help(self):
+        assert "retries the latest failed deployment" in _read_skill(self.PATTERNS)
+
+    def test_one_dependency_order(self):
+        content = _read_skill(self.SKILL)
+        assert "knowledge bases → agents → workflows" in content
+        patterns = _read_skill(self.PATTERNS)
+        assert patterns.index("foundry agents create") < patterns.index("foundry workflows create --name")
