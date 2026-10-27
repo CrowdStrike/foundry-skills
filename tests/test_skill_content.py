@@ -928,3 +928,26 @@ class TestScopeTableCasesAndRtr:
         assert "`cases:read` / `cases:write`" in content
         assert "`batch_active_responder_command` (incl. `runscript`)" in content
         assert "`real-time-response-admin:write`" in content
+
+
+class TestCollectionsSdkExamples:
+    """foundry-js collections: falcon.collection() with write/read/delete/search/list.
+
+    The SDK has no Collection constructor taking a name and no create/get/update/
+    query methods (foundry-js 0.22.0 dist/abstraction/collection.d.ts).
+    """
+
+    FILES = ("skills/collections-development/SKILL.md",
+             "skills/collections-development/references/advanced-patterns.md")
+
+    def test_no_invented_collection_api(self):
+        for path in self.FILES:
+            content = _read_skill(path)
+            for bad in ("new Collection<", "collection.get(", "collection.query(",
+                        "collection.update(", "this.collection.create(", "readCollection"):
+                assert bad not in content, f"{path}: {bad} is not foundry-js"
+
+    def test_client_uses_the_real_api(self):
+        content = _read_skill(self.FILES[1])
+        assert "falcon.collection({ collection: 'incidents' })" in content
+        assert "if (!obj?.created_at) return null;" in content
