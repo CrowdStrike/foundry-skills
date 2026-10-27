@@ -30,6 +30,8 @@ Security patterns for Falcon Foundry app development covering authentication, in
 | Queries | **No** |
 | Workflows | **No** |
 
+**An API integration has no role check, so gate the page that calls it.** Anyone who can open a page that calls an integration can send the same request from the browser and skip a function's checks. When a function writes through an integration, restrict the page to a role as well. Foundry checks roles on pages, not on navigation links. When an integration authenticates with a customer's API client, ask for a dedicated client with exactly the scopes the integration needs: every scope a reused shared client holds becomes reachable by the app and its later versions.
+
 ## API Scope Management
 
 Scopes control which Falcon Platform APIs the app can access. Format: `<source>:<operation>` (e.g., `devices:read`, `detects:write`).

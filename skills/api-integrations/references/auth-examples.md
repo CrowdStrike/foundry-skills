@@ -84,6 +84,16 @@ Client credentials flow with custom labels for client ID and secret:
 
 Use `x-cs-client-id-label` / `x-cs-client-secret-label` on oauth2 to customize field labels in the install UI.
 
+## OAuth 2.0 Client Credentials for a Falcon API
+
+When the host must be **one of a known set**, such as the Falcon API regions for an OAuth client-credentials integration that calls a Falcon API, use an `enum` of hosts (no `https://`) with a `default`. The console renders it as a dropdown, so a settings editor can't send the secret to another host. An `enum` variable without a `default` rendered a stray `[object Object]` entry:
+
+```json
+"servers": [{"url": "{host}", "variables": {"host": {"default": "api.crowdstrike.com", "enum": ["api.crowdstrike.com", "api.us-2.crowdstrike.com", "api.us-3.crowdstrike.com", "api.eu-1.crowdstrike.com"]}}}]
+```
+
+Pair it with the token URL `{host}/oauth2/token`. Auth can't be changed after the integration is created.
+
 ## Dual Auth (ServiceNow ITSM)
 
 When a vendor spec defines multiple `securitySchemes` (e.g., `apiToken` + `oauth2`), Foundry defaults Auth type to `allOf`, requiring ALL auth methods at install time. Remove the unused scheme unless dual auth is intentional.
