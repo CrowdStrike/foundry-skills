@@ -178,3 +178,13 @@ def test_but_ends_a_negation():
         result = detect.classify(prompt)
         assert result["redirect"] is False, prompt
         assert result["app_signals"], prompt
+
+
+def test_add_after_negated_ui_is_an_affirmative_capability():
+    for prompt in (
+        "Build a Fusion workflow with no UI, add a Foundry function to fetch incidents",
+        "Build a Fusion workflow with no UI and add a Foundry function",
+    ):
+        result = detect.classify(prompt)
+        assert result["redirect"] is False, prompt
+        assert result["target"] == "crowdstrike-falcon-foundry", prompt

@@ -20,74 +20,18 @@ npm install @crowdstrike/falcon-shoelace
 import '@shoelace-style/shoelace/dist/themes/light.css';
 ```
 
-**CORRECT -- use falcon-shoelace:**
+**CORRECT -- use falcon-shoelace.** It ships one stylesheet, `dist/style.css`, that holds both themes (there is no `dist/themes/` folder):
 ```typescript
-import '@crowdstrike/falcon-shoelace/dist/themes/light.css';
-import '@crowdstrike/falcon-shoelace/dist/themes/dark.css';
+import '@crowdstrike/falcon-shoelace/dist/style.css';
 ```
 
 ## Dark/Light Mode Support
 
 The Falcon console supports both dark and light modes. Every Foundry app must respect the user's theme preference.
 
-### Theme Detection Utility
+### Theme Detection
 
-```typescript
-// utils/theme.ts
-export const initFalconTheme = () => {
-  const applyTheme = () => {
-    // Check for Falcon console's theme class on document root
-    const prefersDark = document.documentElement.classList.contains('sl-theme-dark') ||
-                        document.body.classList.contains('dark-theme') ||
-                        window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    document.documentElement.classList.toggle('sl-theme-dark', prefersDark);
-    document.documentElement.classList.toggle('sl-theme-light', !prefersDark);
-  };
-
-  // Watch for theme changes from Falcon console
-  const observer = new MutationObserver(applyTheme);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class']
-  });
-
-  // Also watch body for some console versions
-  observer.observe(document.body, {
-    attributes: true,
-    attributeFilter: ['class']
-  });
-
-  // Apply initial theme
-  applyTheme();
-
-  // Return cleanup function
-  return () => observer.disconnect();
-};
-```
-
-### Using in Vue
-
-```typescript
-// main.ts
-import { initFalconTheme } from './utils/theme';
-initFalconTheme();
-```
-
-### Using in React
-
-```typescript
-// App.tsx
-import { useEffect } from 'react';
-import { initFalconTheme } from './utils/theme';
-
-export const App: React.FC = () => {
-  useEffect(() => {
-    return initFalconTheme();
-  }, []);
-  // ...
-};
-```
+`falcon.connect()` sets `theme-light` or `theme-dark` on `<html>` and swaps it live when the user changes the console theme, and `falcon-shoelace` styles off exactly those two classes. You don't need theme code for Shoelace components. Don't derive the theme from `prefers-color-scheme` or toggle `sl-theme-dark`: the console theme is independent of the OS setting, and `falcon-shoelace` never reads `sl-theme-*` classes (verified with falcon-shoelace 0.4.0, 2026-10-23). For your own CSS, key off `.theme-dark` or watch `<html>`'s class (see `SKILL.md`).
 
 ### Using with FalconApi SDK
 
@@ -184,17 +128,8 @@ module.exports = {
 
 **Reference:** [tailwind-toucan-base on GitHub](https://github.com/CrowdStrike/tailwind-toucan-base)
 
-## Shoelace Icon CSP Requirements
+## Shoelace Icons and the CSP
 
-When using `setBasePath()` to load Shoelace icons from CDN, the manifest's Content Security Policy must allow the CDN domain:
+The default page CSP already allows `https://cdn.jsdelivr.net` and `data:` in `connect-src`, even when the manifest's `connect-src` lists only `assets.foundry.crowdstrike.com` (observed on US-2, 2026-10-23). So `setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/')` works with no manifest change, and the `system` icons Shoelace draws itself (dialog close button, select and dropdown carets, details chevrons) render, because they're `data:` URLs.
 
-```yaml
-# manifest.yml — under the page's content_security_policy
-content_security_policy:
-  connect-src:
-    - cdn.jsdelivr.net
-  img-src:
-    - cdn.jsdelivr.net
-```
-
-Without these CSP entries, Shoelace icons will fail to load silently (no console error, just missing icons).
+Don't serve icons from the app's own package. The deploy excludes every `.svg` file, and `connect-src` doesn't include the app's asset host, so a relative base path or a custom icon library pointing at `./icons/` fails with a `connect-src` violation. For a custom icon, inline the SVG markup.

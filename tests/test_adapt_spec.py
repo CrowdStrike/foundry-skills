@@ -36,6 +36,24 @@ def make_spec(**overrides):
     return base
 
 
+def test_swagger_version_after_long_info_is_detected(tmp_path, monkeypatch):
+    path = tmp_path / "swagger.json"
+    path.write_text(json.dumps({
+        "info": {"description": "x" * 600},
+        "swagger": "2.0",
+        "paths": {},
+    }))
+    calls = []
+
+    def fake_run(command, **_kwargs):
+        calls.append(command)
+        return type("Result", (), {"returncode": 1, "stderr": "conversion unavailable"})()
+
+    monkeypatch.setattr(spec.subprocess, "run", fake_run)
+    assert spec.convert_swagger_to_openapi(str(path)) == (str(path), False)
+    assert calls and "swagger2openapi" in calls[0]
+
+
 # ── Server URL transformations ───────────────────────────────────────────────
 
 

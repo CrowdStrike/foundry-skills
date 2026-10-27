@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **Upgrading template-installed apps** — new `app-upgrades` skill updates an app installed from a Falcon Foundry template to a newer version of the template, in place. Give it the app ID and a `.tar.gz`, `.zip`, directory, or `owner/repo[@ref]`, or let it find the template by name. It keeps the IDs of artifacts in both versions, lists what it adds and removes, asks before removing anything, then deploys and releases.
 - **Operating an existing, installed app** — `development-workflow` now documents the iterate phase: hard-refresh after an update, the three version numbers (catalog vs pre-release deploy vs `UI_BUILD`), `--re-deploy` retrying only the latest failed deployment, and committing the IDs the first deploy writes back to `manifest.yml`. The deep deploy/release, capability-create, sub-skill-loading, and multi-cloud detail lives in `references/advanced-patterns.md`.
 - **`xdr.cases.details` socket (CLI 2.1.2+)** — `ui-development` lists the new Next-Gen SIEM cases details socket, and the CLI guard accepts it. The table also fixes the label for `xdr.cases.panel`, which is the cases panel, not the details section.
 - **Scopes the CLI rejects** — `scopes add` rejects some valid names (`humio-auth-proxy:read` and the Falcon Next-Gen SIEM persisted aggregation scopes, as of CLI 2.1.2), so `security-patterns` says to add them to `auth.scopes` by hand. Adding a scope makes the next release a major version that users must accept. `development-workflow` and `AGENTS.md` list this edit, and renaming a deployed KB, as sanctioned manifest edits.
@@ -31,6 +32,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Function output paths in workflows** — a function action's output is `<action key>.FaaS.<function>.<handler>.<field>`, and a loop item's field is `...<field>.#.<item field>`.
 - **What mock executions can test** — `foundry workflows executions start` always runs a mock execution, which fails an app's own `functions.` references with `action not found`. Test through the installed app instead, using a near-term schedule for scheduled workflows.
 - **Privacy policy URL for Codex** — the Codex plugin manifest sets `privacyPolicyURL`, so the OpenAI Plugins Directory shows the CrowdStrike privacy notice.
+- **Deploy never builds a UI** — `foundry apps deploy` uploads each page's `dist/` as it is, so a deploy without `npm run build` ships the previous bundle. `development-workflow` says to build last and check the package with `deploy --diff-only`, and that release numbers continue from the last release, not the deployment name.
+- **Agents the app creates are app-owned** — users can't edit or duplicate them in the console. `ai-agents-development` says to create user-editable agents with a customer API client through an API integration.
+- **`output_format: json` discards invalid replies** — a reply that isn't valid JSON fails with `output_format_error` and is lost. For long replies that code parses, use `text`, ask for JSON in the prompt, and parse tolerantly.
+- **Worker threads in functions** — a thread has no Foundry token. `functions-falcon-api` shows how to build clients on the handler thread and run tasks with `contextvars.copy_context().run`.
+- **Listing on a shared CID** — offset paging over a changing list skips items. Filter, sort explicitly, and don't loop on a first call's total.
+- **Workflows API under the app identity** — the Workflows search APIs answer `400` to a function. Read run history from `#repo=fusion` instead.
+- **API integrations have no role check** — `security-patterns` says to restrict the page that calls one to a role, and to ask for a dedicated customer API client with only the scopes it needs.
+- **Server variables with a fixed set of hosts** — `api-integrations` shows an `enum` of Falcon API hosts with a `default`, and notes that `info.description` is the text at the top of the install form.
+- **Shoelace quirks checked in a deployed page** — `ui-development` notes that `sl-option` values can't contain spaces, that `sl-radio-group` gets two tab stops after a click and never reflects `checked`, and that dialog events bubble from children like `sl-details`, so handlers should check `event.target`.
+- **Cases and RTR scopes** — `functions-falcon-api`'s scope table lists `CaseManagement` (`cases:read`, `cases:write`), `RealTimeResponse` (`real-time-response:read` and `:write`, which covers `runscript`), and `RealTimeResponseAdmin` (`real-time-response-admin:write` for `put` and `run`).
 
 ### Changed
 
@@ -38,6 +49,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **OpenAPI spec hook with quoted paths** — `api-integrations create` now checks specs passed as quoted paths, paths with escaped spaces, or `--spec=path` instead of skipping adaptation.
+- **OpenAPI import safety** — the hook no longer adapts a spec named inside another command's quoted text, and Swagger 2.0 specs are detected even when a long description comes before the version field.
+- **App-upgrade access controls** — the upgrade plan now requires confirmation when a template removes a role or permission definition, or changes permissions on an existing role or artifact, instead of silently treating the change as a safe add-only upgrade.
+- **Template source isolation** — upgrading from a directory refuses links outside that directory rather than copying their contents into the scratch app; GitHub source resolution refuses a nonempty destination instead of overwriting `source.zip`.
+- **Workflow routing and extension sockets** — a requested Foundry function after a negated UI clause stays with the app workflow; the CLI guard accepts `--sockets=...` and comma-separated valid socket IDs.
 - **Agent `tools` references** — the dotted forms in `ai-agents-development` fail the whole app's deploy with a bare `500`. Each entry is now `action:<reference>`: `action:collections.<name>.<Operation>` for an app collection, `action:mcp/gce/collections:collections:generic:<Operation>` for the generic collection, and `action:mcp/gce/integration:<integration id>~<hash>` for an API-integration operation, which exists only after the integration deploys. `collections-development`, `api-integrations`, and the manifest reference use these forms, and the reference explains how to find an API-integration tool ID.
 - **Structured-output agent replies in workflows** — a `json_with_schema` agent's action exposes its schema's fields (`${data['<action key>.category']}`), not `response`. A `.response` reference to one passes validate and deploy, then fails install with no detail. `workflow-invocation` covers both cases and points to the workflow editor's **Workflow data** panel for the real keys.
 - **Changing a deployed knowledge base** — a deployed KB's files are write-once. Changing one fails the deploy with `409 a file with name ... already exists in this knowledge base`, and every agent that lists the KB fails with it. `knowledge-bases.md` now gives the recovery: a new KB name and sanitized path, with the `id` key removed.
@@ -57,6 +73,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **The CLI guard ignores `--help` calls** — `foundry agents create -h` no longer gets flagged for a missing `--no-prompt` or `--sockets`. A real command chained with a help call is still checked.
 - **`foundry apps logs` gets the `--no-prompt` check**, since it prompts for anything not passed as a flag.
 - **Skill links stay inside their package** — links in `collections-development` and `workflows-development` pointed into sibling skills, which fails awesome-copilot's link check. They now name the target skill and file in prose.
+- **Workflow error handling** — `workflows-development` said `fail_fast_enabled: false` let a workflow continue after a function failed. It's only an input a function can define. The skill now uses action-level `continue_on_error: true` with a `Workflow.Execution.Errors` branch, lists that field's shape, and notes that `validate` accepts unknown action keys and broken CEL.
+- **Function timeout default** — the agent invocation reference said `--max-exec-duration-seconds` defaults to 15. It's 30.
+- **Shoelace icons and the CSP** — `ui-development` said to add `cdn.jsdelivr.net` to the manifest CSP for icons, or to copy icons into `dist/`. The default page CSP already allows jsdelivr and `data:`, while copied icons never load: the deploy drops `.svg` files and `connect-src` blocks the app's own host.
+- **Tags and badges** — the examples used `sl-badge` and `sl-tag`, which falcon-shoelace 0.4.0 doesn't style, so every variant looked the same. They now use spans colored with Toucan's theme tokens.
+- **Theme setup** — `falcon-theming.md` imported `falcon-shoelace/dist/themes/*.css`, which doesn't exist, and toggled `sl-theme-dark` from `prefers-color-scheme`. falcon-shoelace ships one `dist/style.css` and follows the `theme-light`/`theme-dark` class that `falcon.connect()` sets.
+- **Dark dialogs** — a falcon-shoelace 0.4.0 dialog follows the dark theme, so the override is now only for older versions or custom panels.
 
 ## [1.6.0] - 2026-10-01
 

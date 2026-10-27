@@ -182,6 +182,10 @@ ignored:
 
 **Ignoring `tests/` makes `exec` warn on every run.** `foundry functions exec` compares the whole local function directory against the last deployment, and the deployment has no `tests/`, so it reports undeployed local changes even right after a successful deploy. Pass `--ignore-deploy-warning` once you have confirmed the handler itself is deployed (see `functions-development/references/execution-and-testing.md`).
 
+**Deploy never builds a UI.** It uploads each page's and extension's gitignored `dist/` as it is, so a deploy after a UI edit without `npm run build` ships the previous bundle with no error, and tests and lint can't catch it. Build last, then check the package with `foundry apps deploy --diff-only --no-prompt`, which prints the file diff without deploying: a UI change must list new `dist/assets` files. `foundry apps validate --no-prompt` prints the same `Computed diff ... from version <deployed>` list.
+
+Every deploy takes the next deployment number, failed ones included, but a release continues from the last release: releasing `v1.6.3-pre-release` after `v1.6.2-pre-release` failed produced `1.6.2`.
+
 ### App Logo
 
 The manifest `logo:` field is a relative path to a small square PNG, ~160x160, matching the `foundry-sample-*` apps (e.g. `logo: images/logo.png`). Two things about it are easy to get wrong:
