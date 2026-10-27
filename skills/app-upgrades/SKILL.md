@@ -51,9 +51,9 @@ Use a new scratch directory per upgrade (`$WORK` below). Never sync or extract i
    ```bash
    python3 <skill-dir>/scripts/upgrade_manifest.py merge --deployed "$WORK/deployed/manifest.yml" --template <app-root>/manifest.yml
    ```
-   It overwrites the new `manifest.yml` with the deployed IDs filled in and prints the plan: kept, added, and removed artifacts.
+   It overwrites the new `manifest.yml` with the deployed IDs filled in and prints the plan: kept, added, and removed artifacts, roles, and permission definitions, plus changed access permissions on existing roles and artifacts.
 
-5. **Confirm when needed.** Exit code 2 means the plan removes something. Show the plan and ask before going on. Removing a collection deletes its stored data. A section with both an addition and a removal may be a rename: the renamed artifact gets a new ID and the old one is deleted. Exit code 0 (kept and added only) needs no confirmation. Exit code 1 is an error; show the message and stop.
+5. **Confirm when needed.** Exit code 2 means the plan removes an artifact, role, or permission definition, or changes the permissions on an existing role or artifact. Show the plan and ask before going on. Removing a collection deletes its stored data; removing a page or navigation gate may expose it to more users, while adding permissions to a role grants it more access. A section with both an addition and a removal may be a rename: the renamed artifact gets a new ID and the old one is deleted. Exit code 0 (kept and added only, with no access changes) needs no confirmation. Exit code 1 is an error; show the message and stop.
 
 6. **Validate, deploy, release** from the new app root:
    ```bash

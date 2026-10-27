@@ -109,6 +109,7 @@ ARTIFACT_SECTIONS = (
     "functions", "collections", "workflows", "api_integrations", "rtr_scripts",
     "parsers", "lookup_files", "ai.agents", "ai.knowledge_bases",
     "logscale.saved_searches", "ui.pages", "ui.extensions", "ui.dashboards",
+    "ui.navigation.links", "auth.permissions", "auth.roles",
 )
 
 
@@ -123,9 +124,21 @@ def _section_names(manifest, section):
     return set()
 
 
+def _section_items(manifest, section):
+    node = manifest
+    for part in section.split("."):
+        node = node.get(part) if isinstance(node, dict) else None
+    if isinstance(node, dict):
+        return node
+    if isinstance(node, list):
+        return {item["name"]: item for item in node if isinstance(item, dict) and "name" in item}
+    return {}
+
+
 def build_plan(deployed, template):
     """Compare artifacts by section: what the upgrade keeps, adds, and removes."""
-    plan = {"kept": {}, "added": {}, "removed": {}, "possible_renames": [], "data_loss": []}
+    plan = {"kept": {}, "added": {}, "removed": {}, "access_changes": {},
+            "possible_renames": [], "data_loss": []}
     for section in ARTIFACT_SECTIONS:
         old, new = _section_names(deployed, section), _section_names(template, section)
         for group, names in (("kept", old & new), ("added", new - old), ("removed", old - new)):
@@ -133,8 +146,19 @@ def build_plan(deployed, template):
                 plan[group][section] = sorted(names)
         if new - old and old - new:
             plan["possible_renames"].append(section)
+        old_items, new_items = _section_items(deployed, section), _section_items(template, section)
+        for name in old & new:
+            before, after = old_items.get(name), new_items.get(name)
+            if isinstance(before, dict) and isinstance(after, dict):
+                old_permissions = set(before.get("permissions") or [])
+                new_permissions = set(after.get("permissions") or [])
+                if old_permissions != new_permissions:
+                    plan["access_changes"][f"{section}.{name}"] = {
+                        "removed": sorted(old_permissions - new_permissions),
+                        "added": sorted(new_permissions - old_permissions),
+                    }
     plan["data_loss"] = plan["removed"].get("collections", [])
-    plan["needs_confirmation"] = bool(plan["removed"])
+    plan["needs_confirmation"] = bool(plan["removed"] or plan["access_changes"])
     return plan
 
 
@@ -144,6 +168,13 @@ def format_plan(plan):
     for group in ("kept", "added", "removed"):
         for section, names in plan[group].items():
             lines.append(f"{group.capitalize()} {section}: {', '.join(names)}")
+    for section in ("auth.permissions", "auth.roles"):
+        if section in plan["removed"]:
+            lines.append(f"WARNING: removing {section} changes app access.")
+    for path, changes in plan["access_changes"].items():
+        detail = "; ".join(f"{direction} {', '.join(permissions)}"
+                           for direction, permissions in changes.items() if permissions)
+        lines.append(f"WARNING: access change in {path}: {detail}")
     for name in plan["data_loss"]:
         lines.append(f"WARNING: removing collection {name!r} deletes its stored data.")
     for section in plan["possible_renames"]:
@@ -240,7 +271,16 @@ def resolve_source(source, dest, run=subprocess.run):
     dest = Path(dest)
     path = Path(source)
     if path.is_dir():
-        copy_dest = _require_empty(dest / "src")
+        _require_empty(dest)
+        # copytree follows symlinks by default. A template-provided link to
+        # a file outside the source would copy its contents into the app tree.
+        root = path.resolve()
+        for member in path.rglob("*"):
+            if not member.is_symlink() or any(p in (".git", "node_modules") for p in member.parts):
+                continue
+            if not member.resolve().is_relative_to(root):
+                raise SourceError(f"{member} is a symlink outside the template source.")
+        copy_dest = dest / "src"
         shutil.copytree(path, copy_dest, ignore=shutil.ignore_patterns(".git", "node_modules"), dirs_exist_ok=True)
         return find_app_root(copy_dest)
     if path.is_file():
@@ -250,6 +290,7 @@ def resolve_source(source, dest, run=subprocess.run):
     if github is None:
         raise SourceError(f"{source} isn't a directory, archive, or owner/repo[@ref].")
     repo, ref = github
+    _require_empty(dest)
     dest.mkdir(parents=True, exist_ok=True)
     zipball = dest / "source.zip"
     endpoint = f"repos/{repo}/zipball/{ref}" if ref else f"repos/{repo}/zipball"
