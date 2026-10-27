@@ -195,7 +195,7 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 There is no `list-releases` command — check status via the App Manager URL printed in the output. `foundry ui run` serves UI locally only; backend capabilities resolve from the cloud, so deploy those first.
 
-> **Deploy & release operational depth** — `--re-deploy` replays the previous bundle (never to test an edit; only to escape `no deployable artifacts found`); the post-update console-cache hard-refresh (Cmd/Ctrl+Shift+R, don't re-deploy to "fix" a stale view); patch-release credential entry (**Modify settings** vs a `--change-type Major` **Accept update**); and the three version numbers (catalog vs pre-release deploy vs display-only `UI_BUILD`) — all in [references/advanced-patterns.md](references/advanced-patterns.md) → **Deploy & Release**.
+> **Deploy & release operational depth** — `--re-deploy` retries the latest failed deployment (never to test an edit); the post-update console-cache hard-refresh (Cmd/Ctrl+Shift+R, don't re-deploy to "fix" a stale view); patch-release credential entry (**Modify settings** vs a `--change-type Major` **Accept update**); and the three version numbers (catalog vs pre-release deploy vs display-only `UI_BUILD`) — all in [references/advanced-patterns.md](references/advanced-patterns.md) → **Deploy & Release**.
 
 ## Multi-Cloud Deployment
 

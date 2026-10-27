@@ -320,16 +320,16 @@ Load the relevant sub-skill before writing domain-specific code (from `SKILL.md`
 
 Operational depth behind `SKILL.md` → App Creation Flow → Step 7.
 
-> **`foundry apps deploy --re-deploy` replays the PREVIOUS bundle — never use it to test an edit.** It re-runs the last deployment's source and ignores your working-tree changes, so a code fix won't be in it (this quietly costs full cold-build cycles). To test an edit, run a plain `foundry apps deploy`. `--re-deploy` IS the correct escape when a plain deploy reports `no deployable artifacts found` — a failed version poisons the incremental diff base — but only then, not to iterate on a change.
+> **`foundry apps deploy --re-deploy` retries the latest failed deployment — never use it to test an edit.** It re-runs that deployment's bundle, not your working tree, so a code fix won't be in it (this quietly costs full cold-build cycles). To test an edit, run a plain `foundry apps deploy`.
 
 **Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**. That option only exists if the app had settings at first install. If ⋮ shows only **Uninstall app**, release with `--change-type Major`; **Accept update** then shows the credential form, and Modify settings works after that. Don't reinstall; dependent workflows can break.
 
-> **After an update, hard-refresh before you trust what you see.** The Falcon console iframe caches the built bundle, so a correctly released change can keep showing the old UI or logic until a hard refresh (Cmd/Ctrl+Shift+R). If a visual or behavioral change doesn't appear, hard-refresh first — do NOT re-deploy to "fix" it. Content-hashed asset names help, but the console shell still caches. When in doubt, confirm the fix is actually in the build by grepping the built `dist/` before assuming the deploy failed.
+> **After an update, hard-refresh before you trust what you see.** The Falcon console iframe caches the built bundle, so a correctly released change can keep showing the old UI or logic until a hard refresh (Cmd/Ctrl+Shift+R). If a visual or behavioral change doesn't appear, hard-refresh first — do NOT re-deploy to "fix" it. Content-hashed asset names help, but the console shell still caches. To confirm the fix is in the build before assuming the deploy failed, use the dist-grep check in `debugging-workflows`.
 
 > **Three version numbers — don't conflate them.**
 > - **App Catalog version** (`v0.1.x`) — bumped by `foundry apps release --change-type`; authoritative; what App Manager shows.
 > - **Pre-release deploy number** (`v0.1.x-pre-release`) — bumped by every `foundry apps deploy`; shown in `list-deployments`; unrelated to the catalog version.
-> - **Display-only `UI_BUILD` const** (if the app keeps one in source) — set it to the version THIS release will produce (current catalog version + 1, since the release bumps it). It is cosmetic, not the release number.
+> - **Display-only `UI_BUILD` const** (if the app keeps one in source) — set it to the version THIS release will produce. It is cosmetic, not the release number.
 >
 > `release --deployment-id` takes the *deploy* number and produces the next *catalog* version — the deploy number is NOT the release number.
 
