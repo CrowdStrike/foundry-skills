@@ -70,7 +70,7 @@ ui:
     links:
       - name: Dashboard
         path: /
-        permissions: [ "myapp:access" ]   # separate — page gate alone won't hide the menu entry
+        permissions: [ "myapp:access" ]   # hides the menu entry; the page gate is what blocks access
 collections:
   - name: app_config
     schema: collections/app_config.json
@@ -109,6 +109,8 @@ Then upgrade in the App Catalog.
 ### Collection RBAC vs workflow system-action writes
 
 When you gate a collection that a workflow also writes to via a `system_action: true` store action, the human-role gate does **not** block those writes — system actions run under the app identity, not the human user's. Confirm it after enabling the gate: trigger a run and verify results still store. The deploy-first-then-release sequence above makes that check safe before any user is affected.
+
+**An API integration has no role check, so gate the page that calls it.** Anyone who can open a page that calls an integration can send the same request from the browser and skip a function's checks. When a function writes through an integration, restrict the page to a role as well. Foundry checks roles on pages, not on navigation links. When an integration authenticates with a customer's API client, ask for a dedicated client with exactly the scopes the integration needs: every scope a reused shared client holds becomes reachable by the app and its later versions.
 
 ## API Scope Management
 

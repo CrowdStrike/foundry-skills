@@ -30,9 +30,9 @@ Vue 3 Composition API with Foundry-JS:
           <tbody>
             <tr v-for="alert in alerts" :key="alert.id">
               <td>
-                <sl-badge :variant="getSeverityVariant(alert.severity)">
+                <span :class="`status status--${getSeverityVariant(alert.severity)}`">
                   {{ alert.severity }}
-                </sl-badge>
+                </span>
               </td>
               <td>{{ alert.hostname }}</td>
               <td>{{ alert.description }}</td>
@@ -134,9 +134,9 @@ Console-embedded extension that reacts to Falcon console context changes:
         </sl-details>
 
         <sl-details summary="Security Status">
-          <sl-tag :variant="hostData.status === 'normal' ? 'success' : 'danger'">
+          <span :class="`status status--${hostData.status === 'normal' ? 'success' : 'danger'}`">
             {{ hostData.status }}
-          </sl-tag>
+          </span>
         </sl-details>
       </div>
     </sl-card>
@@ -188,8 +188,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 
 // REQUIRED: Import Falcon-themed Shoelace (NOT vanilla Shoelace themes)
-import '@crowdstrike/falcon-shoelace/dist/themes/light.css';
-import '@crowdstrike/falcon-shoelace/dist/themes/dark.css';
+import '@crowdstrike/falcon-shoelace/dist/style.css';  // both themes
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
 
 // Point to Shoelace assets
@@ -278,7 +277,7 @@ describe('AlertsDashboard', () => {
 
     expect(wrapper.find('sl-spinner').exists()).toBe(false);
     expect(wrapper.text()).toContain('test-host');
-    expect(wrapper.find('sl-badge').text()).toContain('8');
+    expect(wrapper.find('.status').text()).toContain('8');
   });
 
   it('shows error message on API failure', async () => {
