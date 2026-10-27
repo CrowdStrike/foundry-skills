@@ -41,7 +41,7 @@ foundry ui run fails
 └── Blank page / CORS error → noAttr() or base path removed from vite.config.js (see ui-development)
 
 Released change doesn't show
-└── UI fix missing from the app → Grep src/dist; rebuild if it's absent (see Confirm a Fix Is in the Built Bundle)
+└── UI fix missing from the app → Grep the built dist; rebuild if it's absent (see Confirm a Fix Is in the Built Bundle)
 
 Function execution fails
 ├── Status 500 + "Server Error"  → Check function logs: foundry functions logs <exec_id>
@@ -150,7 +150,7 @@ Deployment is two-phase: validation (manifest + schemas) then artifact build. Us
 
 ### Confirm a Fix Is in the Built Bundle
 
-When a released UI fix doesn't show, don't diagnose it from the running app alone. Grep the page's or extension's built `src/dist` for the change (a literal string, new token, or renamed symbol). If it isn't there, the deploy shipped the previous build: deploy uploads `dist/` as it is and never builds, so run `npm run build` in that UI directory, then deploy and release again (see **Deploy never builds a UI** in `development-workflow`'s `references/advanced-patterns.md`). If it is there, hard-refresh the console before suspecting the release. This applies to UI only; functions have no `dist`.
+When a released UI fix doesn't show, don't diagnose it from the running app alone. Grep the built bundle, the directory the page's or extension's `path` names in `manifest.yml` (`src/dist` or `dist`, depending on the blueprint), for the change (a literal string, new token, or renamed symbol), or run `foundry apps deploy --diff-only --no-prompt` before deploying and check that new `dist/assets` files are listed. If it isn't there, the deploy shipped the previous build: deploy uploads `dist/` as it is and never builds, so run `npm run build` in that UI directory, then deploy and release again (see **Deploy never builds a UI** in `development-workflow`'s `references/advanced-patterns.md`). If it is there, hard-refresh the console before suspecting the release. This applies to UI only; functions have no `dist`.
 
 ## CLI Troubleshooting
 
