@@ -1,0 +1,9 @@
+{
+  "name": "foundry-skills-snippet-check",
+  "private": true,
+  "description": "Type-checks the TypeScript snippets in skills/ against the real foundry-js API",
+  "devDependencies": {
+    "@crowdstrike/foundry-js": "0.22.0",
+    "typescript": "5.9.2"
+  }
+}

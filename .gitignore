@@ -14,3 +14,5 @@ __pycache__/
 
 # OpenAI submission bundle built by ./release.sh --bundle
 crowdstrike-falcon-foundry-*.zip
+tests/snippets/node_modules/
+tests/snippets/.work/
