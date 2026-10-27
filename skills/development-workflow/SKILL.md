@@ -19,7 +19,7 @@ metadata:
 >
 > **CRITICAL: add `--no-prompt` to every command that accepts it** — without it, interactive prompts cause `Error: EOF`. The `create`, `validate`, `deploy`, `release`, and `delete` commands all accept it (`apps delete` also needs `--force-delete`). Three reject it and fail with `unknown flag`: `foundry version`, `apps list`, and `apps list-deployments`. Verify with `foundry <command> --help`. When a command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
-> **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. After `cd`-ing into a subdirectory for `npm install && npm run build`, always `cd` back to the app root before running any `foundry apps *` or `foundry ui *` command. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
+> **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
 
 This skill coordinates the full Falcon Foundry app lifecycle — from parsing requirements through scaffolding, implementation, and deployment. It delegates capability-specific work to sub-skills that know the platform details.
 
@@ -30,6 +30,9 @@ What does the user need?
 
 Create a new Foundry app
 └── Follow the App Creation Flow below
+
+Upgrade a template-installed app
+└── app-upgrades
 
 Add a capability to an existing app
 ├── API integration       → api-integrations
@@ -53,7 +56,7 @@ Debug a function failure
 ├── "function returning errors"               → debugging-workflows
 └── "no logs available"                       → debugging-workflows
 
-Implement a known pattern (pagination, enrichment, ingestion, etc.)
+Implement a known pattern (pagination, enrichment, ingestion)
 └── Search use-cases/*.md for matching pattern → load for context
 
 Debug / troubleshoot      → debugging-workflows
@@ -222,6 +225,9 @@ cd ui/pages/my-page && npm install && npm run build && cd ../../..
 # IMPORTANT: Verify you are in the app root (where manifest.yml lives) before running
 # foundry apps/ui commands. The CLI resolves paths relative to cwd, not the manifest location.
 
+# Deploy never builds a UI: it ships dist/ as is. Check new dist/assets files are listed:
+foundry apps deploy --diff-only --no-prompt
+
 # Final deploy (run ONCE, never re-deploy to check status)
 foundry apps deploy --no-prompt --change-type Patch --change-log "Complete app"
 
@@ -274,10 +280,10 @@ To deploy the same app to multiple clouds (US-1, US-2, US-3, EU-1, etc.):
 
 ## Existing App Workflow
 
-When `manifest.yml` already exists, work is primarily editing existing files. Use CLI only for:
+With an existing `manifest.yml`, edit files; use the CLI only for:
 - `foundry apps run` / `foundry ui run` — local development
 - `foundry apps deploy` / `foundry apps release` — deployment
-- `foundry api-integrations create` etc. — adding new capabilities
+- `foundry api-integrations create` etc. — adding capabilities
 
 ## Manifest Coordination
 

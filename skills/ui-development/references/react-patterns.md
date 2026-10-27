@@ -133,7 +133,7 @@ function TabNavigation({ children }) {
 import React, { useState, useEffect } from 'react';
 import { useFoundry } from '@crowdstrike/foundry-js/react';
 import {
-  SlCard, SlAlert, SlSpinner, SlButton, SlBadge,
+  SlCard, SlAlert, SlSpinner, SlButton,
 } from '@shoelace-style/shoelace/dist/react';
 import type { Alert } from '../types';
 
@@ -211,9 +211,9 @@ export const AlertsDashboard: React.FC<AlertsDashboardProps> = ({
                   {alerts.map((alert) => (
                     <tr key={alert.id}>
                       <td>
-                        <SlBadge variant={getSeverityVariant(alert.severity)}>
+                        <span className={`status status--${getSeverityVariant(alert.severity)}`}>
                           {alert.severity}
-                        </SlBadge>
+                        </span>
                       </td>
                       <td>{alert.hostname}</td>
                       <td>{alert.description}</td>
@@ -239,7 +239,7 @@ export const AlertsDashboard: React.FC<AlertsDashboardProps> = ({
 ```tsx
 import React, { useState, useEffect } from 'react';
 import { useFoundryExtension } from '@crowdstrike/foundry-js/react';
-import { SlCard, SlDetails, SlTag, SlIcon } from '@shoelace-style/shoelace/dist/react';
+import { SlCard, SlDetails, SlIcon } from '@shoelace-style/shoelace/dist/react';
 import type { HostContext, HostData } from '../types';
 
 export const HostDetailsExtension: React.FC = () => {
@@ -301,9 +301,9 @@ export const HostDetailsExtension: React.FC = () => {
             </SlDetails>
 
             <SlDetails summary="Security Status">
-              <SlTag variant={hostData.status === 'normal' ? 'success' : 'danger'}>
+              <span className={`status status--${hostData.status === 'normal' ? 'success' : 'danger'}`}>
                 {hostData.status}
-              </SlTag>
+              </span>
             </SlDetails>
           </div>
         )}
@@ -410,7 +410,7 @@ function UserList({ users }) {
             <tr key={u.id}>
               <td>{u.name}</td>
               <td>{u.email}</td>
-              <td><sl-badge variant={u.status === 'ACTIVE' ? 'success' : 'neutral'}>{u.status}</sl-badge></td>
+              <td><span className={`status status--${u.status === 'ACTIVE' ? 'success' : 'neutral'}`}>{u.status}</span></td>
             </tr>
           ))}
         </tbody>

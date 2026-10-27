@@ -99,20 +99,29 @@ Foundry workflows handle errors through conditional routing and action-level fla
 
 | Mechanism | Scope | Usage |
 |-----------|-------|-------|
-| `fail_fast_enabled: false` | Function actions | Allow workflow to continue if a function call fails |
+| `continue_on_error: true` | Any action, including `functions.` and `ai_agents.` actions | The run goes on after the action fails. Without it, a failing step stops the run |
 | `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
 | `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
 | `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
 
+`continue_on_error` sits on the action next to `id`, not under `properties:`. Anything under `properties:` is an input to the action, so a key like `fail_fast_enabled` there only does something if that function defines it.
+
+After an action that can fail, branch on `Workflow.Execution.Errors`. It is `null` when nothing failed, and a list of objects with `ErrorCode`, `ErrorType`, `HandledBy`, `Message`, and `SourceNodeID` when an action failed:
+
 ```yaml
-# Function-level: suppress non-critical failures
 actions:
     enrich_data:
         id: functions.enrichment.Enrich
-        properties:
-            fail_fast_enabled: false
+        continue_on_error: true
         version_constraint: ~0
         next:
+            - enrich_failed
+conditions:
+    enrich_failed:
+        cel_expression: data['Workflow.Execution.Errors'] != null && data['Workflow.Execution.Errors'].size() > 0
+        next:
+            - record_failure
+        else:
             - process_results
 
 # Loop-level: stop on first error
@@ -123,6 +132,10 @@ loops:
             continue_on_partial_execution: false
             sequential: true
 ```
+
+There is no per-action retry. Have the step that can fail write its failure state somewhere the UI can read, such as a collection.
+
+**Test a new error-handling shape in a scratch app.** `foundry apps validate` and a Fusion `validate_only` import both accept unknown action keys and broken CEL, so neither proves the YAML works, and a failed workflow artifact can block later deploys of the app that holds it. To make an agent action fail on purpose, send it empty input (`length of input is 0, which does not meet the minimum length of 5`).
 
 No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [pagination-patterns.md](pagination-patterns.md).
 
