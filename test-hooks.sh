@@ -76,6 +76,18 @@ assert_empty() {
   fi
 }
 
+assert_equal() {
+  local actual="$1" expected="$2" name="$3"
+  TOTAL=$((TOTAL + 1))
+  if [ "$actual" = "$expected" ]; then
+    PASS=$((PASS + 1))
+    printf "${GREEN}  PASS${RESET} %s\n" "$name"
+  else
+    FAIL=$((FAIL + 1))
+    printf "${RED}  FAIL${RESET} %s (expected %s, got %s)\n" "$name" "$expected" "$actual"
+  fi
+}
+
 assert_json_field() {
   local output="$1" jq_expr="$2" expected="$3" name="$4"
   TOTAL=$((TOTAL + 1))
@@ -424,6 +436,31 @@ OUTPUT=$(run_hook "$HOOK" "$JSON")
 assert_contains "$OUTPUT" "automatically fixed" "3.7d quoted OpenAPI 3.0 path → auto-adapted"
 assert_not_contains "$(cat "${TEST_SPEC_PREFIX}-3-7d.yaml")" "default: example.com" "3.7d quoted spec was actually modified"
 
+# A quoted example is not an invocation; the hook must not rewrite its spec.
+cat > "${TEST_SPEC_PREFIX}-3-7e.json" <<'EOF'
+{"openapi":"3.0.0","info":{"title":"Test","version":"1"},"servers":[{"url":"https://{host}","variables":{"host":{"default":"example.com"}}}],"paths":{}}
+EOF
+BEFORE=$(cat "${TEST_SPEC_PREFIX}-3-7e.json")
+JSON=$(jq -n --arg cmd "git commit -m 'Document foundry api-integrations create --spec ${TEST_SPEC_PREFIX}-3-7e.json'" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "3.7e quoted Foundry example in a commit → no adaptation"
+assert_equal "$(cat "${TEST_SPEC_PREFIX}-3-7e.json")" "$BEFORE" "3.7e quoted example leaves the spec unchanged"
+
+# Even with a real invocation later, an earlier quoted spec must not be selected.
+JSON=$(jq -n --arg cmd "git commit -m 'Document foundry api-integrations create --spec ${TEST_SPEC_PREFIX}-3-7e.json'; foundry api-integrations create --name X --spec \"${TEST_SPEC_PREFIX}-3-7 spaced.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7f real command uses its own spec"
+assert_equal "$(cat "${TEST_SPEC_PREFIX}-3-7e.json")" "$BEFORE" "3.7f earlier quoted spec stays unchanged"
+
+JSON=$(jq -n --arg cmd "foundry api-integrations create \\
+  --name X \\
+  --spec \"${TEST_SPEC_PREFIX}-3-7 spaced.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7g multiline create still checks the spec"
+
 # 3.8 — flat expose_to_workflow with variables → BLOCK via fallback (adapt doesn't fix x-cs-operation-config)
 cleanup
 cat > "${TEST_SPEC_PREFIX}-3-8.yaml" <<'EOF'
@@ -549,6 +586,12 @@ cat > "${TEST_SPEC_PREFIX}-3-10c.json" <<'EOF'
 EOF
 OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10c.json")
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10c Swagger 2.0 JSON → BLOCK"
+
+# The version field is not necessarily in the first 500 bytes or at the start.
+JSON=$(jq -n '{info: {title: "Test", description: ("x" * 600)}, swagger: "2.0", paths: {}}')
+printf '%s\n' "$JSON" > "${TEST_SPEC_PREFIX}-3-10c-late.json"
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10c-late.json")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10c Swagger 2.0 after long info → BLOCK"
 assert_contains "$OUTPUT" ".openapi3 file" "3.10c Swagger block names the converted file to import"
 assert_empty "$(ls "${TEST_SPEC_PREFIX}"-3-10c.openapi3.* 2>/dev/null)" "3.10c hook does not run the conversion itself"
 
@@ -1219,6 +1262,19 @@ cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets \"activity.hosts.details\" --no-prompt"}}')
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_contains "$OUTPUT" "Invalid socket ID" "6.18a invalid socket ID → advisory"
+
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets=hosts.host.panel --no-prompt"}}')
+SOCKET_STATUS=0
+printf '%s\n' "$JSON" | FOUNDRY_SKIP_NAME_CONFIRM=1 "$GUARD" >/dev/null || SOCKET_STATUS=$?
+assert_equal "$SOCKET_STATUS" "0" "6.18a equals-form socket flag → hook exits successfully"
+
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets=activity.hosts.details --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "Invalid socket ID" "6.18a invalid equals-form socket → advisory"
+
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets hosts.host.panel,xdr.cases.panel --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18a comma-separated valid sockets → pass"
 
 # 6.18b — foundry ui extensions create with hosts.host.panel → pass
 cleanup

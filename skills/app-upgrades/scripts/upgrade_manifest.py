@@ -271,7 +271,16 @@ def resolve_source(source, dest, run=subprocess.run):
     dest = Path(dest)
     path = Path(source)
     if path.is_dir():
-        copy_dest = _require_empty(dest / "src")
+        _require_empty(dest)
+        # copytree follows symlinks by default. A template-provided link to
+        # a file outside the source would copy its contents into the app tree.
+        root = path.resolve()
+        for member in path.rglob("*"):
+            if not member.is_symlink() or any(p in (".git", "node_modules") for p in member.parts):
+                continue
+            if not member.resolve().is_relative_to(root):
+                raise SourceError(f"{member} is a symlink outside the template source.")
+        copy_dest = dest / "src"
         shutil.copytree(path, copy_dest, ignore=shutil.ignore_patterns(".git", "node_modules"), dirs_exist_ok=True)
         return find_app_root(copy_dest)
     if path.is_file():
@@ -281,6 +290,7 @@ def resolve_source(source, dest, run=subprocess.run):
     if github is None:
         raise SourceError(f"{source} isn't a directory, archive, or owner/repo[@ref].")
     repo, ref = github
+    _require_empty(dest)
     dest.mkdir(parents=True, exist_ok=True)
     zipball = dest / "source.zip"
     endpoint = f"repos/{repo}/zipball/{ref}" if ref else f"repos/{repo}/zipball"

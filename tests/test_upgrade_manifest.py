@@ -414,6 +414,45 @@ def test_resolve_directory_requires_empty_dest(tmp_path):
         resolve_source(str(src), dest)
 
 
+def test_resolve_directory_rejects_symlinks_outside_source(tmp_path):
+    src = tmp_path / "app"
+    src.mkdir()
+    (src / "manifest.yml").write_text("name: x\n")
+    private = tmp_path / "private.txt"
+    private.write_text("outside source")
+    (src / "copied.txt").symlink_to(private)
+    dest = tmp_path / "out"
+    with pytest.raises(SourceError, match="symlink"):
+        resolve_source(str(src), dest)
+    assert not (dest / "src" / "copied.txt").exists()
+
+
+def test_resolve_directory_allows_symlinks_within_source(tmp_path):
+    src = tmp_path / "app"
+    src.mkdir()
+    (src / "manifest.yml").write_text("name: x\n")
+    (src / "readme.md").write_text("inside source")
+    (src / "linked.md").symlink_to("readme.md")
+    root = resolve_source(str(src), tmp_path / "out")
+    assert (root / "linked.md").read_text() == "inside source"
+
+
+def test_resolve_github_rejects_nonempty_destination_before_writing(tmp_path):
+    dest = tmp_path / "out"
+    dest.mkdir()
+    original = dest / "source.zip"
+    original.write_bytes(b"leave me alone")
+    calls = []
+
+    def fake_run(_cmd, **_kwargs):
+        calls.append(True)
+
+    with pytest.raises(SourceError, match="not empty"):
+        resolve_source("CrowdStrike/example@main", dest, run=fake_run)
+    assert not calls
+    assert original.read_bytes() == b"leave me alone"
+
+
 def test_resolve_archive(tmp_path):
     archive = tmp_path / "t.zip"
     make_zip(archive, {"w/manifest.yml": "name: x\n"})

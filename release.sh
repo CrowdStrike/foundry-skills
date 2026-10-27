@@ -105,7 +105,9 @@ build_bundle() {
   git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null \
     || { printf "${RED}✗${RESET} Ref not found: %s\n" "$ref" >&2; return 1; }
 
+  # Git refs commonly contain slashes; they must not become output directories.
   local version="${ref#v}"
+  version="${version//\//-}"
   local zip="$SCRIPT_DIR/crowdstrike-falcon-foundry-${version}.zip"
   printf "\n${BLUE}Building skills-only bundle from %s${RESET}\n" "$ref"
 
