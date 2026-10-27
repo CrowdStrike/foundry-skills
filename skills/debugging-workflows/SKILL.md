@@ -261,7 +261,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Blank page with CORS errors | `noAttr()` removed from vite.config.js | Restore the `noAttr()` plugin in vite.config.js |
 | Blank page, no errors in console | `falcon.connect()` not awaited | The platform iframe stays blank until the postMessage handshake completes — add `await falcon.connect()` before any rendering |
 | Data not appearing after writes | Schema mismatch or missing error check | Verify field names/enums match schema exactly; check `result?.errors?.length` after writes |
-| Dialog white background in dark mode | Shoelace panel defaults | Override `--sl-panel-background-color` with `var(--ground-floor)` |
+| Dialog white background in dark mode | Older falcon-shoelace or a custom panel (0.4.0 dialogs follow the theme) | Set `--sl-panel-background-color: var(--ground-floor)` on the element |
 | App install fails with no detail | Workflow CEL expression error | Test API integration in console, then inspect workflow editor for errors |
 | Releases stuck "In progress", never finish | Jammed release queue from repeated failed releases | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id under a new name to keep shipping |
 | Console errors `deserializeSitemap`/`loadSitemapFromLegacy` + `/api2/uilogging 400` | Falcon console shell (`maverick.js`), not your app — corrupted tenant navigation sitemap + its telemetry | Ignore; non-fatal (console falls back to default nav). Not fixable from an app — a Falcon admin resets the tenant's customized navigation if it's disruptive |

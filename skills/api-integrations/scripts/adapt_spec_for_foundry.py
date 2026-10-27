@@ -39,16 +39,10 @@ def convert_swagger_to_openapi(path):
     Returns (converted_path, True) if conversion happened, (original_path, False) otherwise.
     CrowdStrike's own Falcon API spec requires this conversion for Foundry compatibility.
     """
-    text = Path(path).read_text(encoding='utf-8', errors='replace')
-
-    # Detect Swagger 2.0
-    is_swagger = False
-    if '"swagger"' in text[:500] or "'swagger'" in text[:500]:
-        is_swagger = True
-    elif text.lstrip().startswith('swagger:'):
-        is_swagger = True
-
-    if not is_swagger:
+    # Read the version from the parsed document, not the first 500 bytes:
+    # vendor specs may put a long info block ahead of the Swagger field.
+    document, _ = load_spec(path)
+    if not isinstance(document, dict) or str(document.get('swagger')) != '2.0':
         return path, False
 
     # Determine output format based on input

@@ -70,6 +70,7 @@ The `skills/` directory contains specialized skills that provide systematic appr
 - **security-patterns**: OAuth scoping, input validation, UI security
 - **debugging-workflows**: Systematic troubleshooting for CLI, manifest, and API issues
 - **e2e-testing**: End-to-end testing with `@crowdstrike/foundry-playwright`
+- **app-upgrades**: Upgrade a template-installed app to a newer template version, keeping its IDs
 
 ### Use Cases
 
@@ -106,6 +107,7 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 - **"Add a knowledge base"** → ai-agents-development skill
 - **"Troubleshoot deployment"** → debugging-workflows skill
 - **"Add e2e tests"** → e2e-testing skill
+- **"Upgrade an app installed from a template"** → app-upgrades skill
 
 ## Essential Foundry CLI Commands
 
