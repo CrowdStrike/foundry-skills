@@ -49,7 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
-- **foundry-js collection examples** — the TypeScript client, filter, migration, and test examples in `collections-development` called `new Collection()`, `create`, `get`, `update`, and `query`, which foundry-js doesn't have. They now use `falcon.collection({ collection })` with `write`, `read`, `delete`, and `search`, and invented sections (a manifest `indexes:` block, a `readCollection` workflow activity, automatic schema versions) are gone.
+- **foundry-js collection examples** — the TypeScript client, filter, migration, and test examples in `collections-development` called `new Collection()`, `create`, `get`, `update`, and `query`, which foundry-js doesn't have. They now use `falcon.collection({ collection })` with `write`, `read`, `delete`, and `search`. Invented sections are gone (a manifest `indexes:` block and a `readCollection` workflow activity), and the schema-versioning section now matches the docs.
 - **OpenAPI spec hook with quoted paths** — `api-integrations create` now checks specs passed as quoted paths, paths with escaped spaces, or `--spec=path` instead of skipping adaptation.
 - **OpenAPI import safety** — the hook no longer adapts a spec named inside another command's quoted text, and Swagger 2.0 specs are detected even when a long description comes before the version field.
 - **App-upgrade access controls** — the upgrade plan now requires confirmation when a template removes a role or permission definition, or changes permissions on an existing role or artifact, instead of silently treating the change as a safe add-only upgrade.

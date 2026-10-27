@@ -49,8 +49,9 @@ export class IncidentCollection {
 
   async get(id: string): Promise<Incident | null> {
     const obj: any = await this.collection.read(id);
-    // A never-created key resolves to a TRUTHY not-found envelope, not null and not a throw.
-    if (!obj?.created_at) return null;
+    // A never-created key resolves to a TRUTHY not-found envelope, not null and not a throw:
+    // an error body like { meta, errors: [{ code: 404, ... }] } instead of the record.
+    if (obj?.errors?.[0]?.code === 404 || !obj?.created_at) return null;
     return obj as Incident;
   }
 
@@ -235,6 +236,10 @@ function incidentFilter(options: { status?: string; minSeverity?: number; assign
 
 Escape or validate user-supplied values before putting them in a filter.
 
+## Schema Versioning
+
+Each collection's schema carries a version ([docs](https://docs.crowdstrike.com/access?ft:originId=wb6cba2f)). A new collection starts at v1.0, and every schema change creates the next version, while earlier versions stay available. A new or rewritten object gets the latest version, so objects written before a change keep the older one until they're written again. Search by version with the built-in `x-cs-schema-version` filter, for example `x-cs-schema-version:'v1.0'`, to find objects a migration still has to rewrite.
+
 ## Pagination Patterns
 
 - **From a function:** page keys with `ListObjects` as shown in the Python section above, passing the last key as the next `start`. For filtered results, page `SearchObjects` with `offset` and `limit`.
@@ -247,7 +252,7 @@ Escape or validate user-supplied values before putting them in a filter.
 
 **Pattern: Migrate objects from a function**
 
-Run a one-off function handler that pages every key, rewrites each object, and writes it back. Keep it idempotent, so a rerun after a partial failure is safe. Add new fields such as `priority` to the schema before you write them; with `additionalProperties: false`, a write with an unknown field fails:
+Run a one-off function handler that pages every key, rewrites each object, and writes it back, which also moves each object to the latest schema version. Keep it idempotent, so a rerun after a partial failure is safe. Deploy the schema change that adds fields such as `priority` first; with `additionalProperties: false`, a write with an unknown field fails. If the collection is written with `custom_storage_object_key`, that schema change fails to deploy (see SKILL.md), so write the migrated objects to a new collection instead:
 
 ```python
 import json
@@ -264,13 +269,17 @@ def migrate_incidents_v2(client: CustomStorage) -> int:
         for key in keys:
             raw = client.GetObject(collection_name="incidents", object_key=key)
             if not isinstance(raw, bytes):
-                continue  # not found or an error; see the 404 caveat above
+                if raw.get("status_code") == 404:
+                    continue  # deleted since it was listed
+                raise RuntimeError(f"GetObject {key} failed: {raw.get('status_code')}")  # retry the run
             doc = json.loads(raw.decode("utf-8"))
             if "severity_level" in doc and "severity" not in doc:
                 doc["severity"] = doc.pop("severity_level")
             if "priority" not in doc:
                 doc["priority"] = "critical" if doc.get("severity", 0) >= 8 else "normal"
-            client.PutObject(collection_name="incidents", object_key=key, body=doc)
+            result = client.PutObject(collection_name="incidents", object_key=key, body=doc)
+            if result.get("status_code") != 200:
+                raise RuntimeError(f"PutObject {key} failed: {result.get('body', {}).get('errors')}")
             migrated += 1
         start = keys[-1]
 ```
@@ -305,7 +314,7 @@ describe('IncidentCollection', () => {
   });
 
   it('treats the not-found envelope as missing', async () => {
-    store.read.mockResolvedValue({ errors: [] });  // truthy, but no created_at
+    store.read.mockResolvedValue({ meta: {}, errors: [{ code: 404, message: 'object not found' }] });
     expect(await incidents.get('missing')).toBeNull();
   });
 

@@ -950,4 +950,5 @@ class TestCollectionsSdkExamples:
     def test_client_uses_the_real_api(self):
         content = _read_skill(self.FILES[1])
         assert "falcon.collection({ collection: 'incidents' })" in content
-        assert "if (!obj?.created_at) return null;" in content
+        assert "obj?.errors?.[0]?.code === 404 || !obj?.created_at" in content
+        assert "## Schema Versioning" in content, "documented: v1.0 at creation, +1 per change"
