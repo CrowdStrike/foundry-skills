@@ -403,64 +403,50 @@ const securityHeaders = {
 
 ## Secure Manifest Settings (Full Example)
 
-```yaml
-# manifest.yml - Security-first configuration
-app:
-  name: "my-security-app"
-  version: "1.0.0"
+The security-relevant parts of a `manifest.yml`. The CLI generates every entry; edit only the values shown.
 
-# Minimal OAuth scopes
+```yaml
+# Minimal OAuth scopes: only what the functions call
 auth:
   scopes:
-    - "alerts:read"
-    - "devices:read"
+    - alerts:read
+    - devices:read
 
-# UI Security settings
 ui:
   pages:
-    - path: "/dashboard"
-      csp:
-        default_src: "'self'"
-        script_src: "'self'"
-        connect_src: "'self' https://api.crowdstrike.com"
+    dashboard:
+      name: dashboard
+      path: ui/pages/dashboard/src/dist
+      entrypoint: ui/pages/dashboard/src/dist/index.html
+      content_security_policy:
+        connect-src:
+          - https://api.example.com   # only the external hosts the page calls
+        script-src: []
+      permissions: [ "myapp:access" ]
 
-  extensions:
-    - name: "alert-widget"
-      sandbox: "allow-scripts allow-same-origin"
-
-# Function runtime constraints
 functions:
-  - name: "process-alerts"
-    language: "python"
-    path: "functions/process-alerts"
-    max_exec_duration_seconds: 30  # Prevent DoS
-    max_exec_memory_mb: 128        # Limit resource usage
-    environment_variables:
-      PYTHON_PATH: "/opt/app"      # Restricted paths
+  - name: process-alerts
+    path: functions/process-alerts
+    environment_variables: {}
     handlers:
       - name: process
         method: POST
-        path: "/api/alerts/process"
+        api_path: /process
+        request_schema: request_schema.json
+        permissions: []
+    language: python
+    max_exec_duration_seconds: 30   # bound runaway executions
+    max_exec_memory_mb: 128
 
-# Collection access controls
 collections:
-  - name: "incident-data"
-    read_only: true  # Prevent accidental writes
-    ttl: 86400      # Auto-expire sensitive data
+  - name: incident_data
+    schema: collections/incident_data.json
+    permissions: [ "myapp:access" ]   # without this, any CID user can read and write it
 ```
 
 ## Iframe Sandboxing for UI Extensions
 
-```html
-<!-- UI Extension - Secure iframe setup -->
-<iframe
-    src="https://your-extension.com"
-    sandbox="allow-scripts allow-same-origin"
-    allow="clipboard-read; clipboard-write"
-    referrerpolicy="strict-origin-when-cross-origin"
-    loading="lazy">
-</iframe>
-```
+The Falcon console renders pages and extensions in a sandboxed iframe that the app doesn't configure. The sandbox has no `allow-same-origin`, so web storage and cookies throw; `ui-development`'s sandboxed-iframe reference lists what that rules out.
 
 ## Common Security Antipatterns
 
@@ -531,14 +517,17 @@ auth:
 
 ui:
   pages:
-    - name: dashboard
-      path: /
-      permissions: [ "myapp:access" ]
+    dashboard:                     # a map keyed by page ID; path and entrypoint are CLI-written
+      name: dashboard
+      path: ui/pages/dashboard/src/dist
+      entrypoint: ui/pages/dashboard/src/dist/index.html
+      permissions: [ "myapp:access" ]   # blocks access to the page
   navigation:
     links:
-      - name: Dashboard            # gated SEPARATELY — page gate alone won't hide the menu entry
-        path: /
-        permissions: [ "myapp:access" ]
+      - path: /
+        name: Dashboard
+        permissions: [ "myapp:access" ]   # hides the menu entry
+        ref: pages.dashboard
 
 collections:
   - name: app_config
@@ -553,10 +542,10 @@ CLI sequence:
 foundry auth permissions create --key "myapp:access" --name "My App Access" \
   --description "Access to My App" --role-name "My App Operator" \
   --role-description "My App operator role" --no-prompt
-# 2. validate (free dry-run)      3. deploy (gate in code, not live)
+# 2. validate (free dry-run)      3. deploy (the gate isn't live until release + upgrade)
 foundry apps validate --no-prompt && foundry apps deploy --change-type Minor --change-log "Add RBAC" --no-prompt
-# 4. assign the role to yourself in the console and VERIFY access — before releasing
-# 5. release (minor: adding a permission requires users to accept it)
+# 4. assign the role in the console to yourself and everyone who keeps access, before releasing
+# 5. release, then upgrade in the App Catalog and confirm you can still open the app
 foundry apps release --change-type Minor --deployment-id <deployment-id> --notes "Add RBAC" --no-prompt
 ```
 

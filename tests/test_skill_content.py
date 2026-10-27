@@ -928,3 +928,30 @@ class TestScopeTableCasesAndRtr:
         assert "`cases:read` / `cases:write`" in content
         assert "`batch_active_responder_command` (incl. `runscript`)" in content
         assert "`real-time-response-admin:write`" in content
+
+
+class TestRbacWiring:
+    """RBAC examples an agent copies into manifest.yml must match the real format.
+
+    ui.pages is a map keyed by page ID and navigation links point at pages with
+    ref:, and permissions create rejects keys without a colon and descriptions
+    over 50 characters (CLI 2.1.2).
+    """
+
+    SKILL = "skills/security-patterns/SKILL.md"
+    EXAMPLES = "skills/security-patterns/references/security-examples.md"
+
+    def test_page_gates_use_the_manifest_map_form(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            content = _read_skill(path)
+            assert "ref: pages.dashboard" in content, path
+            assert "  pages:\n    - name:" not in content, f"{path}: ui.pages is a map, not a list"
+
+    def test_permissions_create_limits_quote_the_cli(self):
+        content = _read_skill(self.SKILL)
+        assert "should be permission segments separated by :" in content
+        assert "input must be at most 50 characters long" in content
+
+    def test_rollback_keeps_deploy_written_ids(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            assert "Do NOT `git checkout manifest.yml`" in _read_skill(path), path
