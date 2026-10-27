@@ -96,10 +96,10 @@ Note the asymmetry: `output_format: json` needs **no** schema; only `json_with_s
 
 ### Keeping a large-JSON agent from bailing to prose or timing out
 
-An agent asked for a big structured object fails two ways: it emits a prose preamble before the JSON (breaking downstream `JSON.parse`), or it runs past the ~10-minute LLM wall-clock cap and the action times out. The driver is almost always **output + reasoning volume, not input size** — a large prompt with a small, capped output is fine; a modest prompt asking for an unbounded list is not. Fixes, in order:
+An agent asked for a big structured object fails two ways: it emits a prose preamble before the JSON (breaking downstream `JSON.parse`), or it runs long enough that the action times out (observed at about 10 minutes). The driver is almost always **output + reasoning volume, not input size** — a large prompt with a small, capped output is fine; a modest prompt asking for an unbounded list is not. Fixes, in order:
 
 1. Impose a hard **output contract** in the system prompt: top-N caps on every array, terse field values, and an explicit "emit only the JSON object — no preamble or explanation before or after it."
-2. Lower reasoning volume. Agents expose no temperature/token/reasoning knobs in `manifest.yml` (see below), so lower it in AgentWorks: on the agent's **Agent configuration** page, open the menu, select **Model settings**, and set **Reasoning Effort** lower. Then re-prompt there.
+2. Lower reasoning volume. A manifest agent has no reasoning setting (see below), so for it rely on 1 and 3. For an agent built in AgentWorks, open its **Agent configuration** page, open the menu, select **Model settings**, and set **Reasoning Effort** lower.
 3. **Split the agent** (per-domain shards + a deterministic merge function) only if a capped single-shot still overflows; a split adds workflow nodes and cost, so exhaust 1–2 first.
 4. As a last resort, add a **client-side JSON salvage** in the renderer (drop anything before the first `{` / after the last `}`, then parse) so a stray preamble degrades gracefully instead of blanking the view.
 
@@ -128,7 +128,7 @@ System prompts live at `agents/<path>/system_prompt.txt`; KB files at `knowledge
 - **`model`** — **never invent a model ID** (there's no client-side list, so a made-up ID validates locally and fails server-side at deploy). Nothing supplied → leave `""` (platform default). User named one → write it verbatim and note it's only checked at deploy; don't guess a "close enough" ID. Already set → leave it.
 - **`tools`** — a list of `<type>:<reference>` strings, not validated client-side. See below.
 
-**No other tuning knobs exist.** Agents have no temperature or token settings, and knowledge bases have no chunk size, embedding, similarity, or `top_k`; indexing is server-side. Never add such keys to the manifest. Tell the user those settings aren't available.
+**No other tuning knobs exist in `manifest.yml`.** Manifest agents have no temperature, maximum length, or reasoning settings (agents built in AgentWorks set those under **Model settings**), and knowledge bases have no chunk size, embedding, similarity, or `top_k`; indexing is server-side. Never add such keys to the manifest. Tell the user those settings aren't available.
 
 ## Agent Exposure
 
@@ -143,7 +143,8 @@ System prompts live at `agents/<path>/system_prompt.txt`; KB files at `knowledge
 Three behaviors worth knowing:
 
 - **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted entirely when nothing is exposed (the same as all three `false`) — an absent block is correct, not a missing default to "repair" — and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
-- **An AgentWorks-managed agent must be PUBLISHED before the workflow that references it deploys.** The `--expose-workflow-system-action` flow above is for CLI-scaffolded agents this app owns. When the agent is instead built or edited in Charlotte AI > AgentWorks (outside the CLI tree) and called from this app's workflows, it is *publishing it in AgentWorks* that registers the dispatchable Fusion action. Deploy the referencing workflow before that publish and Fusion rejects it with `(2015) action <name>_<cid> does not exist` — the action isn't there yet. Publish the agent, confirm it reads as published, then deploy the workflow.
+- **`ai_agents.<name>` binds only to an agent in this app's `ai.agents` block.** The alias resolves against that agent's manifest `name`, nothing else. An agent already in the CID but not in this app's manifest (one built in Charlotte AI > AgentWorks, say) has no manifest entry, so `ai_agents.<its name>` resolves to nothing. A workflow can reach such an agent only by its resolved `<uuid>_<cid>` action ID, which differs in every CID, so prefer declaring the agent in the manifest.
+- **An AgentWorks agent must be published before a workflow that references it deploys.** Only an agent's published version is exposed to Falcon Fusion SOAR workflows. Deploy a workflow that references an unpublished agent's `<uuid>_<cid>` and Falcon Fusion SOAR rejects it with `(2015) action <uuid>_<cid> does not exist`. Publish the agent in AgentWorks, then deploy.
 - **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature; the check runs before any files are written (`--input-schema is required when --expose-agent-as-tool is set`), and the same rule is enforced on the manifest, so hand-adding `agent_as_tool: true` without an `input_schema` breaks every subsequent CLI command in the app.
 - **Nothing else here is validated client-side.** A misspelled key under `exposure` surfaces only at deploy.
 
@@ -207,8 +208,8 @@ Charlotte chat and the app's own workflows (`ai_agents.<agent name>`) invoke an 
 | Two agents with the same name in Charlotte AI > AgentWorks | `agents delete` + redeploy left the old platform-side agent unpublished | Delete the orphan in the console; match agents by the IDs in `manifest.yml`, not by name |
 | Deploy fails with `model <id> is not available`, and still fails after setting `model: ""` | Model IDs are CID-specific, and a failed deploy leaves the pinned model on the platform-side agent | Pick an ID from `/agentic-studio/queries/models/v1` in that CID, or remove the agent and create it again |
 | `400` when invoking an agent with `credit_cents_limit` | Value below the undocumented floor | Pass `100` or more |
-| Deploy fails with Fusion `(2015) action <name>_<cid> does not exist` | Workflow references an AgentWorks agent that isn't published yet — no dispatchable action registered | Publish the agent in Charlotte AI > AgentWorks first, then deploy the referencing workflow. For the other cause of 2015, see [workflow-invocation.md](references/workflow-invocation.md) |
-| Agent's JSON won't `JSON.parse`, or the action times out at ~10 min | Prose preamble before the JSON, or output/reasoning volume too high (not input size) | Output contract (top-N caps, terse fields, "no preamble"), lower **Reasoning Effort** in the agent's AgentWorks **Model settings**; split only if still overflowing; client-side JSON salvage as fallback |
+| Deploy fails with Falcon Fusion SOAR `(2015) action <uuid>_<cid> does not exist` | Workflow references an AgentWorks agent that isn't published yet | Publish the agent in Charlotte AI > AgentWorks first, then deploy the referencing workflow. For the other cause of 2015, see [workflow-invocation.md](references/workflow-invocation.md) |
+| Agent's JSON won't `JSON.parse`, or the action times out (observed at about 10 minutes) | Prose preamble before the JSON, or output/reasoning volume too high (not input size) | Output contract (top-N caps, terse fields, "no preamble"); for an AgentWorks agent, lower **Reasoning Effort** in **Model settings**; split only if still overflowing; client-side JSON salvage as fallback |
 
 ## Reading Guide
 
