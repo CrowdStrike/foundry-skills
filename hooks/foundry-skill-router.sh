@@ -172,8 +172,17 @@ case "$HOOK_EVENT" in
     if [ "$TOOL_NAME" = "Bash" ] || [ "$TOOL_NAME" = "Shell" ]; then
       TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
       if echo "$TOOL_INPUT" | grep -q 'foundry api-integrations create'; then
-        # Extract the spec file path from --spec flag
-        SPEC_FILE=$(echo "$TOOL_INPUT" | grep -oE '\-\-spec\s+[^ ]+' | awk '{print $2}')
+        # Parse quoted paths, escaped spaces, and --spec=path without invoking
+        # Python (which may be missing when the adapter needs to report that).
+        SPEC_RE="--spec(=|[[:space:]]+)(\"[^\"]+\"|'[^']+'|([^[:space:]]|\\\\[[:space:]])+)"
+        SPEC_FILE=""
+        if [[ $TOOL_INPUT =~ $SPEC_RE ]]; then
+          SPEC_FILE=${BASH_REMATCH[2]}
+          case "$SPEC_FILE" in
+            \"*\"|\'*\') SPEC_FILE=${SPEC_FILE#?}; SPEC_FILE=${SPEC_FILE%?} ;;
+            *) SPEC_FILE=${SPEC_FILE//\\ / } ;;
+          esac
+        fi
         if [ -n "$SPEC_FILE" ] && [ -f "$SPEC_FILE" ]; then
           # Find the adapt script relative to the plugin root
           PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

@@ -379,6 +379,51 @@ cleanup
 OUTPUT=$(run_spec_hook "/tmp/nonexistent-spec.yaml")
 assert_empty "$OUTPUT" "3.7  non-existent spec file → ALLOW (passthrough)"
 
+# 3.7a — a quoted path with spaces must still be checked for Swagger 2.0
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-7 spaced.yaml" <<'EOF'
+swagger: "2.0"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+EOF
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec \"${TEST_SPEC_PREFIX}-3-7 spaced.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7a quoted spec path with spaces → BLOCK Swagger 2.0"
+
+# 3.7b — the CLI also accepts --spec=path
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec=${TEST_SPEC_PREFIX}-3-7\\ spaced.yaml --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7b equals-form spec path with escaped space → BLOCK Swagger 2.0"
+
+# 3.7c — single-quoted paths also preserve spaces
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec '${TEST_SPEC_PREFIX}-3-7 spaced.yaml' --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7c single-quoted spec path → BLOCK Swagger 2.0"
+
+# 3.7d — quoted OpenAPI 3.0 paths also reach the adapter
+cat > "${TEST_SPEC_PREFIX}-3-7d.yaml" <<'EOF'
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0"
+servers:
+  - url: "{domain}"
+    variables:
+      domain:
+        default: "example.com"
+paths: {}
+EOF
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec \"${TEST_SPEC_PREFIX}-3-7d.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "automatically fixed" "3.7d quoted OpenAPI 3.0 path → auto-adapted"
+assert_not_contains "$(cat "${TEST_SPEC_PREFIX}-3-7d.yaml")" "default: example.com" "3.7d quoted spec was actually modified"
+
 # 3.8 — flat expose_to_workflow with variables → BLOCK via fallback (adapt doesn't fix x-cs-operation-config)
 cleanup
 cat > "${TEST_SPEC_PREFIX}-3-8.yaml" <<'EOF'
