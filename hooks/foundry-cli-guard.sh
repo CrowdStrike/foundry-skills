@@ -175,20 +175,25 @@ if echo "$FOUNDRY_CMDS" | grep -qE 'foundry\s+ui\s+extensions\b.*\bcreate\b'; th
     exit 0
   fi
   # Validate --sockets value against known valid socket IDs
-  SOCKET_VAL=$(echo "$FOUNDRY_RAW" | grep -oE -- '--sockets\s+"?[^"[:space:]]+"?' | sed 's/--sockets[[:space:]]*//' | tr -d '"')
+  SOCKET_VAL=$(echo "$FOUNDRY_RAW" |
+    grep -oE -- "--sockets(=|[[:space:]]+)(\"[^\"]+\"|'[^']+'|[^[:space:]]+)" |
+    head -1 | sed -E 's/^--sockets(=|[[:space:]]+)//' | tr -d "\"'" || true)
   if [ -n "$SOCKET_VAL" ]; then
     VALID_SOCKETS="activity.detections.details identity.detections.details automated-leads.leads.details hosts.host.panel xdr.cases.panel xdr.cases.details ngsiem.workbench.details workflows.executions.execution.details"
-    IS_VALID=false
-    for vs in $VALID_SOCKETS; do
-      if [ "$SOCKET_VAL" = "$vs" ]; then
-        IS_VALID=true
-        break
+    IFS=',' read -ra SOCKET_IDS <<< "$SOCKET_VAL"
+    for socket in "${SOCKET_IDS[@]}"; do
+      IS_VALID=false
+      for vs in $VALID_SOCKETS; do
+        if [ "$socket" = "$vs" ]; then
+          IS_VALID=true
+          break
+        fi
+      done
+      if [ "$IS_VALID" = "false" ]; then
+        emit_advisory "PreToolUse" "Invalid socket ID: \"${socket}\". Run \`foundry ui extensions list-sockets\` for available sockets. Known IDs: activity.detections.details, identity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, xdr.cases.details, ngsiem.workbench.details, workflows.executions.execution.details."
+        exit 0
       fi
     done
-    if [ "$IS_VALID" = "false" ]; then
-      emit_advisory "PreToolUse" "Invalid socket ID: \"${SOCKET_VAL}\". Run \`foundry ui extensions list-sockets\` for available sockets. Known IDs: activity.detections.details, identity.detections.details, automated-leads.leads.details, hosts.host.panel, xdr.cases.panel, xdr.cases.details, ngsiem.workbench.details, workflows.executions.execution.details."
-      exit 0
-    fi
   fi
 fi
 

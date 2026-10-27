@@ -56,6 +56,8 @@ output_fields: []
 
 Where the alias isn't supported yet, or the agent's output needs post-processing in code, have the workflow call a function action and let the function invoke the agent:
 
+> Prefer the `ai_agents.<agent name>` action when it works. On one CID, invoking an app agent from a function handler returned a gateway `500` while the same agent ran end to end from the workflow action. If the handler path fails like that, move the call to the workflow and post-process in a function action after it.
+
 1. Create the agent with `--expose-workflow-system-action`.
 2. Create a function with `--wf-expose` plus input and output schemas, so the workflow can call it as `functions.<name>.<handler>` (see `workflows-development`), and `--max-exec-duration-seconds 120` so it outlives the agent's deadline.
 3. In the handler, resolve the agent by name and invoke it with FalconPy. The app needs the `charlotte-ai-agent-definition` read and write scopes.
@@ -90,7 +92,7 @@ def assess(agent_id: str, prompt: str) -> str:
     return replies[-1]["content"]
 ```
 
-Resolve `agent_id` at runtime, never hardcode it. A lookup by name also returns deleted agents, including ones an earlier install left behind, so one name can match more than one agent; follow **AgentWorks: finding your app's own agents by name** in `functions-falcon-api` [advanced-patterns](../../functions-falcon-api/references/advanced-patterns.md). The poll gives up shortly after the agent's own deadline, which is why the function needs a `--max-exec-duration-seconds` above it (the default is 15 and the maximum 900). Any status it doesn't recognize is left to that timeout rather than looping forever.
+Resolve `agent_id` at runtime, never hardcode it. A lookup by name also returns deleted agents, including ones an earlier install left behind, so one name can match more than one agent; follow **AgentWorks: finding your app's own agents by name** in `functions-falcon-api` [advanced-patterns](../../functions-falcon-api/references/advanced-patterns.md). The poll gives up shortly after the agent's own deadline, which is why the function needs a `--max-exec-duration-seconds` above it (the default is 30 and the maximum 900). Any status it doesn't recognize is left to that timeout rather than looping forever.
 
 ## Acting on an Agent's Reply
 

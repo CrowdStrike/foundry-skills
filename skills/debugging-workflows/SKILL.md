@@ -305,7 +305,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Blank page with CORS errors | `noAttr()` removed from vite.config.js | Restore the `noAttr()` plugin in vite.config.js |
 | Blank page, no errors in console | `falcon.connect()` not awaited | The platform iframe stays blank until the postMessage handshake completes — add `await falcon.connect()` before any rendering |
 | Data not appearing after writes | Schema mismatch or missing error check | Verify field names/enums match schema exactly; check `result?.errors?.length` after writes |
-| Dialog white background in dark mode | Shoelace panel defaults | Override `--sl-panel-background-color` with `var(--ground-floor)` |
+| Dialog white background in dark mode | Older falcon-shoelace or a custom panel (0.4.0 dialogs follow the theme) | Set `--sl-panel-background-color: var(--ground-floor)` on the element |
 | App install fails with no detail | Workflow CEL expression error | Test API integration in console, then inspect workflow editor for errors |
 
 ## Debugging App Install Failures

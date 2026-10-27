@@ -103,6 +103,8 @@ An agent asked for a big structured object fails two ways: it emits a prose prea
 3. **Split the agent** (per-domain shards + a deterministic merge function) only if a capped single-shot still overflows; a split adds workflow nodes and cost, so exhaust 1–2 first.
 4. As a last resort, add a **client-side JSON salvage** in the renderer (drop anything before the first `{` / after the last `}`, then parse) so a stray preamble degrades gracefully instead of blanking the view.
 
+`output_format: json` drops replies that aren't valid JSON, and agents the app creates are app-owned: see [manifest-schema](references/manifest-schema.md#output-format-json-and-long-replies).
+
 ## Manifest Structure
 
 Both artifact lists live under one top-level `ai:` key (omitted when empty) — never a top-level `agents:` key:

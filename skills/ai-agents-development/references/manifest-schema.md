@@ -98,6 +98,14 @@ Other forms fail, and one bad entry fails the whole app's deploy. None of these 
 | `action:api_integrations.<name>.<agent_tools.name>` or `.<operationId>` | `500 Internal Server Error` at upload |
 | `action:integration.<name>.<operationId>` | `ARTIFACT_DISTRIBUTION_FAILED` |
 
+### Output format json and long replies
+
+`output_format: json` discards any reply that isn't valid JSON. The invocation fails with `AW_AGENT_INVOCATION_FAILED` (`output_format_error`) and the whole reply is lost, even though it costs 0 credits. With long structured replies this failed 2 of 4 runs. When code parses a long reply, use `output_format: text`, ask for JSON in the system prompt, and parse tolerantly, keeping every complete object.
+
+### Who owns an agent
+
+An agent the installed app creates, whether from `manifest.yml` or through the AgentWorks API under the app's identity, is Foundry-origin (`attribution.origin: foundry`) and owned by the app. Users can't edit or duplicate it in the console, and a manifest agent doesn't open there at all. The API has no owner, share, or transfer field, so a copy the app makes is app-owned too. To give users agents they can edit, create them with a customer-supplied API client through an API integration. Settle this before the first release: it decides the app's design.
+
 ## Knowledge base fields
 
 | Field | YAML key | Type | Required | CLI-settable | Notes |

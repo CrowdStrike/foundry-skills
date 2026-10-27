@@ -116,6 +116,38 @@ A function that invokes agents its app ships (a judge, a classifier) usually has
 
 So hydrate each candidate's agent record and keep only `not is_deleted` and `attribution.origin == "foundry"`; refuse, rather than guess, if more than one survives. Matching `attribution.data.foundry_app_id` against your own app would be stricter still, but the Python FDK does not expose the function's app ID.
 
+## Calling APIs from Worker Threads
+
+FalconPy reads the Foundry token from a Python context variable, and only when a client is constructed. A plain worker thread has no token, so a client built there fails to authenticate. Build every client on the handler thread, then run each task in its own copy of the handler's context (one context can't be entered by two threads at once):
+
+```python
+import contextvars
+from concurrent.futures import ThreadPoolExecutor
+from falconpy import Alerts, Hosts
+
+def collect(request, config, logger):
+    hosts, alerts = Hosts(), Alerts()          # build on the handler thread
+    tasks = [lambda: hosts.query_devices_by_filter(limit=1),
+             lambda: alerts.query_alerts_v2(limit=1)]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(contextvars.copy_context().run, t) for t in tasks]
+        return [f.result() for f in futures]
+```
+
+The function runtime is a single-threaded HTTP server, so threads help only while calls wait on the network: collecting 12 sources with 4 workers took 31 s against 107 s one after another. Keep at most about 3 Next-Gen SIEM search jobs open at once (a shared semaphore held for the life of each job), and retry a `429` once after its `Retry-After`. Before releasing threaded code, `exec` the deployed pre-release and check every task's result, because only the platform runtime shows whether the token reaches it.
+
+## Listing on a Shared CID
+
+Offset paging over a list other people keep changing skips and repeats items. Paging about 1,000 AgentWorks tools intermittently lost 25 of them, and agents behaved the same.
+
+- Filter to a stable subset and sort explicitly. For tools, FQL `category:!'agents'` sorted by `id`. The default sort direction differs between endpoints (Cases and agents disagree), so never rely on it for "the newest N".
+- Take counts from a `limit=1` call's `meta.pagination.total`, and never use a first call's total as the loop bound.
+- `QueryAgentsV2` ignores the direction of a `created_at` sort. Use `active_version.created_at|desc`, and `active_version.is_published:true` for an exact published count.
+
+## Workflows API Under the App Identity
+
+The Workflows search APIs (definitions, executions, activities, triggers) answer `400` `unsupported workflow artifact operation` to a function running as the installed app, while an API client gets `200` for the same call. Adding the app ID header doesn't help. Read run history from the Fusion execution logs in Next-Gen SIEM (`#repo=fusion`) instead. A UI page runs with the user's session, so it can read one execution with foundry-js `getEntitiesExecutionResultsV1` under `workflow:read` (see `ui-development`).
+
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |

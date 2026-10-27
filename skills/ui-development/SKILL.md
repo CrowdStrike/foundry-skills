@@ -346,12 +346,12 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 - **Loading only light theme.** The Falcon console supports dark mode — users see broken styling without both themes.
 - **Hardcoding colors.** Use `var(--sl-*)` design tokens so the UI adapts to theme changes.
 - **Expecting backend to work with `foundry ui run`.** The dev server only serves UI — deploy backend capabilities first.
-- **Shoelace dialogs/drawers white in dark mode.** Override `--sl-panel-background-color` and `--sl-color-neutral-0` with `var(--ground-floor)`. See [references/shoelace-reference.md](references/shoelace-reference.md).
+- **Using `sl-badge` or `sl-tag` for status.** falcon-shoelace doesn't style them, so every variant looks the same. Also: `sl-option` values can't hold spaces, `sl-radio-group` gets two tab stops, and dialog events bubble from children. See [shoelace-reference](references/shoelace-reference.md#components-falcon-shoelace-doesnt-style).
 - **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
 - **Quoting numeric query parameters.** `execute()` accepts `Record<string, unknown>`, so `limit: '25'` passes type-checking and fails server-side with `got string want integer`. Match the `schema.type` declared in the OpenAPI spec — the extension still renders, so this reads as an API error rather than a code bug.
 - **Reading `localStorage` or `sessionStorage`.** The sandbox lacks `allow-same-origin`, so any access throws a `SecurityError` (see [Sandboxed Iframe Restrictions](#sandboxed-iframe-restrictions)). Use in-memory state or a collection; wrap legacy calls in `try/catch`.
 - **Reporting errors with `alert()` or guarding actions with `confirm()`.** The sandbox lacks `allow-modals`, so both are silently ignored: errors vanish and `confirm()`-guarded actions never run. Use inline errors and `<sl-dialog>`.
-- **Missing CSP for Shoelace icons.** The Foundry CSP only allows `assets.foundry.crowdstrike.com`. If using `setBasePath()` with `cdn.jsdelivr.net`, you must add it to `connect-src` and `img-src` in the manifest's `content_security_policy`. Alternatively, copy icon assets to your `dist/` folder and set a relative base path to avoid CDN dependencies entirely.
+- **Serving icons from `dist/`.** The default CSP already allows `cdn.jsdelivr.net` and `data:`, so the `setBasePath()` above needs no manifest change. Deploy drops `.svg` files and `connect-src` blocks the app's own host, so a local icon path fails. Inline custom SVGs ([falcon-theming](references/falcon-theming.md#shoelace-icons-and-the-csp)).
 
 ## Reading Guide
 
