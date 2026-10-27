@@ -554,16 +554,17 @@ foundry auth permissions create --key "myapp:access" --name "My App Access" \
   --description "Access to My App" --role-name "My App Operator" \
   --role-description "My App operator role" --no-prompt
 # 2. validate (free dry-run)      3. deploy (gate in code, not live)
-foundry apps validate --no-prompt && foundry apps deploy --no-prompt
+foundry apps validate --no-prompt && foundry apps deploy --change-type Minor --change-log "Add RBAC" --no-prompt
 # 4. assign the role to yourself in the console and VERIFY access — before releasing
 # 5. release (minor: adding a permission requires users to accept it)
-foundry apps release --change-type minor --no-prompt
+foundry apps release --change-type Minor --deployment-id <deployment-id> --notes "Add RBAC" --no-prompt
 ```
 
 Rollback (needs no app access). Do NOT `git checkout manifest.yml` — that discards the `app_id` and per-artifact IDs the deploy wrote back, and the next deploy fails with `an app with the provided name already exists`. Instead revert only the RBAC additions (delete the `auth.permissions` / `auth.roles` entries you added and the per-artifact `permissions:` gates), leaving the deploy-written IDs in place:
 
 ```bash
 # after reverting only the auth.permissions / auth.roles entries + artifact permissions: gates
-foundry apps deploy --no-prompt && foundry apps release --change-type patch --no-prompt
+foundry apps deploy --change-type Patch --change-log "Roll back RBAC" --no-prompt
+foundry apps release --change-type Patch --deployment-id <deployment-id> --notes "Roll back RBAC" --no-prompt
 # then upgrade in the App Catalog
 ```

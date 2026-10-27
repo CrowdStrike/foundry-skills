@@ -100,8 +100,8 @@ Turning on RBAC is the one change that can lock you out of your own app mid-rele
 **Rollback needs no app access** — App Manager upgrade/uninstall are console-admin capabilities the app's own RBAC cannot block. Do NOT `git checkout manifest.yml` to roll back: that also discards the `app_id` and per-artifact IDs the deploy wrote back, so the next deploy fails with *"an app with the provided name already exists."* Revert only the RBAC additions, leaving every deploy-written ID in place — delete the `auth.permissions` and `auth.roles` entries you added, and remove the `permissions:` gate list from each artifact you gated (or commit the deploy-written IDs first, then revert just those sections). Then:
 
 ```bash
-foundry apps deploy --no-prompt
-foundry apps release --change-type patch --no-prompt
+foundry apps deploy --change-type Patch --change-log "Roll back RBAC" --no-prompt
+foundry apps release --change-type Patch --deployment-id <deployment-id> --notes "Roll back RBAC" --no-prompt
 ```
 
 Then upgrade in the App Catalog.
