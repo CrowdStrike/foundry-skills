@@ -475,6 +475,14 @@ class TestAIAgentsSkill:
 # ── Agent tool exposure is documented on both sides ──────────────────────────
 
 
+    def test_agentworks_agent_published_before_deploy(self):
+        """Deploying a workflow before its AgentWorks agent is published fails with 2015."""
+        content = _read_skill(self.SKILL)
+        assert "must be PUBLISHED before the workflow that references it deploys" in content
+        assert "(2015) action <name>_<cid> does not exist" in content
+        assert "isn't published yet" in _read_skill(
+            "skills/ai-agents-development/references/workflow-invocation.md")
+
 class TestAgentToolExposure:
     """Exposure and the tools entry are both required; neither alone errors.
 
