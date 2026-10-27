@@ -38,16 +38,15 @@ output_fields: []
 - **A `json_with_schema` agent has no `response` output.** Its action exposes the fields of the agent's `output_schema.json` instead, so an agent whose schema has a `category` property is read as `${data['<action key>.category']}`. A reference to an output that doesn't exist passes `apps validate` and deploy, then fails the app install with no detail: the App catalog shows **Install failed**, or **Settings update failed** when a patch release upgrades an installed app (verified 2026-10-05). The workflow editor (App builder > the workflow > **Edit**) shows the real keys in its **Workflow data** panel, and clicking a data pill copies its exact expression. `foundry workflows actions view --name "<agent name>" --no-prompt --output-schema` shows the output once the agent has been deployed, so deploying the agent before writing the workflow avoids guessing.
 - **Use `version_constraint: ~1`, not `~0`.** Unlike `functions.` and `api_integrations.` actions, the published agent action carries a version (`"version": 1` in `actions view`), so it follows the `workflows-development` rule for versioned actions. `~0` matches no published version and deploy fails with `(2018) Action was not found`.
 - **The name match is case-insensitive** and may contain spaces or dots. Use the manifest `name`, not the `path`, the artifact `id`, or an `agents.` prefix.
-- **The alias is portable.** It resolves to `<agent UUID without dashes>_<CID>`, which differs in every CID and on every reinstall, so never hardcode that ID. Exported apps and workflows saved in App Builder carry the alias, not the resolved ID.
+- **The alias is portable.** It resolves to `<agent UUID without dashes>_<CID>`, which differs in every CID and on every reinstall, so never hardcode that ID for a manifest agent. Exported apps and workflows saved in App Builder carry the alias, not the resolved ID.
 - **`foundry apps validate` doesn't resolve action IDs**, so check the deploy output:
 
 | Deploy error | Fix |
 |---|---|
 | `referenced AI agent "X" is not exposed to workflows; set exposure.workflows.system_action to true` | Set the exposure flag and redeploy |
-| `referenced AI agent 'X' could not be found` | Use the agent's manifest `name` |
+| `referenced AI agent 'X' could not be found` | Use the agent's manifest `name`. An agent built only in AgentWorks has no manifest name, so the alias can't reach it: reference its `<uuid>_<cid>` action ID (CID-specific, so the workflow won't port) or recreate it as a manifest agent |
 | `action with <id> does not exist` (code 2015) for an `ai_agents.` alias | This cloud's Foundry API predates alias support; use the function fallback below |
 | `(2015) action <uuid>_<cid> does not exist` for an agent built in AgentWorks | The agent isn't published yet; publish it in Charlotte AI > AgentWorks, then deploy. See **Pitfalls** in `SKILL.md` |
-| `ai_agents.<name>` reaches nothing for an agent built in AgentWorks | The alias binds only to agents in this app's `ai.agents` block. Declare the agent in the manifest, or reference it by its `<uuid>_<cid>` action ID |
 | `(2018) Action was not found, please select a new action.` | `version_constraint` is `~0`; set it to `~1`. If that deploy still fails, see the next row |
 | `Dependent artifact failed (400)` naming a workflow version that already failed | An earlier failed workflow artifact blocks every later deploy of this app, even after the YAML is fixed. Recreate the app; see **NEVER Delete and Recreate Workflows** in `workflows-development` |
 

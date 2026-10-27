@@ -92,14 +92,14 @@ The CLI reads the value as a file path/URL first and silently falls back to trea
 
 Note the asymmetry: `output_format: json` needs **no** schema; only `json_with_schema` does. Omitting the paired schema is caught late at manifest save (`agent "my_agent" input_schema is required when input_format is json`).
 
-> **The schema file name is fixed** — it must be `input_schema.json` / `output_schema.json` in the agent directory (any other filename or an inline schema is rejected and breaks every CLI command in the app), and the bound schema is re-validated against the agent's model at deploy (unsupported keywords like `minimum`/`maximum` surface only in App manager "Show errors"). Full error strings + allowed keywords: [references/manifest-schema.md](references/manifest-schema.md#schema-file-names-are-fixed).
+> **The schema file name is fixed** — it must be `input_schema.json` / `output_schema.json` in the agent directory (a manifest key naming any other file breaks every CLI command in the app; CLI 2.1.2+ renames the file you pass to `--input-schema`/`--output-schema`), and the bound schema is re-validated against the agent's model at deploy (unsupported keywords like `minimum`/`maximum` surface only in App manager "Show errors"). Full error strings + allowed keywords: [references/manifest-schema.md](references/manifest-schema.md#schema-file-names-are-fixed).
 
 ### Keeping a large-JSON agent from bailing to prose or timing out
 
 An agent asked for a big structured object fails two ways: it emits a prose preamble before the JSON (breaking downstream `JSON.parse`), or it runs long enough that the action times out (observed at about 10 minutes). The driver is almost always **output + reasoning volume, not input size** — a large prompt with a small, capped output is fine; a modest prompt asking for an unbounded list is not. Fixes, in order:
 
 1. Impose a hard **output contract** in the system prompt: top-N caps on every array, terse field values, and an explicit "emit only the JSON object — no preamble or explanation before or after it."
-2. Lower reasoning volume. A manifest agent has no reasoning setting (see below), so for it rely on 1 and 3. For an agent built in AgentWorks, open its **Agent configuration** page, open the menu, select **Model settings**, and set **Reasoning Effort** lower.
+2. Lower reasoning volume. A manifest agent has no reasoning setting (see below), so for it rely on 1 and 3. For an agent built in AgentWorks, open its **Agent configuration** page, open the menu, select **Model settings**, and set **Reasoning Effort** lower; a high **Maximum Length** can also cause timeouts.
 3. **Split the agent** (per-domain shards + a deterministic merge function) only if a capped single-shot still overflows; a split adds workflow nodes and cost, so exhaust 1–2 first.
 4. As a last resort, add a **client-side JSON salvage** in the renderer (drop anything before the first `{` / after the last `}`, then parse) so a stray preamble degrades gracefully instead of blanking the view.
 
@@ -107,7 +107,7 @@ An agent asked for a big structured object fails two ways: it emits a prose prea
 
 ## Manifest Structure
 
-Both artifact lists live under one top-level `ai:` key (omitted when empty) — never a top-level `agents:` key:
+Both artifact lists live under one top-level `ai:` key (omitted when empty) — never a top-level `agents:` key. This is a shape sketch, not YAML to copy; the CLI writes the entries:
 
 ```yaml
 ai:
@@ -143,7 +143,7 @@ System prompts live at `agents/<path>/system_prompt.txt`; KB files at `knowledge
 Three behaviors worth knowing:
 
 - **No flag means unreachable, even by your own app.** With no `--expose-*` flag the `exposure` block is omitted entirely when nothing is exposed (the same as all three `false`) — an absent block is correct, not a missing default to "repair" — and no workflow can call the agent. For an agent used only by this app's automations, pass `--expose-workflow-system-action` alone; it stays out of Charlotte chat. Call it from the app's workflows as `ai_agents.<agent name>`, never a generic LLM action with the prompt copied inline ([workflow-invocation](references/workflow-invocation.md)).
-- **`ai_agents.<name>` binds only to an agent in this app's `ai.agents` block.** The alias resolves against that agent's manifest `name`, nothing else. An agent already in the CID but not in this app's manifest (one built in Charlotte AI > AgentWorks, say) has no manifest entry, so `ai_agents.<its name>` resolves to nothing. A workflow can reach such an agent only by its resolved `<uuid>_<cid>` action ID, which differs in every CID, so prefer declaring the agent in the manifest.
+- **`ai_agents.<name>` binds only to an agent in this app's `ai.agents` block.** The alias resolves against that agent's manifest `name`, nothing else. An agent already in the CID but not in this app's manifest (one built in Charlotte AI > AgentWorks, say) has no manifest entry, so `ai_agents.<its name>` resolves to nothing. A workflow can reach such an agent only by its resolved `<uuid>_<cid>` action ID, which differs in every CID, so the workflow won't port. To make it portable, recreate the agent as a manifest agent: that's a new, app-owned copy, not a link to the AgentWorks one.
 - **An AgentWorks agent must be published before a workflow that references it deploys.** Only an agent's published version is exposed to Falcon Fusion SOAR workflows. Deploy a workflow that references an unpublished agent's `<uuid>_<cid>` and Falcon Fusion SOAR rejects it with `(2015) action <uuid>_<cid> does not exist`. Publish the agent in AgentWorks, then deploy.
 - **`--expose-agent-as-tool` requires `--input-schema`.** A calling agent needs a declared signature; the check runs before any files are written (`--input-schema is required when --expose-agent-as-tool is set`), and the same rule is enforced on the manifest, so hand-adding `agent_as_tool: true` without an `input_schema` breaks every subsequent CLI command in the app.
 - **Nothing else here is validated client-side.** A misspelled key under `exposure` surfaces only at deploy.
