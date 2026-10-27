@@ -22,7 +22,7 @@ export interface Incident {
 
 ## Full CRUD Client (TypeScript)
 
-A typed collection client wrapping the `foundry-js` `Collection` for create/get/update/delete/list. Note the `get()` guard: a never-created key resolves to a truthy not-found envelope, so gate on a field the record must have (`obj.id`), never on truthiness (see the not-found-envelope pitfall in SKILL.md).
+A typed collection client wrapping the `foundry-js` `Collection` for create/get/update/delete/list. Note the `get()` guard: a never-created key resolves to a truthy not-found envelope, so gate on a field only a real record carries (`obj.created_at`), never on truthiness (see the not-found-envelope pitfall in SKILL.md).
 
 ```typescript
 import { Collection } from '@crowdstrike/foundry-js';
@@ -48,8 +48,8 @@ export class IncidentCollection {
   async get(id: string): Promise<Incident | null> {
     const obj = await this.collection.get(id);
     // A never-created key resolves to a TRUTHY not-found envelope, not null and not a throw.
-    // Gate on a field the record must have — never on truthiness.
-    if (!obj || !obj.id) return null;
+    // Gate on a field only a real record carries — never on truthiness.
+    if (!obj || !obj.created_at) return null;
     return obj;
   }
 
