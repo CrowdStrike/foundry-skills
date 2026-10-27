@@ -940,7 +940,9 @@ class TestOperatingAnInstalledApp:
         content = _read_skill(self.SKILL)
         assert "COMMIT those" in content
         assert "an app with the provided name already exists" in content
-        assert "mint a new app" not in _read_skill(self.PATTERNS)
+        patterns = _read_skill(self.PATTERNS)
+        assert "`debugging-workflows` → Manifest Issues" in patterns
+        assert "foundry apps delete --force-delete --no-prompt" in patterns, "delete the e2e app before reverting"
 
     def test_re_deploy_matches_help(self):
         assert "retries the latest failed deployment" in _read_skill(self.PATTERNS)

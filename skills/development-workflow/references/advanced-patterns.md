@@ -246,7 +246,7 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 
 1. **Configure credentials** — copy `.env.sample` to `.env` in the `e2e/` directory and fill in valid Falcon credentials (username, password, TOTP secret, base URL) and app name. `APP_NAME` defaults to the repo name. `FALCON_` credentials must be for a non-SSO user because TOTP is used in e2e tests. This file is gitignored and required for local test runs.
 
-2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Remember to `git checkout manifest.yml` after deploy to revert ID changes.
+2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Step 5 cleans up after the run.
 
 3. **Deploy and release:**
 
@@ -260,7 +260,7 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 
 4. **Run tests:** `cd e2e && npm test`
 
-5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest). **This revert applies ONLY to throwaway e2e runs of the public `foundry-sample-*` repos, which commit blanked IDs so the app installs into any CID. For an app you own and operate, do the OPPOSITE — commit the IDs the first deploy writes back (see `SKILL.md` → Manifest Coordination); reverting them breaks the next deploy, which fails with `an app with the provided name already exists` (see `debugging-workflows` → Manifest Issues).**
+5. **Delete the test app, then revert the manifest:** from the app root, run `foundry apps delete --force-delete --no-prompt` while `manifest.yml` still has the deployed IDs (the reference sample's CI does the same), then `git checkout manifest.yml`. Reverting without deleting orphans the app, and the next deploy fails with `an app with the provided name already exists`. **This revert applies ONLY to throwaway e2e runs of the public `foundry-sample-*` repos, which commit blanked IDs so the app installs into any CID. For an app you own and operate, do the OPPOSITE — commit the IDs the first deploy writes back (see `SKILL.md` → Manifest Coordination); reverting them breaks the next deploy, which fails with `an app with the provided name already exists` (see `debugging-workflows` → Manifest Issues).**
 
 ## Capability Create Commands
 
@@ -334,7 +334,7 @@ Operational depth behind `SKILL.md` → App Creation Flow → Step 7.
 > **Three version numbers — don't conflate them.**
 > - **App Catalog version** (`v0.1.x`) — bumped by `foundry apps release --change-type`; authoritative; what App Manager shows.
 > - **Pre-release deploy number** (`v0.1.x-pre-release`) — bumped by every `foundry apps deploy`, failed ones included; shown in `list-deployments`. It differs from the catalog version a release produces (see the release-numbering note above).
-> - **Display-only `UI_BUILD` const** (if the app keeps one in source) — set it to the version THIS release will produce. It is cosmetic, not the release number.
+> - **Any version string shown in the app's own UI** — cosmetic; set it to the version this release will produce, but it isn't the release number.
 >
 > `foundry apps release --deployment-id` takes the ID of a deployment record from `list-deployments`; the catalog version it produces is not the deployment's number.
 

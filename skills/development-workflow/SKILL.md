@@ -201,7 +201,7 @@ foundry apps release --change-type Patch --deployment-id <id> --notes "Release n
 
 There is no `list-releases` command — check status via the App Manager URL printed in the output. `foundry ui run` serves UI locally only; backend capabilities resolve from the cloud, so deploy those first.
 
-> **Deploy & release operational depth** — `--re-deploy` retries the latest failed deployment (never to test an edit); the post-update console-cache hard-refresh (Cmd/Ctrl+Shift+R, don't re-deploy to "fix" a stale view); patch-release credential entry (**Modify settings** vs a `--change-type Major` **Accept update**); and the three version numbers (catalog vs pre-release deploy vs display-only `UI_BUILD`) — all in [references/advanced-patterns.md](references/advanced-patterns.md) → **Deploy & Release**.
+> **Deploy & release operational depth** — `--re-deploy` retries the latest failed deployment (never to test an edit); the post-update console-cache hard-refresh (Cmd/Ctrl+Shift+R, don't re-deploy to "fix" a stale view); patch-release credential entry (**Modify settings** vs a `--change-type Major` **Accept update**); and the version numbers (catalog vs deployment vs any version shown in the UI) — all in [references/advanced-patterns.md](references/advanced-patterns.md) → **Deploy & Release**.
 
 ## Multi-Cloud Deployment
 
@@ -218,7 +218,7 @@ With an existing `manifest.yml`, edit files; use the CLI only for:
 
 **Dependency order:** the Step 5 order (each may depend on the previous)
 
-- **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" (rename only). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
+- **MUST NOT edit manifest.yml** unless a deploy fails with "app name already exists" on a true name collision (rename only); if the deploy-written IDs were lost, restore them instead (see below). The CLI sets `path`, `entrypoint`, scopes, and IDs correctly — manual edits cause double-path errors and wasted deploy cycles.
 - **The first (cold) deploy writes the provisioned `app_id` + page/function/workflow/agent IDs back into `manifest.yml` — COMMIT those.** They identify your app on that cloud; without them the next deploy fails with `an app with the provided name already exists`. This is the OPPOSITE of the e2e-sample `git checkout manifest.yml` step (see `references/advanced-patterns.md` → Testing an Existing App Locally), which is for throwaway CI runs of the public `foundry-sample-*` repos that commit blanked IDs to install into any CID. For an app you own and operate, keep the written-back IDs.
 - **Narrow exceptions:** `ai.agents[].model` and `.tools` (see `ai-agents-development`), `auth.scopes` names `scopes add` rejects (see `security-patterns`), and renaming a deployed KB (see `knowledge-bases.md`). (Agent `exposure` *does* have `--expose-*` flags; set it at create time.)
 - **MUST NOT edit vite.config.js** — the React blueprint is turnkey. Do not change `base`, `root`, or `noAttr()`. Just edit React/JS component code and deploy.
