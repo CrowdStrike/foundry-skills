@@ -53,12 +53,12 @@ foundry auth permissions create \
 **2. Role** — appears automatically under `auth.roles` after step 1; inspect it there, and do NOT run `foundry auth roles create` for it (that would orphan a duplicate role). Reserve standalone `foundry auth roles create` for a role built *independently* of `permissions create` — e.g. one that bundles permission keys that already exist (via `--permissions`); it creates a role but no permission:
 
 ```bash
-foundry auth roles create --name "Analyst" --permissions "myapp:access,myapp:report" --description "Read-only analyst access" --no-prompt
+foundry auth roles create --name "Analyst" --permissions "myapp:access" --description "Read-only analyst access" --no-prompt
 ```
 
 That makes a second role carrying already-created permission keys; it does NOT create a new permission. Use it only when you deliberately want a role separate from the one `permissions create` already made — never to "add" the role from step 1.
 
-**3. Artifact gates** — add the permission **key** to the `permissions:` list the CLI already wrote on each artifact. Edit only that list; leave the generated `path`, `entrypoint`, and `ref` values alone. The page gate is what blocks access; a gate on the navigation link only hides the menu entry (Foundry checks roles on pages, not links), so set both:
+**3. Artifact gates** — pass `--permissions "myapp:access"` to `collections create`, `functions create`, `ui pages create`, `ui extensions create`, or `ui navigation add` (CLI 2.1.2), or add the permission **key** to the `permissions:` list the CLI already wrote on an existing artifact ([docs](https://docs.crowdstrike.com/access?ft:originId=w88f0d03)). Edit only that list; leave the generated `path`, `entrypoint`, and `ref` values alone. The page gate is what blocks access; a gate on the navigation link only hides the menu entry (Foundry checks roles on pages, not links), so set both:
 
 ```yaml
 ui:
@@ -95,19 +95,17 @@ collections:
 Turning on RBAC is the one change that can lock you out of your own app mid-release. Safe sequence:
 
 1. `foundry auth permissions create` — permission + role into the manifest.
-2. `foundry apps deploy --change-type Minor --change-log "Add RBAC" --no-prompt` — the gate is in the deployment but not live until you release and upgrade.
+2. `foundry apps deploy --change-type Minor --change-log "Add RBAC" --no-prompt` — the gate is in the deployment but not live until you release.
 3. **Assign the role in the Falcon console** (Users → Roles & Permissions) to yourself and everyone who should keep access, before you release. Don't rely only on the implicit admin grant.
-4. Release, then upgrade in the App Catalog. The gate applies from the upgrade on.
+4. Release. A Minor or Patch release reaches installed apps automatically, so the gate applies from the release on; only a Major release also needs **Update** in the App Catalog.
 5. **Open the app and confirm you can still reach it.** If you can't, roll back as below.
 
-**Rollback needs no app access** — App Manager upgrade/uninstall are console-admin capabilities the app's own RBAC cannot block. Do NOT `git checkout manifest.yml` to roll back: that also discards the `app_id` and per-artifact IDs the deploy wrote back, so the next deploy fails with *"an app with the provided name already exists."* Revert only the RBAC additions, leaving every deploy-written ID in place — delete the `auth.permissions` and `auth.roles` entries you added, and remove the `permissions:` gate list from each artifact you gated (or commit the deploy-written IDs first, then revert just those sections). Then:
+**Rollback needs no app access** — App Manager upgrade/uninstall are console-admin capabilities the app's own RBAC cannot block. Do NOT `git checkout manifest.yml` to roll back: that also discards the `app_id` and per-artifact IDs the deploy wrote back, so the next deploy fails with *"an app with the provided name already exists."* Revert only the RBAC additions, leaving every deploy-written ID in place — remove the role from its assigned users, delete the `auth.permissions` and `auth.roles` entries you added, and set each gated artifact back to `permissions: []` (or commit the deploy-written IDs first, then revert just those sections). Then:
 
 ```bash
 foundry apps deploy --change-type Patch --change-log "Roll back RBAC" --no-prompt
 foundry apps release --change-type Patch --deployment-id <deployment-id> --notes "Roll back RBAC" --no-prompt
 ```
-
-Then upgrade in the App Catalog.
 
 ### Collection RBAC vs workflow system-action writes
 

@@ -945,7 +945,14 @@ class TestRbacWiring:
         for path in (self.SKILL, self.EXAMPLES):
             content = _read_skill(path)
             assert "ref: pages.dashboard" in content, path
-            assert "  pages:\n    - name:" not in content, f"{path}: ui.pages is a map, not a list"
+            assert not re.search(r"\n\s*pages:\n\s*- ", content), f"{path}: ui.pages is a map, not a list"
+            assert "content_security_policy:" in content, path
+            for bad in ("  csp:", "connect_src", "read_only: true"):
+                assert bad not in content, f"{path}: {bad} is not a manifest field"
+
+    def test_rollback_resets_gates_to_empty_lists(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            assert "permissions: []" in _read_skill(path), path
 
     def test_permissions_create_limits_quote_the_cli(self):
         content = _read_skill(self.SKILL)

@@ -545,15 +545,14 @@ foundry auth permissions create --key "myapp:access" --name "My App Access" \
 # 2. validate (free dry-run)      3. deploy (the gate isn't live until release + upgrade)
 foundry apps validate --no-prompt && foundry apps deploy --change-type Minor --change-log "Add RBAC" --no-prompt
 # 4. assign the role in the console to yourself and everyone who keeps access, before releasing
-# 5. release, then upgrade in the App Catalog and confirm you can still open the app
+# 5. release (Minor reaches installed apps automatically), then confirm you can still open the app
 foundry apps release --change-type Minor --deployment-id <deployment-id> --notes "Add RBAC" --no-prompt
 ```
 
-Rollback (needs no app access). Do NOT `git checkout manifest.yml` — that discards the `app_id` and per-artifact IDs the deploy wrote back, and the next deploy fails with `an app with the provided name already exists`. Instead revert only the RBAC additions (delete the `auth.permissions` / `auth.roles` entries you added and the per-artifact `permissions:` gates), leaving the deploy-written IDs in place:
+Rollback (needs no app access). Do NOT `git checkout manifest.yml` — that discards the `app_id` and per-artifact IDs the deploy wrote back, and the next deploy fails with `an app with the provided name already exists`. Instead revert only the RBAC additions (remove the role from its users, delete the `auth.permissions` / `auth.roles` entries you added, and set each gated artifact back to `permissions: []`), leaving the deploy-written IDs in place:
 
 ```bash
 # after reverting only the auth.permissions / auth.roles entries + artifact permissions: gates
 foundry apps deploy --change-type Patch --change-log "Roll back RBAC" --no-prompt
 foundry apps release --change-type Patch --deployment-id <deployment-id> --notes "Roll back RBAC" --no-prompt
-# then upgrade in the App Catalog
 ```
