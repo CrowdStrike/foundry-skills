@@ -83,7 +83,8 @@ _NEGATION_CUE = (
 # Stop at sentence-ending punctuation or a contrast word ("no UI, but add a
 # function") so a later affirmative clause isn't swallowed.
 _NEGATED_SPAN = re.compile(
-    rf"\b{_NEGATION_CUE}\b(?:(?!\b(?:but|however|though|although|except|yet)\b)[^.;!?\n])*",
+    rf"\b{_NEGATION_CUE}\b(?:(?!\b(?:but|however|though|although|except|yet)\b"
+    rf"|(?:,\s*|\band\s+(?:also\s+)?)(?:add|build|create|include|implement)\b)[^.;!?\n])*",
     re.IGNORECASE,
 )
 

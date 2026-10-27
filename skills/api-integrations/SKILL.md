@@ -140,6 +140,10 @@ When the domain **varies per customer**, use a single server variable for the fu
 
 Use a single variable for the complete domain. Splitting into `{subdomain}.vendor.com` causes certificate errors when users enter the full domain (e.g., `dev-12345.okta.com.okta.com`). A `default` value without `enum` renders a dropdown instead of a free-text input.
 
+For a fixed set of hosts, such as the Falcon API regions, use an `enum` with a `default` (see [auth-examples](references/auth-examples.md#oauth-20-client-credentials-for-a-falcon-api)).
+
+**Put setup steps in `info.description`.** It's the text at the top of the install form. The console orders the fields itself and shows raw enum values.
+
 ### Expose Operations to Workflows
 
 > **Skip this unless the user asks for it.** Most API integrations work without `x-cs-operation-config`. Only add it when the prompt explicitly mentions sharing operations with Falcon Fusion SOAR workflows, or when a UI extension or workflow in the app needs a specific endpoint.

@@ -171,9 +171,22 @@ case "$HOOK_EVENT" in
     # Cursor's shell tool is Shell. Claude's is Bash.
     if [ "$TOOL_NAME" = "Bash" ] || [ "$TOOL_NAME" = "Shell" ]; then
       TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-      if echo "$TOOL_INPUT" | grep -q 'foundry api-integrations create'; then
-        # Extract the spec file path from --spec flag
-        SPEC_FILE=$(echo "$TOOL_INPUT" | grep -oE '\-\-spec\s+[^ ]+' | awk '{print $2}')
+      # Mask quoted text and heredocs without changing offsets, then locate
+      # actual Foundry commands and their --spec flags. Looking for a substring
+      # in the whole shell input can rewrite a file mentioned in a commit message.
+      while IFS= read -r -d '' SPEC_ARG; do
+        [ -n "$SPEC_ARG" ] || continue
+        # Parse quoted paths, escaped spaces, and --spec=path without invoking
+        # Python (which may be missing when the adapter needs to report that).
+        SPEC_RE="--spec(=|[[:space:]]+)(\"[^\"]+\"|'[^']+'|([^[:space:]]|\\\\[[:space:]])+)"
+        SPEC_FILE=""
+        if [[ $SPEC_ARG =~ $SPEC_RE ]]; then
+          SPEC_FILE=${BASH_REMATCH[2]}
+          case "$SPEC_FILE" in
+            \"*\"|\'*\') SPEC_FILE=${SPEC_FILE#?}; SPEC_FILE=${SPEC_FILE%?} ;;
+            *) SPEC_FILE=${SPEC_FILE//\\ / } ;;
+          esac
+        fi
         if [ -n "$SPEC_FILE" ] && [ -f "$SPEC_FILE" ]; then
           # Find the adapt script relative to the plugin root
           PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -181,8 +194,7 @@ case "$HOOK_EVENT" in
 
           # Swagger 2.0 needs converting to a new file, and an npx download can't
           # finish inside this hook's timeout. Send it back to run the adapter first.
-          if head -c 500 "$SPEC_FILE" | grep -qE "[\"']swagger[\"']" ||
-             grep -m1 -vE '^[[:space:]]*$' "$SPEC_FILE" | grep -qE '^[[:space:]]*swagger:'; then
+          if grep -qE '["'"'"']swagger["'"'"'][[:space:]]*:[[:space:]]*["'"'"']?2(\.0)?|^[[:space:]]*swagger:[[:space:]]*["'"'"']?2(\.0)?' "$SPEC_FILE"; then
             emit_deny "PreToolUse" "BLOCKED: ${SPEC_FILE} is a Swagger 2.0 spec, and Foundry needs OpenAPI 3.0. Convert and adapt it first:
 python3 ${ADAPT_SCRIPT} ${SPEC_FILE}
 
@@ -233,7 +245,20 @@ Proceeding with the corrected spec."
             exit 0
           fi
         fi
-      fi
+      done < <(printf '%s' "$TOOL_INPUT" | jq -Rrsj "$(cat <<'JQ'
+. as $raw
+| gsub("(?<heredoc><<-?[[:space:]]*[\"']?(?<w>[A-Za-z_][A-Za-z0-9_]*)[\"']?[^\n]*\n(?:[^\n]*\n)*?[[:space:]]*\\k<w>(?=[[:space:]]|\\)|$))"; " " * (.heredoc | length); "s")
+| gsub("(?<quoted>\"(?:\\\\.|[^\"\\\\])*\"|'[^']*')"; " " * (.quoted | length))
+| gsub("(?<continuation>\\\\\n)"; " " * (.continuation | length))
+| [match("(?:^|[\n;&|()\\x60]+)[^\n;&|()\\x60]*"; "g")
+   | select(.string | sub("^[\n;&|()\\x60]+[[:space:]]*(?:[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*"; "")
+     | test("^(?:[^[:space:]]*/)?foundry[[:space:]]+api-integrations[[:space:]]+create(?:[[:space:]]|$)"))
+   | . as $command
+   | (.string | match("(^|[[:space:]])--spec(?:=|[[:space:]]+)"; "g"))
+   | ($raw[($command.offset + .offset):($command.offset + $command.length)] | gsub("\\\\\n"; " ")) + "\u0000"]
+| .[]
+JQ
+)")
     fi
 
     # Detect hand-written OpenAPI specs — nudge to download the vendor's real spec
