@@ -247,7 +247,7 @@ Proceeding with the corrected spec."
         fi
       done < <(printf '%s' "$TOOL_INPUT" | jq -Rrsj "$(cat <<'JQ'
 . as $raw
-| gsub("(?<heredoc><<-?[[:space:]]*[\"']?(?<w>[A-Za-z_][A-Za-z0-9_]*)[\"']?[^\n]*\n(?:.*?\n)??[[:space:]]*\\k<w>(?=[[:space:]]|\\)|$))"; " " * (.heredoc | length); "s")
+| gsub("(?<heredoc><<-?[[:space:]]*[\"']?(?<w>[A-Za-z_][A-Za-z0-9_]*)[\"']?[^\n]*\n(?:[^\n]*\n)*?[[:space:]]*\\k<w>(?=[[:space:]]|\\)|$))"; " " * (.heredoc | length); "s")
 | gsub("(?<quoted>\"(?:\\\\.|[^\"\\\\])*\"|'[^']*')"; " " * (.quoted | length))
 | gsub("(?<continuation>\\\\\n)"; " " * (.continuation | length))
 | [match("(?:^|[\n;&|()\\x60]+)[^\n;&|()\\x60]*"; "g")

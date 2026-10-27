@@ -461,6 +461,17 @@ JSON=$(jq -n --arg cmd "foundry api-integrations create \\
 OUTPUT=$(run_hook "$HOOK" "$JSON")
 assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7g multiline create still checks the spec"
 
+# A multi-line heredoc (a typical commit message) is not an invocation either.
+JSON=$(jq -n --arg cmd "git commit -F - <<'EOF'
+Add an API integration
+
+foundry api-integrations create --spec ${TEST_SPEC_PREFIX}-3-7e.json
+EOF" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "3.7h multi-line heredoc example → no adaptation"
+assert_equal "$(cat "${TEST_SPEC_PREFIX}-3-7e.json")" "$BEFORE" "3.7h heredoc example leaves the spec unchanged"
+
 # 3.8 — flat expose_to_workflow with variables → BLOCK via fallback (adapt doesn't fix x-cs-operation-config)
 cleanup
 cat > "${TEST_SPEC_PREFIX}-3-8.yaml" <<'EOF'
