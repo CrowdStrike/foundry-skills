@@ -21,7 +21,7 @@ metadata:
 
 - **Workflow Author role** is required in addition to the Falcon Developer role
 - Workflows are YAML templates provisioned as active instances (up to **25** per template)
-- **`provision_on_install: true` is REQUIRED** in the workflow YAML — treat it as a per-workflow checklist item, not a footnote. Without it the workflow deploys **"Successful" but never instantiates** into Fusion SOAR: no error, nothing to run, invisible at deploy time.
+- **`provision_on_install: true` is REQUIRED** in the workflow YAML — treat it as a per-workflow checklist item, not a footnote. Without it the workflow deploys **"Successful" but never instantiates** into Falcon Fusion SOAR: no error, nothing to run, invisible at deploy time. The one deliberate exception is a workflow with an action ID you can't verify: set `false` and have the user finish it in the console (see [Platform Action Fallback Strategy](references/advanced-patterns.md#platform-action-fallback-strategy)).
 
 ## CLI Scaffolding
 
@@ -133,7 +133,7 @@ Fusion builds a DAG. A node inside a parallel branch MUST NOT reach a downstream
 
 > **Silent variant (no error):** a store/aggregator that reads `${data['X.response']}` off a node `X` sitting on a **diamond fork** resolves **EMPTY** at the join — the pill comes back blank, not an error, which is very hard to diagnose. Same rule, same fix: any node whose `.response` you read must be a single-path ancestor of the reader, never a shared fork.
 
-> **Parallel-branch output needs an explicit edge.** A parallel branch's data pill is visible downstream only if the branch action names the consumer in its `next: [Downstream]`. A branch that fans out but doesn't list the consumer deploys fine, yet its output never reaches that consumer (blank pill). Wire every producer→consumer edge explicitly.
+> **Parallel-branch output needs an explicit edge.** A parallel branch's data pill is visible downstream only if the branch action names the consumer in its `next: [Downstream]`. A branch that fans out but doesn't list the consumer deploys fine, yet its output never reaches that consumer (blank pill). A direct edge is safe when the producer reaches the consumer only through that edge. If the consumer is also reachable through another node the producer feeds, as with `A.next: [Join, B]` above, don't add the edge: linearize instead.
 
 See [references/advanced-patterns.md](references/advanced-patterns.md) for a worked `ExecSummary → {A, B, C} → Merge` diamond showing the failure and the linearized rewrite.
 
