@@ -471,6 +471,27 @@ class TestAIAgentsSkill:
         assert "2023-05-09" in content
         assert "no `manifest_version` gate" in content
 
+    def test_agentworks_agent_published_before_deploy(self):
+        """A workflow that references an unpublished AgentWorks agent fails with 2015."""
+        content = _read_skill(self.SKILL)
+        assert "must be published before a workflow that references it deploys" in content
+        assert "(2015) action <uuid>_<cid> does not exist" in content
+        assert "isn't published yet" in _read_skill(
+            "skills/ai-agents-development/references/workflow-invocation.md")
+
+    def test_alias_binds_only_to_manifest_agents(self):
+        content = _read_skill(self.SKILL)
+        assert "`ai_agents.<name>` binds only to an agent in this app's `ai.agents` block" in content
+        assert "<name>_<cid>" not in content, "agent action IDs are <uuid>_<cid>"
+
+    def test_reasoning_effort_is_not_a_manifest_key(self):
+        """Reasoning Effort is an AgentWorks Model settings field, not a manifest.yml key."""
+        for path in (self.SKILL, "CHANGELOG.md"):
+            assert "reasoning_effort" not in _read_skill(path), path
+        content = _read_skill(self.SKILL)
+        assert "**Model settings**" in content
+        assert "no preamble" in content
+
 
 # ── Agent tool exposure is documented on both sides ──────────────────────────
 
