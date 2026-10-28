@@ -248,7 +248,7 @@ Each collection's schema carries a version ([docs](https://docs.crowdstrike.com/
 
 ## Schema Migration Patterns
 
-> **Migrate data, not the collection definition.** These patterns evolve the *objects* inside an existing collection. The collection's schema, TTL, and name themselves cannot change in place on a custom-storage collection (written via `custom_storage_object_key`) — adding a TTL or tightening the schema fails deploy with `custom_storage_object_key is a reserved input property`, and renaming orphans the data. See the custom-storage immutability and no-in-place-rename pitfalls in SKILL.md.
+> **Migrate data, not the collection definition.** These patterns evolve the *objects* inside an existing collection. The collection's schema and name themselves cannot change in place on a custom-storage collection (written via `custom_storage_object_key`) — adding a TTL or tightening the schema fails deploy with `custom_storage_object_key is a reserved input property`, and renaming orphans the data. See the custom-storage immutability and no-in-place-rename pitfalls in SKILL.md.
 
 **Pattern: Migrate objects from a function**
 
