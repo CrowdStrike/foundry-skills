@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """Build the manifest field vocabulary the skill-snippet test checks against.
 
-Reads the manifest.yml of each public foundry-sample-* app and writes every
-field path it uses to tests/fixtures/manifest-vocabulary.json. List items
-become `[]`, and maps keyed by IDs or names (pages, dashboards, permissions,
-environment variables) become `*`, so a path names a field, not a value.
+Fetches manifest.yml from each public CrowdStrike/foundry-sample-* repo on
+GitHub and writes every field path it uses to
+tests/fixtures/manifest-vocabulary.json. List items become `[]`, and maps keyed
+by IDs or names (pages, dashboards, permissions, environment variables) become
+`*`, so a path names a field, not a value. Nothing needs to be cloned.
 
-Usage: python3 scripts/build_manifest_vocabulary.py ~/dev/foundry-sample-*
+Usage:
+    python3 scripts/build_manifest_vocabulary.py                  # refresh the samples in the fixture
+    python3 scripts/build_manifest_vocabulary.py foundry-sample-x  # add samples to the fixture
 """
 
 import json
-import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import yaml  # pylint: disable=import-error
@@ -36,6 +40,7 @@ CLI_FIELDS = {
     *(f"ai.knowledge_bases[].{f}" for f in ("id", "name", "description", "encrypt", "path", "files")),
 }
 OUT = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "manifest-vocabulary.json"
+RAW = "https://raw.githubusercontent.com/CrowdStrike/{repo}/main/manifest.yml"
 
 
 def field_paths(node, path=""):
@@ -50,24 +55,27 @@ def field_paths(node, path=""):
             yield from field_paths(item, f"{path}[]")
 
 
-def _is_public_sample(sample):
-    """Only public CrowdStrike samples go into the fixture, which ships in a public repo."""
-    remote = subprocess.run(["git", "-C", str(sample), "remote", "get-url", "origin"],
-                            capture_output=True, text=True, check=False).stdout
-    if "github.com/CrowdStrike/" in remote or "github.com:CrowdStrike/" in remote:
-        return True
-    print(f"Skipping {sample.name}: not a public CrowdStrike repo", file=sys.stderr)
-    return False
+def fetch_manifest(repo):
+    """Return the parsed manifest.yml of a public CrowdStrike repo, or None if unavailable."""
+    try:
+        with urllib.request.urlopen(RAW.format(repo=repo), timeout=30) as response:
+            return yaml.safe_load(response.read().decode("utf-8"))
+    except urllib.error.URLError as error:
+        print(f"Skipping {repo}: {error}", file=sys.stderr)
+        return None
 
 
-def main(sample_dirs):
+def main(added_repos):
+    repos = set(added_repos)
+    if OUT.exists():
+        repos.update(json.loads(OUT.read_text(encoding="utf-8"))["sources"])
     paths, sources = set(), []
-    for sample in sorted(Path(d) for d in sample_dirs):
-        manifest = sample / "manifest.yml"
-        if not manifest.is_file() or not _is_public_sample(sample):
+    for repo in sorted(repos):
+        manifest = fetch_manifest(repo)
+        if manifest is None:
             continue
-        paths.update(field_paths(yaml.safe_load(manifest.read_text(encoding="utf-8"))))
-        sources.append(sample.name)
+        paths.update(field_paths(manifest))
+        sources.append(repo)
     # A keyed map's children are app-chosen names, even where every sample's map is empty
     paths.update(f"{m}.*" for m in KEYED_MAPS)
     paths.update(CLI_FIELDS)
@@ -77,6 +85,4 @@ def main(sample_dirs):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
     main(sys.argv[1:])
