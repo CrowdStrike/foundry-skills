@@ -46,9 +46,9 @@ output_fields: []
 | `referenced AI agent "X" is not exposed to workflows; set exposure.workflows.system_action to true` | Set the exposure flag and redeploy |
 | `referenced AI agent 'X' could not be found` | Use the agent's manifest `name`. An agent built only in AgentWorks has no manifest name, so the alias can't reach it: reference its `<uuid>_<cid>` action ID (CID-specific, so the workflow won't port) or recreate it as a manifest agent |
 | `action with <id> does not exist` (code 2015) for an `ai_agents.` alias | This cloud's Foundry API predates alias support; use the function fallback below |
-| `(2015) action <uuid>_<cid> does not exist` for an agent built in AgentWorks | The agent isn't published yet; publish it in Charlotte AI > AgentWorks, then deploy. See **Pitfalls** in `SKILL.md` |
+| `(2015) action with <uuid>_<cid> does not exist` for an agent built in AgentWorks | The agent isn't published yet; publish it in Charlotte AI > AgentWorks, then deploy. See **Pitfalls** in `SKILL.md` |
 | `(2018) Action was not found, please select a new action.` | `version_constraint` is `~0`; set it to `~1`. If that deploy still fails, see the next row |
-| `Dependent artifact failed (400)` naming a workflow version that already failed | An earlier failed workflow artifact blocks every later deploy of this app, even after the YAML is fixed. Recreate the app; see **NEVER Delete and Recreate Workflows** in `workflows-development` |
+| `Dependent artifact failed (400)` naming a workflow version that already failed | An earlier failed workflow artifact blocks every later deploy of this app, even after the YAML is fixed. Deploy the app as a fresh app: strip its IDs with the `yq` command in `development-workflow` → **Multi-Cloud Deployment**, give it a new `name`, and deploy |
 
 **Don't substitute `Charlotte AI - LLM Completion`** (`bdfecafafdb44919a458fcf51d6b93a7_98dec86072334d24b37dd798098cfd63`) with the agent's prompt copied into it. That drops the agent's knowledge bases, tools, model, and output schema, and leaves the agent unused.
 

@@ -238,7 +238,7 @@ Escape or validate user-supplied values before putting them in a filter.
 
 ## Schema Versioning
 
-Each collection's schema carries a version ([docs](https://docs.crowdstrike.com/access?ft:originId=wb6cba2f)). A new collection starts at v1.0, and every schema change creates the next version, while earlier versions stay available. A new or rewritten object gets the latest version, so objects written before a change keep the older one until they're written again. Search by version with the built-in `x-cs-schema-version` filter, for example `x-cs-schema-version:'v1.0'`, to find objects a migration still has to rewrite.
+Each collection's schema carries a version ([docs](https://docs.crowdstrike.com/access?ft:originId=wb6cba2f)). A new collection starts at v1.0, and every schema change creates the next version, while earlier versions stay available. A new or rewritten object gets the latest version, so objects written before a change keep the older one until they're written again. Search by version with the built-in `x-cs-schema-version` filter, for example `x-cs-schema-version:'v1.0'`, to find objects a migration still has to rewrite. Collections written with `custom_storage_object_key` have been observed to keep validating against their original schema; see Common Pitfalls in the [parent skill](../SKILL.md) before relying on a schema change there.
 
 ## Pagination Patterns
 
@@ -339,7 +339,7 @@ describe('IncidentCollection', () => {
 | "I'll add indexes later" | Missing indexes cause query timeouts at scale |
 | "Simple CRUD doesn't need abstraction" | Collection clients prevent direct API coupling |
 | "Migrations are overkill" | Schema changes without migrations corrupt existing data |
-| "additionalProperties: true is fine" | Extra fields leak internal data and break type safety |
+| "additionalProperties: true is fine" | Extra fields leak internal data and break type safety. Use `true` only on a custom-storage collection whose fields may grow (see the parent skill) |
 
 ## Red Flags — STOP Immediately
 
@@ -348,7 +348,7 @@ If you catch yourself:
 - Not defining indexes for frequently-queried fields
 - Writing direct collection access instead of typed clients
 - Changing schemas without migration scripts
-- Using `additionalProperties: true` in schemas
+- Using `additionalProperties: true` without the growing custom-storage case that calls for it
 
 **STOP. Follow the patterns above. No shortcuts.**
 

@@ -108,17 +108,17 @@ Set the Shoelace asset base path:
 
 ```typescript
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
-setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/');
+setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/'); // the version in package.json
 ```
 
-Use `var(--sl-*)` design tokens for all styling instead of hardcoding colors. This ensures the UI adapts correctly when users switch between light and dark mode in the Falcon console:
+Use design tokens instead of hardcoded colors so the UI follows the console's light and dark mode. Colors come from the Toucan tokens in `@crowdstrike/tailwind-toucan-base` (the React blueprint loads its `index.css`); falcon-shoelace defines `--sl-spacing-*` but no global `--sl-color-*` or `--sl-border-radius-*` tokens, so those resolve to nothing:
 
 ```css
 .my-component {
-  color: var(--sl-color-neutral-900);
-  background: var(--sl-color-neutral-0);
+  color: var(--titles-and-attributes);
+  background: var(--surface-md);
+  border: 1px solid var(--border-reg);
   padding: var(--sl-spacing-medium);
-  border-radius: var(--sl-border-radius-medium);
 }
 ```
 
@@ -174,20 +174,7 @@ See [references/sandboxed-iframe.md](references/sandboxed-iframe.md) for the err
 
 ## Iframe Communication
 
-Extensions must validate message origins:
-
-```typescript
-const allowedOrigins = [
-  'https://falcon.crowdstrike.com',
-  'https://falcon.eu-1.crowdstrike.com',
-  'https://falcon.us-gov-1.crowdstrike.com',
-];
-
-window.addEventListener('message', (event: MessageEvent) => {
-  if (!allowedOrigins.includes(event.origin)) return;
-  // Process event.data
-});
-```
+foundry-js owns the channel to the console: `connect()` records the console's origin and sends every later message there, never to `'*'`. Don't add your own `postMessage` calls or `message` listeners. Read console context with `falcon.events.on('data', …)` and talk to other extensions of the same app with `falcon.sendBroadcast()` plus `falcon.events.on('broadcast', …)` ([foundry-js.md](references/foundry-js.md#events-inter-extension-communication)).
 
 ## Extension Socket Locations
 
@@ -217,7 +204,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 - **Omitting `--sockets` on extension create.** This launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"` on the command line. Run `foundry ui extensions list-sockets` to see available sockets — do not guess or fabricate socket names.
 - **Importing vanilla Shoelace themes.** Use `@crowdstrike/falcon-shoelace` for Falcon console styling.
 - **Loading only light theme.** The Falcon console supports dark mode — users see broken styling without both themes.
-- **Hardcoding colors.** Use `var(--sl-*)` design tokens so the UI adapts to theme changes.
+- **Hardcoding colors.** Use Toucan tokens (`var(--titles-and-attributes)`, `var(--critical)`) so the UI adapts to theme changes. falcon-shoelace defines no global `--sl-color-*` tokens.
 - **Expecting backend to work with `foundry ui run`.** The dev server only serves UI — deploy backend capabilities first.
 - **Using `sl-badge` or `sl-tag` for status.** falcon-shoelace doesn't style them, so every variant looks the same. Also: `sl-option` values can't hold spaces, `sl-radio-group` gets two tab stops, and dialog events bubble from children. See [shoelace-reference](references/shoelace-reference.md#components-falcon-shoelace-doesnt-style).
 - **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
@@ -237,7 +224,7 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | Vue component examples | [references/vue-patterns.md](references/vue-patterns.md) |
 | Foundry-JS: workflows, LogScale, cloud functions, collections CRUD | [references/foundry-js.md](references/foundry-js.md) |
 | Sandbox restrictions (storage, modals), long-running page loops | [references/sandboxed-iframe.md](references/sandboxed-iframe.md) |
-| Framework selection, ExtensionMessaging, E2E testing, Extension Builder, CSP, dev server coordination | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Framework selection, console messaging, Extension Builder, CSP, dev server coordination | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
 

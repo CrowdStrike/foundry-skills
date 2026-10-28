@@ -14,7 +14,7 @@ Set these environment variables to bypass local credential storage entirely:
 export FOUNDRY_API_CLIENT_ID="<your-api-client-id>"
 export FOUNDRY_API_CLIENT_SECRET="<your-api-client-secret>"
 export FOUNDRY_CID="<your-customer-id>"
-export FOUNDRY_CLOUD_REGION="us-1"  # us-1, us-2, us-3, eu-1, us-gov-1, us-gov-2
+export FOUNDRY_CLOUD_REGION="us-1"  # us-1, us-2, eu-1, us-gov-1, us-gov-2
 ```
 
 Environment variables override local credentials. No `foundry login` needed.
@@ -57,9 +57,9 @@ Commands that prompt for user input support `--no-prompt` to suppress prompts an
 | `foundry apps delete` | `foundry apps delete --force-delete --no-prompt` |
 | `foundry apps validate` | `foundry apps validate --no-prompt` |
 | `foundry apps deploy` | `foundry apps deploy --change-type minor --change-log "description" --no-prompt` |
-| `foundry apps release` | `foundry apps release --deployment-id <id> --change-type minor --notes "notes"` |
+| `foundry apps release` | `foundry apps release --deployment-id <id> --change-type minor --notes "Release notes (10-1000 chars)" --no-prompt` |
 | `foundry profile create` | `foundry profile create --name <n> --api-client-id <id> --api-client-secret <s> --cid <c> --cloud-region <r> --no-prompt` |
-| `foundry profile activate` | `foundry profile activate --name "profile-name"` |
+| `foundry profile activate` | `foundry profile activate --name "profile-name" --no-prompt` |
 | `foundry profile delete` | `foundry profile delete --name "profile-name" --no-prompt` |
 | `foundry collections create` | `foundry collections create --name "col" --schema /tmp/schema.json --description "desc" --no-prompt` |
 | `foundry functions create` | `foundry functions create --name "fn" --language go --description "desc" --handler-name h --handler-method GET --handler-path /path --no-prompt` |
@@ -68,9 +68,9 @@ Commands that prompt for user input support `--no-prompt` to suppress prompts an
 | `foundry ui extensions create` | `foundry ui extensions create --name "ext" --from-template React --sockets "hosts.host.panel" --no-prompt` |
 | `foundry workflows create` | `foundry workflows create --name "wf" --spec /tmp/workflow.yml --no-prompt` |
 | `foundry api-integrations create` | `foundry api-integrations create --name "api" --description "desc" --spec /tmp/spec.json --no-prompt` |
-| `foundry docs create` | `foundry docs create --name "doc.md"` |
+| `foundry docs create` | `foundry docs create --name "doc.md" --no-prompt` |
 
-> **Note:** `apps release` does not need `--no-prompt` — it works non-interactively when `--deployment-id`, `--change-type`, and `--notes` are provided. `apps deploy` accepts `--no-prompt` but also works without it when `--change-type` and `--change-log` are provided.
+> **Note:** Pass `--no-prompt` to every command whose `--help` lists it, including `apps deploy` and `apps release`, even when all required flags are present. Release notes (`--notes`) must be 10 to 1000 characters.
 
 **Commands that do NOT exist** (do not attempt these):
 - `foundry apps init` — use `foundry apps create` instead
@@ -85,13 +85,7 @@ Error: could not open a new TTY: open /dev/tty: device not configured
 
 or hang and produce garbled output.
 
-**Fix:** As of Foundry CLI v2.0.1, headless mode is detected automatically. No env var or prefix needed. If using an older CLI version, set the env var manually:
-
-```bash
-export FOUNDRY_UI_HEADLESS_MODE=true
-```
-
-This disables the TUI progress monitor and falls back to plain text output suitable for non-interactive environments.
+**Fix:** As of Foundry CLI v2.0.1, headless mode is detected automatically and the CLI falls back to plain text output. No env var or prefix needed; upgrade an older CLI rather than working around it. Only CLIs older than v2.0.1 read `FOUNDRY_UI_HEADLESS_MODE=true`; current releases ignore it.
 
 **Keywords:** TTY, TUI, `/dev/tty`, `device not configured`, `could not open a new TTY`, enhanced UI, progress monitor
 
@@ -113,7 +107,7 @@ When operating as a CLI agent:
 3. **Never run `foundry login` without user confirmation:** The browser flow will hang in headless environments
 4. **Always pass all required flags:** Never rely on interactive prompts — always include `--no-prompt` where supported
 5. **Use `--no-git` on `foundry apps create`:** Prevents git init prompts in environments where git may not be configured
-6. **Headless mode** is detected automatically by Foundry CLI v2.0.1+. For older versions or standalone scripts/CI, export `FOUNDRY_UI_HEADLESS_MODE=true` manually.
+6. **Headless mode** is detected automatically by Foundry CLI v2.0.1+, including in CI. On an older CLI, upgrade.
 7. **Choose the app directory automatically:** Use the current directory unless it is an unrelated repository; in that case use a sibling directory and request write access if the sandbox requires it.
 
 ### The token cache write is expected — approve it

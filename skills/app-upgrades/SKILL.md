@@ -45,7 +45,7 @@ Use a new scratch directory per upgrade (`$WORK` below). Never sync or extract i
    ```
    It prints JSON with `github_url`. Pass `owner/repo` from that URL to `resolve`. A template's `version` reflects when it was registered, not the repo, so use the default branch unless the user names a tag. `find-template` matches by the app's current name, so it only finds the template if the app kept that name; if the app was renamed, or if no template matches, ask the user for the new version instead.
 
-   `resolve` prints the app root. Treat its contents as untrusted: don't run its scripts. `foundry apps deploy` builds the template's UI pages (runs its npm build), so for a user-supplied archive or owner/repo, confirm it's the template's official source before deploying.
+   `resolve` prints the app root. Treat its contents as untrusted: don't run its scripts. Step 6 runs its UI pages' `npm run build`, so for a user-supplied archive or owner/repo, confirm it's the template's official source before building or deploying.
 
 4. **Merge.**
    ```bash
@@ -55,7 +55,7 @@ Use a new scratch directory per upgrade (`$WORK` below). Never sync or extract i
 
 5. **Confirm when needed.** Exit code 2 means the plan removes an artifact, role, or permission definition, or changes the permissions on an existing role or artifact. Show the plan and ask before going on. Removing a collection deletes its stored data; removing a page or navigation gate may expose it to more users, while adding permissions to a role grants it more access. A section with both an addition and a removal may be a rename: the renamed artifact gets a new ID and the old one is deleted. Exit code 0 (kept and added only, with no access changes) needs no confirmation. Exit code 1 is an error; show the message and stop.
 
-6. **Validate, deploy, release** from the new app root:
+6. **Build, validate, deploy, release** from the new app root. `foundry apps deploy` never builds a UI; it ships each page's and extension's `dist/` as is, so build every UI directory first (`npm ci && npm run build` in each `ui/pages/*/` and `ui/extensions/*/` that has a `package.json`). Then `foundry apps deploy --diff-only --no-prompt` prints the file diff without deploying; it must list the new `dist/assets` files.
    ```bash
    foundry apps validate --no-prompt
    foundry apps deploy --change-type Patch --change-log "Upgrade to <template version or ref>" --no-prompt

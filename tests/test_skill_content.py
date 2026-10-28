@@ -267,7 +267,7 @@ class TestAIAgentsSkill:
     def test_cli_unsettable_fields_documented(self):
         """model and tools have no CLI flags. Exposure does — it is not in this set."""
         content = _read_skill(self.SKILL)
-        assert "Two Fields the CLI Cannot Set" in content
+        assert "Allowed Manifest Hand-Edits" in content
         for field in ("model", "tools"):
             assert f"`{field}`" in content
         assert "Three Fields the CLI Cannot Set" not in content, \
@@ -475,7 +475,7 @@ class TestAIAgentsSkill:
         """A workflow that references an unpublished AgentWorks agent fails with 2015."""
         content = _read_skill(self.SKILL)
         assert "must be published before a workflow that references it deploys" in content
-        assert "(2015) action <uuid>_<cid> does not exist" in content
+        assert "(2015) action with <uuid>_<cid> does not exist" in content
         assert "isn't published yet" in _read_skill(
             "skills/ai-agents-development/references/workflow-invocation.md")
 
@@ -537,20 +537,25 @@ class TestAgentToolExposure:
 class TestCrossSkillConsistency:
     """Guard against the two skills giving opposite advice for one task.
 
-    An earlier draft of this branch had workflows-development saying to fix a
-    missing workflow_integration by editing the manifest and redeploying, while
-    functions-development said to recreate the function. Both load together for
-    workflow+function apps, so the contradiction was reachable.
+    Both load together for workflow+function apps, so a contradiction between
+    them is reachable. A missing workflow_integration is fixed by adding the
+    block to the manifest and redeploying, not by recreating the function.
     """
 
     FUNCTIONS = "skills/functions-development/SKILL.md"
     WORKFLOWS = "skills/workflows-development/SKILL.md"
 
-    def test_neither_skill_claims_manifest_edit_adds_workflow_integration(self):
-        """Both skills must agree that recreation, not a manifest edit, is the fix."""
+    def test_manifest_edit_adds_workflow_integration(self):
+        """A hand-added workflow_integration block binds on the next deploy.
+
+        Checked on a throwaway app (CLI 2.1.2, US-2): a block added by hand to a
+        function that was first deployed without one deployed, and a workflow
+        calling it resolved. Neither skill may tell agents to recreate the function.
+        """
         workflows = _read_skill(self.WORKFLOWS)
-        assert "add the `workflow_integration` block to the function's manifest entry and redeploy" \
-            not in workflows
+        assert "add the block to the handler in `manifest.yml`" in workflows
+        for skill in (self.FUNCTIONS, self.WORKFLOWS):
+            assert "If a function was created without it, recreate it" not in _read_skill(skill), skill
 
     def test_both_skills_point_at_creation_time_binding(self):
         """Both must name the CLI flags as the binding mechanism."""
@@ -1040,6 +1045,25 @@ class TestOperatingAnInstalledApp:
         assert "knowledge bases → agents → workflows" in content
         patterns = _read_skill(self.PATTERNS)
         assert patterns.index("foundry agents create") < patterns.index("foundry workflows create --name")
+
+
+class TestProvisionOnInstall:
+    """provision_on_install decides whether installing the app creates the workflow.
+
+    Checked on a throwaway app (US-2): with true, the installed app's workflow
+    appeared in Falcon Fusion SOAR, turned on; with false, the template was
+    deployed and listed under the app's Logic section, but no workflow existed.
+    """
+
+    SKILL = "skills/workflows-development/SKILL.md"
+
+    def test_false_creates_no_workflow(self):
+        content = _read_skill(self.SKILL)
+        assert "installing creates no workflow" in content
+        assert "never instantiates" not in content, "the template exists; only the workflow is missing"
+
+    def test_names_the_e2e_reason(self):
+        assert "e2e tests" in _read_skill(self.SKILL)
 
 
 class TestWorkflowRecoveryAndJoins:

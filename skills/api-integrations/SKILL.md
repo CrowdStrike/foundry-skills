@@ -66,7 +66,7 @@ For detailed download commands and structural fix patterns, see [references/spec
 ```bash
 python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
 
-# Preview changes without writing
+# Preview the fixes without saving them (a Swagger 2.0 input is still converted to .openapi3.*)
 python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
 ```
 
@@ -83,7 +83,7 @@ The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Re
 
 The script applies fixes derived from 12 production Foundry sample apps:
 - **Swagger 2.0 conversion**: Converts to OpenAPI 3.0 via `swagger2openapi` (npx) and writes the result next to the input as `<name>.openapi3.json` or `<name>.openapi3.yaml`. Register that file, not the original.
-- **Auth fixing**: Removes `oauth2 authorizationCode` flows (Foundry only supports `clientCredentials`). Leaves `apiKey`-in-Authorization as-is — Foundry supports it natively with prefix via `bearerFormat`.
+- **Auth fixing**: Deletes an `oauth2` scheme (and its security references) when it has `authorizationCode` and no `clientCredentials` flow; a scheme with both is kept unchanged. Adds `bearerFormat` to an `apiKey`-in-Authorization scheme when its description names the prefix (`SSWS`, `Bearer`, `Token`, `Basic`). Adds a global `security` block if missing and removes per-operation `security: []` overrides.
 - **Server URLs**: Strips `https://` from variable-based URLs (Foundry adds protocol separately). Removes `default` from variables without `enum` (prevents locked dropdown).
 - **Parameter dedup**: Removes operation-level parameters that duplicate path-level parameters (prevents Foundry's "items are equal" validation error). When an operation overrides a path-level parameter with a different definition, the operation keeps its version and the path-level one moves into the path's other operations.
 
@@ -138,7 +138,7 @@ When the domain **varies per customer**, use a single server variable for the fu
 "servers": [{"url": "{yourDomain}", "variables": {"yourDomain": {"description": "the \"yourDomain\" variable is replaced with a dynamic value at execution time"}}}]
 ```
 
-Use a single variable for the complete domain. Splitting into `{subdomain}.vendor.com` causes certificate errors when users enter the full domain (e.g., `dev-12345.okta.com.okta.com`). A `default` value without `enum` renders a dropdown instead of a free-text input.
+Prefer a single variable for the complete domain. A split such as `{instance}.service-now.com` (used by foundry-sample-functions-python) works only when users enter just the subdomain; a user who types the full domain gets `dev-12345.okta.com.okta.com`. A `default` value without `enum` renders a dropdown instead of a free-text input.
 
 For a fixed set of hosts, such as the Falcon API regions, use an `enum` with a `default` (see [auth-examples](references/auth-examples.md#oauth-20-client-credentials-for-a-falcon-api)).
 
@@ -266,8 +266,8 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 - **Skipping `adapt_spec_for_foundry.py`.** Only hosts that load this plugin's hooks (Claude Code, Codex, Copilot CLI, and Cursor plugin installs) run it automatically. Antigravity CLI and skill-symlink installs must invoke the bundled helper. The script converts unsupported auth schemes and fixes server URLs that would otherwise block saving in the Falcon console.
 - **Including `https://` in server URLs** with variables. The Falcon console adds the protocol separately.
 - **Adding `default` to server variables** for dynamic domains. This renders a dropdown instead of a text field.
-- **Splitting domains** into `{subdomain}.vendor.com` instead of `{yourDomain}` for the full domain.
-- **Using `oauth2 authorizationCode`** flow. Foundry only supports `clientCredentials`. The adapt script removes it automatically.
+- **Splitting domains** into `{subdomain}.vendor.com` without saying in the variable's `description` that users enter only the subdomain.
+- **Using `oauth2 authorizationCode`** flow. Foundry only supports `clientCredentials`. The adapt script deletes an `oauth2` scheme that has `authorizationCode` and no `clientCredentials`; a scheme with both flows is left for you to trim.
 - **Passing query values as strings or string arrays when the spec says integer.** The platform validates the `request` against the spec's parameter schemas *before* proxying, so `{"params": {"query": {"limit": ["1"]}}}` fails with `400 request failed schema validation: /properties/params/properties/query/...`. Send scalars typed per the spec: `{"params": {"query": {"limit": 1}}}`. See [references/calling-patterns.md](references/calling-patterns.md).
 - **A `--description` over 50 characters.** `api-integrations create` rejects it with `input must be at most 50 characters long`.
 
@@ -289,7 +289,6 @@ For real-world implementation patterns, see:
 ## Reference Implementations
 
 - **[foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo)**: JSONPlaceholder (no auth, static URL, `x-cs-operation-config`)
-- **[foundry-sample-logscale](https://github.com/CrowdStrike/foundry-sample-logscale)**: VirusTotal (`type: apiKey`, static URL)
 - **[foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream)**: Anomali (`type: http`/`scheme: bearer`, dynamic URL)
 - **[foundry-sample-functions-python](https://github.com/CrowdStrike/foundry-sample-functions-python)**: ServiceNow (`type: http`/`scheme: basic`, dynamic URL)
 - **[foundry-sample-insider-risk-workday](https://github.com/CrowdStrike/foundry-sample-insider-risk-workday)**: Workday (`type: http`/`scheme: basic` + custom labels)

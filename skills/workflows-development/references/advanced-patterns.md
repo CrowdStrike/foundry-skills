@@ -5,11 +5,11 @@
 ## Testing Workflows
 
 ```bash
-foundry workflows triggers view --mock --no-prompt       # Example mock trigger
-foundry workflows actions view --mock --no-prompt        # Example mock action
-foundry workflows executions validate --mocks mymocks.json              # Validate mocks
-foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
-foundry workflows executions view <execution_id>                        # View results
+foundry workflows triggers view --name "Schedule" --mock --no-prompt   # Example mock trigger
+foundry workflows actions view --name "Print data" --mock --no-prompt  # Example mock action
+foundry workflows executions validate --definition my-workflow --mocks mymocks.json --no-prompt  # Validate mocks
+foundry workflows executions start --definition my-workflow --mocks mymocks.json --no-prompt     # Run with mocks
+foundry workflows executions view <execution_id> --no-prompt                                     # View results
 ```
 
 Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
@@ -68,8 +68,8 @@ foundry workflows executions validate --definition my-workflow --mocks mocks.jso
 # Start a workflow execution with mock data and wait for completion
 foundry workflows executions start --definition my-workflow --mocks mocks.json --wait-for 30
 
-# Check execution status
-foundry workflows executions view
+# Check execution status (use the execution ID that start printed)
+foundry workflows executions view <execution_id> --no-prompt
 ```
 
 > **Note:** There is no CLI command to query collections directly. Collection data can be verified through the Falcon console or via function code that reads the collection.
@@ -83,16 +83,6 @@ npx @redocly/cli lint api-integrations/MyApi.yaml
 
 > **Note:** Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy. Use `npx @redocly/cli lint` for OpenAPI spec validation. Do NOT use Python/Ruby YAML parsers — they only check syntax, not OpenAPI structure.
 
-## Timeout Configuration
-
-```yaml
-- name: long_running_step
-  activity: invokeFunction
-  config:
-    functionName: heavy-processor
-  timeout: 300  # 5 minutes per step
-```
-
 ## Error Handling
 
 Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware.
@@ -100,13 +90,13 @@ Foundry workflows handle errors through conditional routing and action-level fla
 | Mechanism | Scope | Usage |
 |-----------|-------|-------|
 | `continue_on_error: true` | Any action, including `functions.` and `ai_agents.` actions | The run goes on after the action fails. Without it, a failing step stops the run |
-| `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
-| `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
+| `continue_on_partial_execution: true` | Loop `for:` block | The console's **Continue workflow on loop iteration failure** option, offered only on concurrent loops. Nodes after the loop still run if iterations fail (or the loop has no input), but the execution still shows as failed |
+| `continue_on_partial_execution: false` | Loop `for:` block | The workflow doesn't go past the loop when an iteration fails. Use it when later steps depend on every iteration succeeding |
 | `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
 
 `continue_on_error` sits on the action next to `id`, not under `properties:`. Anything under `properties:` is an input to the action, so a key like `fail_fast_enabled` there only does something if that function defines it.
 
-After an action that can fail, branch on `Workflow.Execution.Errors`. It is `null` when nothing failed, and a list of objects with `ErrorCode`, `ErrorType`, `HandledBy`, `Message`, and `SourceNodeID` when an action failed:
+After an action that can fail, branch on `Workflow.Execution.Errors`. It is `null` when nothing failed, and a list of objects with `ErrorCode`, `ErrorType`, `HandledBy`, `Message`, and `SourceNodeID` when an action failed. The Falcon Fusion SOAR docs filter the list on `e.Name` and `e.Handled` instead (`data['Workflow.Execution.Errors'].exists(e, e.Name == 'Timeout')`), so before you filter on a field, copy its name from the editor's **Workflow data** panel (**Workflow > Execution > Workflow execution errors**). The `size()` check below works either way:
 
 ```yaml
 actions:
@@ -124,7 +114,7 @@ conditions:
         else:
             - process_results
 
-# Loop-level: stop on first error
+# Loop-level: don't continue past the loop if an iteration fails
 loops:
     ContainDevices:
         for:
@@ -239,8 +229,8 @@ If you catch yourself:
 ## Integration with Other Skills
 
 - **development-workflow:** Workflows are delegated from the orchestrator
-- **functions-development:** Workflows invoke Functions via `invokeFunction` activity
-- **collections-development:** Workflows read/write Collections via `readCollection`/`writeCollection`
+- **functions-development:** Workflows call Functions as actions with `id: functions.<function name>.<handler>`
+- **collections-development:** Workflows read and write Collections as actions with `id: collections.<collection name>.<operation>` (for example `collections.security_events_csv.list` and `.search` in [foundry-sample-collections-toolkit](https://github.com/CrowdStrike/foundry-sample-collections-toolkit)'s `Paginate_security_events_collection.yml`)
 - **api-integrations:** Workflows call external APIs via registered integrations
 - **functions-falcon-api:** Functions called by workflows use Falcon APIs
 - **security-patterns:** Apply permission scoping to workflow activities; validate inputs

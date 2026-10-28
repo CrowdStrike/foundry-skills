@@ -24,7 +24,7 @@ What's happening?
 
 CLI command hangs
 ├── In headless/CI environment → Missing --no-prompt or required flags (see Headless section)
-└── In interactive terminal   → Check network/auth with foundry profile active
+└── In interactive terminal   → Check network/auth with foundry profile list
 
 Deploy fails
 ├── Validation error → Check manifest YAML syntax, then deploy again
@@ -70,7 +70,7 @@ Three identities can look alike, and each has its own scopes:
 
 | Identity | Used by | Scopes come from |
 |----------|---------|------------------|
-| The CLI profile (`foundry profile active`) | `deploy`, `release`, and starting an `exec` or `test` run | The API client in the profile |
+| The CLI profile (`foundry profile list` shows it) | `deploy`, `release`, and starting an `exec` or `test` run | The API client in the profile |
 | Any other API client you hold | FalconPy scripts and MCP servers run on your machine | That API client |
 | The installed app | Deployed functions, including their FalconPy calls under `exec` and `test` | `auth.scopes` in `manifest.yml`, accepted when the app is installed or updated |
 
@@ -91,7 +91,11 @@ cd functions/my-function && go run main.go
 
 # Direct Python execution (port 8081, no Docker)
 cd functions/my-function && python3 main.py
-curl -X POST http://localhost:8081/api/process -d '{"key":"value"}'
+
+# Both FDKs route on "url" and "method" inside a JSON envelope posted to the root URL,
+# not on the HTTP path, so wrap the payload in "body"
+curl -X POST http://localhost:8081 -H 'Content-Type: application/json' \
+  -d '{"body":{"key":"value"},"method":"POST","url":"/api/process"}'
 
 # With configuration file (local only)
 CS_FN_CONFIG_PATH=./config.json python3 main.py
@@ -129,7 +133,8 @@ When a deployed function returns unexpected results or errors, work the exec →
 RTR scripts can only be tested via the CLI (not the Falcon console):
 
 ```bash
-foundry rtr-scripts run --name my-script
+foundry rtr-scripts run --script-name my-script --hostname <hostname> --no-prompt
+# or target by --device-id <aid>; pass script parameters with -p/--params
 ```
 
 Platforms: Windows (`script.ps1`), Linux (`script.sh`), macOS (`script.zsh`). Script size limit ~40KB. Deletion requires Falcon Administrator role in Falcon console UI.
@@ -137,11 +142,11 @@ Platforms: Windows (`script.ps1`), Linux (`script.sh`), macOS (`script.zsh`). Sc
 ### Workflow Mock Testing
 
 ```bash
-foundry workflows triggers view --mock
-foundry workflows actions view --mock
-foundry workflows executions validate --mocks mymocks.json
-foundry workflows executions start --definition my-workflow --mocks mymocks.json
-foundry workflows executions view <execution_id>
+foundry workflows triggers view --name "<trigger name>" --mock --no-prompt
+foundry workflows actions view --name "<action name>" --mock --no-prompt
+foundry workflows executions validate --definition my-workflow --mocks mymocks.json --no-prompt
+foundry workflows executions start --definition my-workflow --mocks mymocks.json --no-prompt
+foundry workflows executions view <execution_id> --no-prompt
 ```
 
 ### Deployment Diagnostics
@@ -159,7 +164,7 @@ When a released UI fix doesn't show, don't diagnose it from the running app alon
 ```bash
 foundry version         # Check CLI version
 foundry profile list    # Check available profiles
-foundry profile active  # Verify active profile
+foundry profile list  # The first line shows the active profile
 ```
 
 ### Step 2: Authentication
@@ -251,7 +256,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Deploy fails silently | Tenant missing required module (SKU) | Verify tenant has Falcon module for scopes |
 | Deployment `Failed`, CLI gives no reason | Reasons are console-only | App manager > app > "Show errors (N)" |
 | `deployment is currently in progress` from `validate` | A deploy is still running | Poll `foundry apps list-deployments` until it settles, then retry |
-| Local server won't start | Port conflicts | Use `--port` flag or kill existing processes |
+| Local server won't start | Port conflicts | Free the port by stopping the process holding it (`lsof -i :<port>`); `ui run` and `functions run` have no port flag |
 | Auth works locally, fails in CI | No config file in CI | Set `FOUNDRY_API_CLIENT_ID` env vars |
 | `connection issue` in a sandboxed agent | Denied write to the CLI's token cache | Grant write to `~/.config/foundry/`; the token refresh is expected |
 | Tenant command works for user, not agent | Agent network sandbox | Request elevation, then retry once |
@@ -263,7 +268,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Data not appearing after writes | Schema mismatch or missing error check | Verify field names/enums match schema exactly; check `result?.errors?.length` after writes |
 | Dialog white background in dark mode | Older falcon-shoelace or a custom panel (0.4.0 dialogs follow the theme) | Set `--sl-panel-background-color: var(--ground-floor)` on the element |
 | App install fails with no detail | Workflow CEL expression error | Test API integration in console, then inspect workflow editor for errors |
-| Releases stuck "In progress", never finish | Jammed release queue from repeated failed releases | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id under a new name to keep shipping |
+| Releases stuck "In progress", never finish | A release whose install-time update failed (often a workflow data pill error deploy didn't catch), with later releases stalled behind it | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id under a new name to keep shipping |
 | Console errors `deserializeSitemap`/`loadSitemapFromLegacy` + `/api2/uilogging 400` | Falcon console shell (`maverick.js`), not your app | Ignore; non-fatal (the console falls back to its default navigation). Nothing in the app causes or fixes it |
 
 ## Debugging App Install Failures
@@ -295,14 +300,14 @@ Don't restore `manifest.yml` from git (`git checkout manifest.yml`) after a depl
 
 ### Jammed Release Pipeline
 
-Repeated failed `foundry apps release` attempts pile up as stuck "In progress" releases that never drain, and firing another while one is in progress stacks it worse. The queue cannot be cleared from the CLI — it needs a CrowdStrike support ticket (force-uninstall / clear the release queue). Don't retry releases blindly once one is stuck. Practical escape to keep shipping meanwhile: deploy it as a new app. Strip the provisioned IDs with the `yq` command in `development-workflow` → Multi-Cloud Deployment and give the app a new `name` (the stuck app still holds the old one, so reusing it fails with `an app with the provided name already exists`). A new app has to be installed again, its install settings entered again, and its collections start empty, so tell the user before you do it. For the support ticket, give them app_id + deployment id + CID + region + approximate time. The CLI emits no trace ID even with `--verbose` — pull `meta.trace_id` from the console `/api2/...` response in the browser DevTools Network tab.
+One release whose install-time update fails can jam the pipeline: it stays "In progress", and every later release stalls behind it, even after the cause is fixed. A common trigger is a workflow error deploy doesn't catch, such as `property "input" contains unknown variable "<action>.response"`; a Minor or Patch release updates installed apps automatically, that update fails, and the release never finishes. Before releasing a changed workflow, open it in the Falcon Fusion SOAR editor (or App manager **Show errors**) and fix any reported errors. The queue cannot be cleared from the CLI — it needs a CrowdStrike support ticket (force-uninstall / clear the release queue). Don't retry releases blindly once one is stuck. Practical escape to keep shipping meanwhile: deploy it as a new app. Strip the provisioned IDs with the `yq` command in `development-workflow` → Multi-Cloud Deployment and give the app a new `name` (the stuck app still holds the old one, so reusing it fails with `an app with the provided name already exists`). A new app has to be installed again, its install settings entered again, and its collections start empty, so tell the user before you do it. For the support ticket, give them app_id + deployment id + CID + region + approximate time. The CLI emits no trace ID even with `--verbose` — pull `meta.trace_id` from the console `/api2/...` response in the browser DevTools Network tab.
 
 ## Pre-Escalation Checklist
 
 Before seeking external help:
 
 - [ ] Verified CLI version with `foundry version`
-- [ ] Checked authentication with `foundry profile active`
+- [ ] Checked the active profile with `foundry profile list`
 - [ ] Validated OpenAPI specs with `npx @redocly/cli lint` (if applicable)
 - [ ] Tested with minimal configuration
 - [ ] Reviewed CLI error messages

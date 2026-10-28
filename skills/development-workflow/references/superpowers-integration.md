@@ -34,7 +34,7 @@ foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/
 **Task pattern for UI pages:**
 ```bash
 foundry ui pages create --name "my-page" --description "Page description" --from-template React --homepage --no-prompt
-foundry ui navigation add --name "My Page" --path / --ref pages.my-page
+foundry ui navigation add --name "My Page" --path / --ref pages.my-page --no-prompt
 # Edit the generated source files in ui/pages/my-page/src/ with app-specific UI logic
 ```
 

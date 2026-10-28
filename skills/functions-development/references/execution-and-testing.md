@@ -119,17 +119,17 @@ The positional argument (inline JSON, a file path, `@filename`, or stdin) is the
 
 ```bash
 # Poll until an async execution completes
-foundry functions exec status <exec_id>
+foundry functions exec status <exec_id> --no-prompt
 
 # Single check without polling
-foundry functions exec status <exec_id> --no-poll
+foundry functions exec status <exec_id> --no-poll --no-prompt
 ```
 
 ### List Recent Executions
 
 ```bash
-# List recent executions (interactive function selection)
-foundry functions exec list
+# List recent executions (single-function app: the function is auto-selected)
+foundry functions exec list --no-prompt
 
 # List for a specific function
 foundry functions exec list --function my-fn --no-prompt
@@ -139,13 +139,13 @@ foundry functions exec list --function my-fn --no-prompt
 
 ```bash
 # Retrieve logs for a specific execution
-foundry functions logs <exec_id>
+foundry functions logs <exec_id> --no-prompt
 
 # Resume polling a previous log query job
-foundry functions logs <exec_id> --job-id <job_id>
+foundry functions logs <exec_id> --job-id <job_id> --no-prompt
 
 # Force a fresh log query (if logs are still arriving)
-foundry functions logs <exec_id> --refresh
+foundry functions logs <exec_id> --refresh --no-prompt
 ```
 
 Logs are delivered via the Firehose pipeline and typically arrive 5-10 minutes after execution. The CLI shows a spinner during the query and a countdown between poll attempts.
@@ -154,7 +154,7 @@ Logs are delivered via the Firehose pipeline and typically arrive 5-10 minutes a
 
 When a function execution fails or returns unexpected results, use this workflow:
 
-1. **Execute and observe**: `foundry functions exec --handler <handler> --logs '<payload>'`
+1. **Execute and observe**: `foundry functions exec --handler <handler> --logs '<payload>' --no-prompt`
 2. **Review logs**: If logs show the failure, correlate timestamps against the function source code
 3. **Read source**: The function source is at the path specified in `manifest.yml` → `functions[].path`
 4. **Identify root cause**: Compare log error messages, status codes, and stack traces against the handler logic
@@ -168,7 +168,7 @@ When using Claude Code, ask "debug my last function execution" or "why did this 
 
 ### Run Function Test Cases (Integration Tests)
 
-> **Not to be confused with unit tests.** Unit tests (`pytest`, Go `httptest`) run locally against mocked dependencies — see [testing-patterns.md](testing-patterns.md). Function test cases are **integration tests** that execute against the real deployed Lambda with real API calls, real collections, and real credentials.
+> **Not to be confused with unit tests.** Unit tests (`pytest`, Go `fdktest`) run locally against mocked dependencies — see [testing-patterns.md](testing-patterns.md). Function test cases are **integration tests** that execute against the real deployed Lambda with real API calls, real collections, and real credentials.
 
 Define test cases in a `tests.yml` file inside each function's directory and run them against the deployed function:
 
@@ -232,7 +232,7 @@ tests:
 |-------|------|-------------------|
 | `status` | int | Exact match on the handler's response status code. Omit (or `0`) to skip the status check. |
 | `body` | any JSON | **Object → subset match:** each field you list must be present in the response with an equal value; the actual body may contain additional fields. **Scalar/array → exact match.** |
-| `errors` | list of strings | Set comparison against the handler's returned error messages. A mismatch reports both missing-expected and unexpected errors (order-independent). |
+| `errors` | list of strings | Set comparison against the `message` of each `APIError` in the handler's `Response(errors=[...])` (not a field in `body`). A mismatch reports both missing-expected and unexpected errors (order-independent). |
 
 > **`method` no longer exists in `input`.** Earlier the schema was a flat `tests:` list where each case carried its own `handler:` and an `input.method:`. Now the handler comes from the enclosing group and the method/path come from the manifest — do NOT add a `method:` field, it is silently ignored.
 
@@ -270,7 +270,7 @@ For async (202) handlers, the test command automatically polls for the actual re
 
 When a user asks to "write tests for my function" or "add test cases", **first clarify which type of test they want:**
 
-- **Unit tests** — run locally with mocked dependencies (`pytest`/`httptest`). Fast, no deployment needed. See [testing-patterns.md](testing-patterns.md).
+- **Unit tests** — run locally with mocked dependencies (`pytest`/Go `fdktest`). Fast, no deployment needed. See [testing-patterns.md](testing-patterns.md).
 - **Integration tests** — run against the real deployed Lambda via `foundry functions test`. Tests the full execution path including real API calls, collections, and credentials.
 
 Ask: "Would you like unit tests (local, with mocks) or integration tests (against the deployed function)?"
@@ -308,9 +308,9 @@ Given this handler (from `manifest.yml`: handler `on_post`, method `POST`, path 
 def on_post(request: Request, config, logger: Logger) -> Response:
     hostname = request.body.get("hostname")
     if not hostname:
-        return Response(body={"error": "hostname is required"}, code=400)
+        return Response(code=400, errors=[APIError(code=400, message="hostname is required")])
     if not isinstance(hostname, str) or len(hostname) > 253:
-        return Response(body={"error": "invalid hostname"}, code=400)
+        return Response(code=400, errors=[APIError(code=400, message="invalid hostname")])
     # ... lookup logic
     return Response(body={"result": data}, code=200)
 ```
@@ -332,6 +332,8 @@ tests:
           body: {}
         expect:
           status: 400
+          errors:
+            - "hostname is required"
 
       - name: hostname_too_long
         input:

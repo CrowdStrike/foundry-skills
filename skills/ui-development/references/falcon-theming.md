@@ -47,15 +47,16 @@ falcon.events.on('data', (data) => console.log('console theme is now', data.them
 
 ## Design Tokens
 
-Use Shoelace CSS custom properties for all styling. These tokens automatically adapt to dark/light mode:
+Use tokens for every color so the UI follows the console theme. falcon-shoelace 0.4.0 maps only a few `--sl-*` tokens at `:root` (the `--sl-spacing-*` scale, `--sl-font-size-small`, `--sl-font-size-medium`, `--sl-shadow-large`, plus input, tooltip, and focus-ring tokens its components use). It defines no global `--sl-color-*` or `--sl-border-radius-*` tokens (a few are scoped to `sl-switch`), so `var(--sl-color-neutral-900)` resolves to nothing. Take colors from the Toucan tokens in `@crowdstrike/tailwind-toucan-base`, which change value under `.theme-dark` and `.theme-light`:
 
 ```css
-/* CORRECT - uses design tokens */
+/* CORRECT - tokens follow the console theme */
 .my-component {
-  color: var(--sl-color-neutral-900);
-  background: var(--sl-color-neutral-0);
+  color: var(--titles-and-attributes);
+  background: var(--surface-md);
+  border: 1px solid var(--border-reg);
+  box-shadow: var(--elevation-md);
   padding: var(--sl-spacing-medium);
-  border-radius: var(--sl-border-radius-medium);
   font-size: var(--sl-font-size-medium);
 }
 
@@ -69,28 +70,16 @@ Use Shoelace CSS custom properties for all styling. These tokens automatically a
 
 ### Token Reference
 
-| Token Category | Examples | Purpose |
-|----------------|----------|---------|
-| `--sl-color-primary-*` | `--sl-color-primary-500`, `--sl-color-primary-600` | Brand/action colors |
-| `--sl-color-neutral-*` | `--sl-color-neutral-0` through `--sl-color-neutral-900` | Text, backgrounds, borders |
-| `--sl-color-danger-*` | `--sl-color-danger-500` | Error states |
-| `--sl-color-warning-*` | `--sl-color-warning-500` | Warning states |
-| `--sl-color-success-*` | `--sl-color-success-500` | Success states |
-| `--sl-spacing-*` | `--sl-spacing-small`, `--sl-spacing-medium`, `--sl-spacing-large` | Consistent spacing |
-| `--sl-font-size-*` | `--sl-font-size-small`, `--sl-font-size-medium`, `--sl-font-size-large` | Typography scale |
-| `--sl-border-radius-*` | `--sl-border-radius-small`, `--sl-border-radius-medium` | Corner rounding |
-| `--sl-shadow-*` | `--sl-shadow-small`, `--sl-shadow-medium`, `--sl-shadow-large` | Elevation |
+| Purpose | Tokens |
+|---------|--------|
+| Text | `--titles-and-attributes` (headings, values), `--body-and-labels` (secondary text), `--text-and-icons` |
+| Backgrounds | `--ground-floor` (page), `--surface-base`, `--surface-md`, `--surface-lg` (cards, panels) |
+| Borders | `--border-faint`, `--border-reg`, `--border-bold` |
+| Severity and status | `--critical`, `--high`, `--medium`, `--low`, `--informational`, `--positive` |
+| Elevation | `--elevation-base`, `--elevation-md`, `--elevation-lg` |
+| Spacing (falcon-shoelace) | `--sl-spacing-3x-small` through `--sl-spacing-4x-large` |
 
-### Neutral Color Scale (Dark/Light Mapping)
-
-| Token | Light Mode | Dark Mode | Usage |
-|-------|-----------|-----------|-------|
-| `--sl-color-neutral-0` | White | Near-black | Page background |
-| `--sl-color-neutral-50` | Very light gray | Dark gray | Card backgrounds |
-| `--sl-color-neutral-200` | Light gray | Medium-dark gray | Borders |
-| `--sl-color-neutral-500` | Medium gray | Medium gray | Secondary text |
-| `--sl-color-neutral-700` | Dark gray | Light gray | Primary text |
-| `--sl-color-neutral-900` | Near-black | White | Headings |
+The prebuilt `index.css` also ships utility classes for the same tokens, such as `bg-ground-floor` and `text-titles-and-attributes` from the blueprints.
 
 ## Tailwind with Toucan (Alternative)
 
@@ -130,6 +119,6 @@ module.exports = {
 
 ## Shoelace Icons and the CSP
 
-The default page CSP already allows `https://cdn.jsdelivr.net` and `data:` in `connect-src`, even when the manifest's `connect-src` lists only `assets.foundry.crowdstrike.com` (observed on US-2, 2026-10-23). So `setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/')` works with no manifest change, and the `system` icons Shoelace draws itself (dialog close button, select and dropdown carets, details chevrons) render, because they're `data:` URLs.
+The default page CSP already allows `https://cdn.jsdelivr.net` and `data:` in `connect-src`, even when the manifest's `connect-src` lists only `assets.foundry.crowdstrike.com` (observed on US-2, 2026-10-23). So `setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/')` works with no manifest change, and the `system` icons Shoelace draws itself (dialog close button, select and dropdown carets, details chevrons) render, because they're `data:` URLs.
 
 Don't serve icons from the app's own package. The deploy excludes every `.svg` file, and `connect-src` doesn't include the app's asset host, so a relative base path or a custom icon library pointing at `./icons/` fails with a `connect-src` violation. For a custom icon, inline the SVG markup.

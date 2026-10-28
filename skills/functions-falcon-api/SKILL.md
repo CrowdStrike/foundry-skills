@@ -15,7 +15,7 @@ metadata:
 
 > Call Falcon APIs through the CrowdStrike SDKs inside Foundry function handlers. Authentication is automatic with the FDK handler pattern.
 >
-> The FalconPy `Detects` class is **removed**. Do not import it. Use `Alerts` for detection queries.
+> The FalconPy `Detects` class is **deprecated**: it still ships, but its API returns 405. Do not import it. Use `Alerts` for detection queries.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
@@ -27,7 +27,7 @@ For exposing external APIs to Foundry via OpenAPI specs, see **api-integrations*
 >
 > **Do NOT import or use the `Detects` class from FalconPy.** The Detects API (`/detects/entities/detects/v2`) is deprecated and returns **405 Method Not Allowed**. Any code using `Detects()`, `query_detects()`, or `get_detect_summaries()` will fail at runtime.
 >
-> **Use instead:** `from falconpy import Alerts` with `query_alerts_v2()` / `get_alerts_v2()`. Filter by `product:'detections'` to scope to detections only.
+> **Use instead:** `from falconpy import Alerts` with `query_alerts_v2()` / `get_alerts_v2()`. Filter by `product:'epp'` to scope to endpoint detections.
 
 ## Reference Files
 
@@ -96,20 +96,18 @@ package main
 import (
     "context"
     "log/slog"
+
+    fdk "github.com/CrowdStrike/foundry-fn-go"
     "github.com/crowdstrike/gofalcon/falcon"
-    "github.com/crowdstrike/gofalcon/falcon/client"
-    fdk "github.com/crowdstrike/foundry-fn-go"
 )
 
 func newHandler(_ context.Context, _ *slog.Logger, _ fdk.SkipCfg) fdk.Handler {
     m := fdk.NewMux()
 
     m.Get("/api/alerts", fdk.HandleFnOf(func(ctx context.Context, r fdk.RequestOf[struct{}]) fdk.Response {
-        accessToken := r.Header.Get("X-CS-ACCESSTOKEN")
-
         opts := fdk.FalconClientOpts()
         falconClient, err := falcon.NewClient(&falcon.ApiConfig{
-            AccessToken:       accessToken,
+            AccessToken:       r.AccessToken,
             Cloud:             falcon.Cloud(opts.Cloud),
             Context:           ctx,
             UserAgentOverride: opts.UserAgent,
@@ -118,7 +116,7 @@ func newHandler(_ context.Context, _ *slog.Logger, _ fdk.SkipCfg) fdk.Handler {
             return fdk.Response{Code: 500, Body: fdk.JSON(map[string]string{"error": "Failed to authenticate"})}
         }
 
-        // ... API calls with falconClient ...
+        _ = falconClient // call Falcon APIs here, e.g. falconClient.Alerts
         return fdk.Response{Code: 200, Body: fdk.JSON(map[string]interface{}{"alerts": []interface{}{}})}
     }))
 
@@ -134,20 +132,20 @@ func main() {
 
 ### Detection Queries (via Alerts API)
 
-> **⚠️ The legacy Detects API (`/detects/entities/detects/v2`) is deprecated and returns 405 Method Not Allowed.** Use the Alerts API (`/alerts/entities/alerts/v3`) for all detection queries — it covers both detections and cases.
+> **⚠️ The legacy Detects API (`/detects/entities/detects/v2`) is deprecated and returns 405 Method Not Allowed.** Use the Alerts API for all detection queries.
 
 ```python
 @func.handler(method='GET', path='/api/detections')
 def get_detections(request: Request, config, logger) -> Response:
     falcon = Alerts()  # Zero-arg — auth is automatic
 
-    severity_min = int(request.params.query.get("severity_min", ["3"])[0])
+    severity_min = int(request.params.query.get("severity_min", ["70"])[0])  # 1-100 scale
     limit = min(int(request.params.query.get("limit", ["50"])[0]), 100)
 
-    # Use Alerts v2 methods — these hit /alerts/entities/alerts/v3 under the hood.
-    # FQL filter: severity threshold + product "detections" (excludes cases/incidents).
+    # query_alerts_v2 calls GET /alerts/queries/alerts/v2; get_alerts_v2 calls POST /alerts/entities/alerts/v2.
+    # FQL filter: severity threshold + endpoint detections only.
     query_response = falcon.query_alerts_v2(
-        filter=f"severity:>='{severity_min}'+product:'detections'",
+        filter=f"severity:>={severity_min}+product:'epp'",
         limit=limit,
         sort="created_timestamp|desc",
     )
@@ -328,6 +326,13 @@ if response["status_code"] == 207:
 Mock Falcon APIs in tests instead of making real API calls (they are slow, flaky, and quota-consuming):
 
 ```python
+import importlib
+from unittest.mock import Mock, patch
+
+from crowdstrike.foundry.function import Request, RequestParams
+
+import main
+
 def test_get_alerts_success():
     mock_falcon = Mock()
     mock_falcon.query_alerts_v2.return_value = {
@@ -339,12 +344,13 @@ def test_get_alerts_success():
         "body": {"resources": [{"id": "alert-001", "severity": 80}]}
     }
 
-    with patch('falconpy.Alerts', return_value=mock_falcon):
-        from crowdstrike.foundry.function import RequestParams
-        from main import get_alerts
-        request = Mock(spec=Request)
-        request.params = RequestParams(query={"limit": ["10"]})
-        response = get_alerts(request, None, Mock())
+    # @func.handler registers the function and returns None, so swap in an
+    # identity decorator and reload main (as foundry-sample-functions-python's tests do)
+    with patch("crowdstrike.foundry.function.Function.handler", new=lambda *a, **k: (lambda f: f)):
+        importlib.reload(main)
+    with patch("main.Alerts", return_value=mock_falcon):
+        request = Request(params=RequestParams(query={"limit": ["10"]}))
+        response = main.get_alerts(request, None, Mock())
         assert response.code == 200
         assert len(response.body["alerts"]) == 1
         # get_alerts_v2 reads only composite_ids; ids= fails with a 400 before any request is sent
@@ -357,7 +363,9 @@ def test_get_alerts_success():
 export FALCON_CLIENT_ID="your-client-id"
 export FALCON_CLIENT_SECRET="your-client-secret"
 cd functions/my-function && python3 main.py
-curl -X GET http://localhost:8081/api/alerts?limit=10
+# The FDK reads a JSON envelope, not the URL: POST it to the root with method, url, and params
+curl -X POST http://localhost:8081 -H 'Content-Type: application/json' \
+  -d '{"method": "GET", "url": "/api/alerts", "params": {"query": {"limit": ["10"]}}}'
 ```
 
 ## OAuth Scopes for manifest.yml
@@ -366,7 +374,7 @@ Every FalconPy service class call requires the correct OAuth scope(s) declared i
 
 > **⚠️ Scope names don't always match class names.** `Hosts` needs `devices:read`, not `hosts:read`. Use this table, don't guess.
 
-> **Built-in capabilities don't need scopes.** API integrations, collections, workflows, and LogScale ingestion work without declaring their scopes when used through Foundry's built-in SDK patterns (`falcon.apiIntegration()`, `CustomStorage()` for app collections, etc.). Only declare scopes when calling Falcon platform APIs directly via FalconPy service classes.
+> **Built-in capabilities don't need scopes.** API integrations, collections, and workflows work without declaring their scopes when used through Foundry's built-in SDK patterns (`falcon.apiIntegration()`, `CustomStorage()` for app collections, etc.). Only declare scopes when calling Falcon platform APIs directly via FalconPy service classes.
 
 ### Scope Reference
 
@@ -385,7 +393,7 @@ Each row is verified against a sample app's manifest, a live CID, or the API swa
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
 | `Agents`, `Spans`, `AgentInvocation`, `AgentVersions`, `Models` | AgentWorks | `charlotte-ai-agent-definition:read`, `:write` | Endpoints verified on EU-1 |
-| `CaseManagement` | `query_case_ids`, `get_cases` / `update_case` | `cases:read` / `cases:write` | API swagger |
+| `CaseManagement` | `query_case_ids`, `get_cases` / `update_case_fields` | `cases:read` / `cases:write` | API swagger |
 | `RealTimeResponse` | `batch_init_sessions`, `batch_command` / `batch_active_responder_command` (incl. `runscript`) | `real-time-response:read` / `:write` | API swagger |
 | `RealTimeResponseAdmin` | `batch_admin_command` (`put`, `run`) | `real-time-response-admin:write` | API swagger |
 
@@ -412,17 +420,7 @@ If you're using a FalconPy method not in this table:
 
 ## Falcon Severity Values
 
-CrowdStrike APIs return severity as **integers** (1-5) or display names. When integrating with external systems (Jira, ServiceNow, email), map them explicitly:
-
-| Falcon Severity | Display Name | Typical External Mapping |
-|----------------|--------------|--------------------------|
-| 1 | Informational | Low / Lowest |
-| 2 | Low | Low |
-| 3 | Medium | Medium |
-| 4 | High | High |
-| 5 | Critical | Highest / Critical |
-
-Use `max_severity_displayname` for FQL filters (string comparison) or `max_severity` for numeric comparison. When passing severity to external ticketing systems, always map to their expected format rather than passing the raw value through.
+Alerts carry `severity` as an integer from 1 to 100 (100 is most severe) and `severity_name` as its label, for example `30` / `"Low"` and `70` / `"High"`. Filter on `severity_name:'High'` or a numeric threshold such as `severity:>=70`; a low threshold like `severity:>=3` matches almost every alert. The `max_severity` / `max_severity_displayname` fields belong to the deprecated Detects API. When passing severity to an external system (Jira, ServiceNow, email), map `severity_name` to its expected values instead of passing the raw number through.
 
 ## Common Pitfalls
 
@@ -442,6 +440,4 @@ For real-world implementation patterns, see:
 
 - **[foundry-sample-functions-python](https://github.com/CrowdStrike/foundry-sample-functions-python)**: Reference Python patterns. See also [Dive into Falcon Foundry Functions with Python](https://www.crowdstrike.com/tech-hub/ng-siem/dive-into-falcon-foundry-functions-with-python/).
 - **[foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream)**: Side-by-side Go and Python auth patterns.
-- **[foundry-sample-detection-translation](https://github.com/CrowdStrike/foundry-sample-detection-translation)**: CrowdStrike alerts API from functions.
-- **[foundry-sample-threat-intel](https://github.com/CrowdStrike/foundry-sample-threat-intel)**: CrowdStrike Intelligence APIs from functions.
 - **[foundry-sample-idp-notifications](https://github.com/CrowdStrike/foundry-sample-idp-notifications)**: Falcon IdP domain and connector monitoring.

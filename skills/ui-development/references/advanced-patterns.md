@@ -47,25 +47,24 @@ foundry ui run
 foundry ui run
 
 # Expected output:
-# ✓ Development server started
-# ✓ Serving UI at http://localhost:3000
-# ✓ Watching for changes...
+# Starting a local development server at http://localhost:25678. Enter Ctrl-C to shutdown
 ```
+
+`foundry ui run` has no port flag; it always listens on 25678.
 
 **Pattern: Development Workflow**
 
 ```bash
-# 1. Start the development server
-foundry ui run --port 3000
+# 1. From the app root, start the development server
+foundry ui run
 
-# 2. In another terminal, run your build watcher
-npm run dev
+# 2. In another terminal, rebuild the page on every change (React blueprint script)
+cd ui/pages/my-page && npm run watch
 
-# 3. Enable development mode in Falcon console:
-#    Settings → Foundry Apps → Enable Development Mode
+# 3. In the Falcon console, click Developer tools (</>) in the toolbar
+#    and enable Development mode
 
-# 4. Access your app in Falcon console
-#    The console will serve your local build instead of deployed version
+# 4. Open your page or extension in the console; it now loads your local build
 ```
 
 ### Server State Management
@@ -76,8 +75,8 @@ npm run dev
 # Check if server is running
 ps aux | grep "foundry ui"
 
-# Check port availability
-netstat -tlnp | grep :3000
+# Check what holds the dev server port
+lsof -i :25678
 
 # Restart server if needed
 pkill -f "foundry ui" && foundry ui run
@@ -89,102 +88,19 @@ When `foundry ui run` shows permission errors:
 
 1. **Check manifest.yml OAuth scopes** - Ensure required permissions are declared
 2. **Restart the server** - Manifest changes require server restart
-3. **Verify authentication** - Run `foundry profile active`
+3. **Verify authentication** - Run `foundry profile list` to see your profiles, and `foundry profile activate` to switch
 
 ```bash
 # Common resolution
 foundry ui run
 ```
 
-## ExtensionMessaging Class
+## Console Messaging
 
-Full TypeScript class for secure parent-extension communication with postMessage origin validation, request/response tracking, and timeout handling:
+Don't build your own `postMessage` channel to the Falcon console. foundry-js owns it: `connect()` records the console's origin and every later message goes to that origin, never `'*'`. The protocol is a fixed set of SDK message types (`connect`, `api`, `navigateTo`, `data`, `broadcast`, `openModal`, and a few more), so hand-rolled message types go nowhere. Use the SDK instead:
 
-```typescript
-// extension/messaging.ts
-interface FoundryMessage {
-  type: 'CONTEXT_UPDATE' | 'ACTION_REQUEST' | 'DATA_RESPONSE';
-  payload: unknown;
-  requestId?: string;
-}
-
-class ExtensionMessaging {
-  private allowedOrigins = [
-    'https://falcon.crowdstrike.com',
-    'https://falcon.eu-1.crowdstrike.com',
-    'https://falcon.us-gov-1.crowdstrike.com',
-  ];
-
-  private pendingRequests = new Map<string, {
-    resolve: (value: unknown) => void;
-    reject: (reason: unknown) => void;
-  }>();
-
-  constructor() {
-    window.addEventListener('message', this.handleMessage.bind(this));
-  }
-
-  private handleMessage(event: MessageEvent<FoundryMessage>) {
-    // SECURITY: Validate origin
-    if (!this.allowedOrigins.includes(event.origin)) {
-      console.warn('Rejected message from unauthorized origin:', event.origin);
-      return;
-    }
-
-    // SECURITY: Validate message structure
-    if (!this.isValidMessage(event.data)) {
-      console.warn('Rejected malformed message');
-      return;
-    }
-
-    const { type, payload, requestId } = event.data;
-
-    switch (type) {
-      case 'CONTEXT_UPDATE':
-        this.handleContextUpdate(payload);
-        break;
-      case 'DATA_RESPONSE':
-        if (requestId && this.pendingRequests.has(requestId)) {
-          const { resolve } = this.pendingRequests.get(requestId)!;
-          this.pendingRequests.delete(requestId);
-          resolve(payload);
-        }
-        break;
-    }
-  }
-
-  private isValidMessage(data: unknown): data is FoundryMessage {
-    return (
-      typeof data === 'object' &&
-      data !== null &&
-      'type' in data &&
-      typeof (data as FoundryMessage).type === 'string'
-    );
-  }
-
-  async requestData<T>(action: string, params?: unknown): Promise<T> {
-    const requestId = crypto.randomUUID();
-
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(requestId, { resolve, reject });
-
-      // Send to parent window
-      window.parent.postMessage(
-        { type: 'ACTION_REQUEST', payload: { action, params }, requestId },
-        '*' // Parent origin validated on response
-      );
-
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        if (this.pendingRequests.has(requestId)) {
-          this.pendingRequests.delete(requestId);
-          reject(new Error('Request timeout'));
-        }
-      }, 30000);
-    });
-  }
-}
-```
+- **Console context changes:** `falcon.events.on('data', handler)` (see [foundry-js.md](foundry-js.md#events-inter-extension-communication))
+- **Extension to extension (same app, same page):** `falcon.sendBroadcast(payload)` and `falcon.events.on('broadcast', handler)`
 
 ## Extension Builder (No-Code)
 
@@ -260,7 +176,7 @@ ui:
 | "foundry ui run is optional" | Dev server is REQUIRED for testing in console |
 | "I can test API integration calls before deploying" | `foundry ui run` only serves UI locally — API integrations, collections, and functions must be deployed to the cloud first via `foundry apps deploy` |
 | "I can test without mocking Foundry SDK" | Real API calls in tests are slow, flaky, and environment-dependent |
-| "Iframe security is handled by the platform" | Extensions MUST validate message origins; platform provides the sandbox, you secure the communication |
+| "I'll message the console with my own `postMessage`" | foundry-js already owns that channel and pins it to the console origin; use `falcon.events` and `falcon.sendBroadcast()` |
 | "React/Vue patterns are transferable" | Foundry-JS and Shoelace have specific integration patterns |
 | "I'll use the default Shoelace theme" | Vanilla Shoelace doesn't match Falcon console styling; `falcon-shoelace` is required for visual consistency and dark/light mode support |
 | "Dark mode support can come later" | The Falcon console ships with dark mode. Users see broken styling on day one if you skip it |
@@ -275,7 +191,7 @@ If you catch yourself:
 - Hardcoding color values (e.g., `#ffffff`, `#1a1a1a`) instead of design tokens
 - Skipping `foundry ui run` during development
 - Running `foundry ui run` and expecting API integrations/collections/functions to work without deploying first (backend lives in the cloud)
-- Not validating postMessage origins in extensions
+- Calling `postMessage(…, '*')` or adding your own `message` listener instead of using `falcon.events`
 - Hardcoding API endpoints instead of using Foundry SDK
 - Testing without mocking the Foundry SDK
 

@@ -15,7 +15,7 @@ The skills are markdown-based and usable by any AI coding assistant. Claude Code
 
 ## Repository Structure
 
-- `skills/` - 12 specialized development skills, each with a `SKILL.md` file
+- `skills/` - 13 skills, each with a `SKILL.md` file
 - `hooks/` - Plugin hook scripts for intent routing and safety enforcement
 - `use-cases/` - Real-world implementation patterns extracted from [CrowdStrike Tech Hub](https://www.crowdstrike.com/tech-hub/ng-siem/?cspage=0&lang=English&type=Article) blog posts
 - `skills/*/scripts/` - Skill-specific helper scripts (OpenAPI adaptation, action search, Fusion redirect detection)
@@ -71,6 +71,7 @@ The `skills/` directory contains specialized skills that provide systematic appr
 - **debugging-workflows**: Systematic troubleshooting for CLI, manifest, and API issues
 - **e2e-testing**: End-to-end testing with `@crowdstrike/foundry-playwright`
 - **app-upgrades**: Upgrade a template-installed app to a newer template version, keeping its IDs
+- **fusion-redirect**: Points a standalone Falcon Fusion workflow request (no Falcon Foundry app needed) to the Falcon Fusion plugin
 
 ### Use Cases
 
@@ -130,8 +131,7 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 ```bash
 # Authentication & Environment Management
 foundry login                              # OAuth-based authentication
-foundry profile list                       # View available profiles (US-1, US-2, EU-1, US-GOV)
-foundry profile active                     # Show current active profile
+foundry profile list                       # Lists profiles; the first line shows the active one
 foundry profile activate --name <name>     # Switch between environments
 
 # App Development Lifecycle
@@ -139,7 +139,7 @@ foundry apps create --name "X" --no-prompt --no-git  # Create new app
 foundry apps run                           # Start full app locally in dev mode
 foundry apps validate --no-prompt           # Dry-run validation (no deploy)
 foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
-foundry apps release --change-type Patch --deployment-id <id> --notes "notes"  # Release to app catalog
+foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes" --no-prompt  # Release to app catalog (notes: 10-1000 chars)
 foundry ui run                             # Local UI development server
 
 # Scaffolding Commands (ALWAYS use --no-prompt)
@@ -147,7 +147,7 @@ foundry api-integrations create --name "X" --spec path.json --no-prompt   # Crea
 foundry ui pages create --name "X" --from-template React --no-prompt       # Create UI page
 foundry ui extensions create --name "X" --from-template React --sockets "socket.name" --no-prompt  # Create UI extension
 foundry ui extensions list-sockets                                                                # List available socket IDs
-foundry ui navigation add --name "X" --path / --ref pages.xxx  # Add navigation
+foundry ui navigation add --name "X" --path / --ref pages.xxx --no-prompt  # Add navigation
 foundry functions create --name "X" --language python --no-prompt           # Create function
 foundry collections create --name "X" --schema path.json --no-prompt        # Create collection
 foundry collections create --name "X" --schema path.json --agent-tools-expose --no-prompt  # ...exposed as an agent tool

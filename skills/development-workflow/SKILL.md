@@ -17,7 +17,7 @@ metadata:
 >
 > Don't hand Foundry app creation to superpowers:brainstorming or superpowers:writing-plans. They don't know the Foundry CLI and produce plans that hand-write manifest.yml and boilerplate files. They can supplement this flow (TDD discipline, code review), not replace it.
 >
-> **CRITICAL: add `--no-prompt` to every command that accepts it** — without it, interactive prompts cause `Error: EOF`. The `create`, `validate`, `deploy`, `release`, and `delete` commands all accept it (`apps delete` also needs `--force-delete`). Three reject it and fail with `unknown flag`: `foundry version`, `apps list`, and `apps list-deployments`. Verify with `foundry <command> --help`. When a command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
+> **CRITICAL: add `--no-prompt` to every command that accepts it** — without it, interactive prompts cause `Error: EOF`. The `create`, `validate`, `deploy`, `release`, and `delete` commands all accept it (`apps delete` also needs `--force-delete`). These reject it and fail with `unknown flag`: `foundry version`, `apps list`, `apps list-deployments`, `ui extensions list-sockets`, and `auth scopes list`. Verify with `foundry <command> --help`. When a command fails, MUST NOT fall back to `mkdir` — fix the command and retry.
 >
 > **CRITICAL: All `foundry` app commands MUST run from the app root directory** (where `manifest.yml` lives). The CLI resolves manifest paths relative to `os.Getwd()`, not relative to the manifest's location. Running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run` from a subdirectory (e.g., `ui/extensions/my-ext/`) causes doubled paths and misleading "file not found" errors. Commands that work from anywhere: `foundry version`, `foundry profile *`, `foundry apps list`.
 
@@ -119,7 +119,7 @@ For other decisions, prefer reasonable defaults: use React for UI, download publ
 
 ```bash
 foundry version          # Verify CLI installed
-foundry profile active   # Verify authentication
+foundry profile list     # First line shows the active profile
 foundry apps list        # Check existing apps (avoid name collisions)
 ```
 
@@ -196,7 +196,7 @@ foundry ui run
 
 ```bash
 # Release (run ONCE after deploy succeeds)
-foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes"
+foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes" --no-prompt
 ```
 
 There is no `list-releases` command — check status via the App Manager URL printed in the output. `foundry ui run` serves UI locally only; backend capabilities resolve from the cloud, so deploy those first.

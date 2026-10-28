@@ -259,10 +259,15 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: "3.13"
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
+        with:
+          node-version: 24.22.1
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-test.txt
+          # foundry-js and TypeScript, for type-checking the skills' code snippets
+          npm ci --prefix tests/snippets --ignore-scripts
       - name: Run unit tests
         run: |
           python -m pytest tests/ -v

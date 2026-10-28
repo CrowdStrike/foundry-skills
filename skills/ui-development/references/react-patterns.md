@@ -75,6 +75,8 @@ function App() {
 }
 ```
 
+The examples below use this provider's `useFalconApiContext()`. The React blueprint ships a different `falcon-api-context.js`: there, `useFalconApiContext()` creates a new `FalconApi` and connects it, `app.jsx` calls it once, and components read the shared instance with `useContext(FalconApiContext)`. In a blueprint scaffold, either switch to the provider above or read with `useContext(FalconApiContext)`. Calling the blueprint's hook in a component opens a second connection.
+
 ## Mock Context for Unit Testing
 
 Create a mock FalconApi for local development and unit tests:
@@ -129,188 +131,122 @@ function TabNavigation({ children }) {
 
 ## Page Component (Full Example)
 
-```tsx
-import React, { useState, useEffect } from 'react';
-import { useFoundry } from '@crowdstrike/foundry-js/react';
-import {
-  SlCard, SlAlert, SlSpinner, SlButton,
-} from '@shoelace-style/shoelace/dist/react';
-import type { Alert } from '../types';
+Falcon APIs live under `falcon.api.<namespace>.<method>()`, one method per API operation. Each call resolves to `{ resources, errors }`. This page lists recent alerts: a query call returns IDs, then an entities call returns the details.
 
-interface AlertsDashboardProps {
-  title?: string;
-  limit?: number;
+```tsx
+import { useCallback, useEffect, useState } from 'react';
+import { SlAlert, SlButton, SlCard, SlSpinner } from '@shoelace-style/shoelace/dist/react';
+import { useFalconApiContext } from '../contexts/falcon-api-context';
+
+interface Alert {
+  composite_id: string;
+  display_name?: string;
+  severity?: number;
 }
 
-export const AlertsDashboard: React.FC<AlertsDashboardProps> = ({
-  title = 'Security Alerts Dashboard',
-  limit = 50,
-}) => {
-  const foundry = useFoundry();
+export function AlertsDashboard({ limit = 50 }: { limit?: number }) {
+  const { falcon } = useFalconApiContext();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getSeverityVariant = (severity: number): 'danger' | 'warning' | 'neutral' => {
-    if (severity >= 8) return 'danger';
-    if (severity >= 5) return 'warning';
-    return 'neutral';
-  };
-
-  const fetchAlerts = async () => {
-    try {
-      setError(null);
-      const response = await foundry.api.get('/alerts', {
-        params: { limit },
-      });
-      setAlerts(response.data.resources);
-    } catch (err) {
-      setError('Failed to fetch alerts. Please try again.');
-      console.error('Alert fetch error:', err);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchAlerts();
-    setRefreshing(false);
-  };
-
-  useEffect(() => {
-    fetchAlerts().finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <div className="foundry-page">
-      <SlCard>
-        <div slot="header">
-          <h2>{title}</h2>
-        </div>
-
-        {error && (
-          <SlAlert variant="danger" open>
-            {error}
-          </SlAlert>
-        )}
-
-        {loading ? (
-          <SlSpinner />
-        ) : (
-          <div className="content">
-            {alerts.length > 0 && (
-              <table className="sl-table">
-                <thead>
-                  <tr>
-                    <th>Severity</th>
-                    <th>Hostname</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {alerts.map((alert) => (
-                    <tr key={alert.id}>
-                      <td>
-                        <span className={`status status--${getSeverityVariant(alert.severity)}`}>
-                          {alert.severity}
-                        </span>
-                      </td>
-                      <td>{alert.hostname}</td>
-                      <td>{alert.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            <SlButton onClick={handleRefresh} loading={refreshing}>
-              Refresh
-            </SlButton>
-          </div>
-        )}
-      </SlCard>
-    </div>
-  );
-};
-```
-
-## Extension Component with Context Hook
-
-```tsx
-import React, { useState, useEffect } from 'react';
-import { useFoundryExtension } from '@crowdstrike/foundry-js/react';
-import { SlCard, SlDetails, SlIcon } from '@shoelace-style/shoelace/dist/react';
-import type { HostContext, HostData } from '../types';
-
-export const HostDetailsExtension: React.FC = () => {
-  const { context, onContextChange } = useFoundryExtension<HostContext>();
-  const [hostData, setHostData] = useState<HostData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const formatDate = (dateStr: string): string => {
-    return new Date(dateStr).toLocaleString();
-  };
-
-  const fetchHostData = async (deviceId: string) => {
+  const fetchAlerts = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await foundry.api.get(`/devices/${deviceId}`);
-      setHostData(response.data);
+      const query = await falcon.api.alerts.getQueriesAlertsV2({ limit });
+      const ids = (query.resources ?? []) as string[];
+      if (ids.length === 0) {
+        setAlerts([]);
+        return;
+      }
+      // The generated body type is Record<string, never>, so cast the body.
+      const body: Record<string, unknown> = { composite_ids: ids };
+      const details = await falcon.api.alerts.postEntitiesAlertsV2(body as Record<string, never>);
+      if (details.errors && details.errors.length > 0) {
+        throw new Error(details.errors[0]?.message || 'Request failed');
+      }
+      setAlerts((details.resources ?? []) as Alert[]);
     } catch (err) {
-      console.error('Failed to fetch host data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
     } finally {
       setLoading(false);
     }
-  };
+  }, [falcon, limit]);
 
   useEffect(() => {
-    const unsubscribe = onContextChange((newContext) => {
-      if (newContext?.device_id) {
-        fetchHostData(newContext.device_id);
-      }
-    });
-
-    if (context?.device_id) {
-      fetchHostData(context.device_id);
-    }
-
-    return unsubscribe;
-  }, []);
+    fetchAlerts();
+  }, [fetchAlerts]);
 
   return (
-    <div className="extension-widget">
-      <SlCard>
-        <div slot="header">
-          <SlIcon name="shield-check" />
-          Host Details: {context?.hostname || 'Loading...'}
-        </div>
-
-        {hostData && (
-          <div className="host-info">
-            <SlDetails summary="System Information">
-              <dl>
-                <dt>Platform</dt>
-                <dd>{hostData.platform_name}</dd>
-                <dt>OS Version</dt>
-                <dd>{hostData.os_version}</dd>
-                <dt>Agent Version</dt>
-                <dd>{hostData.agent_version}</dd>
-                <dt>Last Seen</dt>
-                <dd>{formatDate(hostData.last_seen)}</dd>
-              </dl>
-            </SlDetails>
-
-            <SlDetails summary="Security Status">
-              <span className={`status status--${hostData.status === 'normal' ? 'success' : 'danger'}`}>
-                {hostData.status}
-              </span>
-            </SlDetails>
-          </div>
-        )}
-      </SlCard>
-    </div>
+    <SlCard>
+      <div slot="header">Recent alerts</div>
+      {error && <SlAlert variant="danger" open>{error}</SlAlert>}
+      {loading ? (
+        <SlSpinner />
+      ) : (
+        <table>
+          <thead><tr><th>Severity</th><th>Alert</th></tr></thead>
+          <tbody>
+            {alerts.map((alert) => (
+              <tr key={alert.composite_id}>
+                <td>{alert.severity}</td>
+                <td>{alert.display_name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <SlButton onClick={fetchAlerts} loading={loading}>Refresh</SlButton>
+    </SlCard>
   );
-};
+}
+```
+
+Each `falcon.api` namespace needs its scope in `manifest.yml` (`alerts:read` here).
+
+## Extension Component with Console Context
+
+An extension reads its socket's context from `falcon.data` and hears about changes through `falcon.events.on('data', …)`. On `activity.detections.details` the selected detection arrives as `detectionId` (the pattern from [foundry-sample-mitre](https://github.com/CrowdStrike/foundry-sample-mitre) and [foundry-sample-detection-translation](https://github.com/CrowdStrike/foundry-sample-detection-translation)):
+
+```tsx
+import { useEffect, useState } from 'react';
+import { SlCard, SlSpinner } from '@shoelace-style/shoelace/dist/react';
+import { useFalconApiContext } from '../contexts/falcon-api-context';
+
+interface Detection {
+  composite_id: string;
+  display_name?: string;
+  severity?: number;
+}
+
+export function DetectionSummary() {
+  const { falcon } = useFalconApiContext();
+  const [detectionId, setDetectionId] = useState(falcon.data?.detectionId as string | undefined);
+  const [detection, setDetection] = useState<Detection | undefined>();
+
+  // Follow the console as the user selects another detection
+  useEffect(() => {
+    const onData = (data: Record<string, unknown>) => setDetectionId(data.detectionId as string | undefined);
+    falcon.events.on('data', onData);
+    return () => falcon.events.off('data', onData);
+  }, [falcon]);
+
+  useEffect(() => {
+    if (!detectionId) return;
+    (async () => {
+      const body: Record<string, unknown> = { composite_ids: [detectionId] };
+      const response = await falcon.api.alerts.postEntitiesAlertsV2(body as Record<string, never>);
+      setDetection(response.resources?.[0] as Detection | undefined);
+    })();
+  }, [falcon, detectionId]);
+
+  return (
+    <SlCard>
+      {detection ? `${detection.display_name} (severity ${detection.severity})` : <SlSpinner />}
+    </SlCard>
+  );
+}
 ```
 
 ## API Integration Component
@@ -324,8 +260,8 @@ import { useFalconApiContext } from '../contexts/falcon-api-context';
 function ApiIntegrationDemo() {
   const { falcon } = useFalconApiContext();
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
+  const [results, setResults] = useState<unknown>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const executeIntegration = async () => {
     setLoading(true);
@@ -341,28 +277,29 @@ function ApiIntegrationDemo() {
           params: {
             // path: { id: '123' },    // path parameters
             // query: { limit: 10 },   // query parameters
+            // header: { ... },        // additional headers
           },
           // json: { ... },            // request body (POST/PUT)
-          // headers: { ... },         // additional headers
         }
       });
 
       // Check for errors
-      if (response.errors?.length > 0) {
+      if (response.errors && response.errors.length > 0) {
         throw new Error(response.errors[0]?.message || 'Request failed');
       }
 
-      const resource = response.resources?.[0];
+      // resources is typed unknown[]; cast to the fields you read
+      const resource = response.resources?.[0] as { status_code?: number; response_body?: unknown } | undefined;
       const body = resource?.response_body;
       const statusCode = resource?.status_code;
 
-      if (statusCode >= 400) {
+      if (statusCode && statusCode >= 400) {
         throw new Error(`API returned ${statusCode}`);
       }
 
       setResults(body);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
       setLoading(false);
     }
@@ -376,6 +313,7 @@ function ApiIntegrationDemo() {
 
 ```jsx
 import { useState, useMemo } from 'react';
+import { SlIcon, SlInput } from '@shoelace-style/shoelace/dist/react';
 
 function UserList({ users }) {
   const [search, setSearch] = useState('');
@@ -392,14 +330,14 @@ function UserList({ users }) {
 
   return (
     <>
-      <sl-input
+      <SlInput
         placeholder="Search users..."
         clearable
         value={search}
         onSlInput={(e) => setSearch(e.target.value)}
       >
-        <sl-icon name="search" slot="prefix"></sl-icon>
-      </sl-input>
+        <SlIcon name="search" slot="prefix" />
+      </SlInput>
 
       <p className="text-neutral mt-2">Showing {filtered.length} of {users.length} users</p>
 
@@ -422,15 +360,27 @@ function UserList({ users }) {
 
 ## Unit Testing with Vitest
 
-```typescript
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { AlertsDashboard } from '@/components/AlertsDashboard';
-import { mockFoundry } from '../mocks/foundry';
+Mock the `@crowdstrike/foundry-js` default export and render inside the real `FalconApiProvider`, as the foundryjs-demo tests do. Only the API methods the component calls need stubs:
 
-vi.mock('@crowdstrike/foundry-js/react', () => ({
-  useFoundry: () => mockFoundry,
+```tsx
+import { render, screen, waitFor } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { FalconApiProvider } from '../contexts/falcon-api-context';
+import { AlertsDashboard } from '../components/alerts-dashboard';
+
+// vi.mock is hoisted above imports, so create the mocks with vi.hoisted
+const { getQueriesAlertsV2, postEntitiesAlertsV2 } = vi.hoisted(() => ({
+  getQueriesAlertsV2: vi.fn(),
+  postEntitiesAlertsV2: vi.fn(),
+}));
+
+vi.mock('@crowdstrike/foundry-js', () => ({
+  default: class FalconApi {
+    connect = vi.fn().mockResolvedValue(undefined);
+    isConnected = true;
+    api = { alerts: { getQueriesAlertsV2, postEntitiesAlertsV2 } };
+    events = { on: vi.fn(), off: vi.fn() };
+  },
 }));
 
 describe('AlertsDashboard', () => {
@@ -438,37 +388,16 @@ describe('AlertsDashboard', () => {
     vi.clearAllMocks();
   });
 
-  it('renders loading spinner initially', () => {
-    render(<AlertsDashboard />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
-  });
-
-  it('displays alerts after loading', async () => {
-    mockFoundry.api.get.mockResolvedValueOnce({
-      data: {
-        resources: [
-          { id: '1', severity: 8, hostname: 'test-host', description: 'Test alert' },
-        ],
-      },
+  it('shows alerts returned by the API', async () => {
+    getQueriesAlertsV2.mockResolvedValueOnce({ resources: ['id-1'] });
+    postEntitiesAlertsV2.mockResolvedValueOnce({
+      resources: [{ composite_id: 'id-1', display_name: 'Test alert', severity: 70 }],
     });
 
-    render(<AlertsDashboard />);
+    render(<FalconApiProvider><AlertsDashboard /></FalconApiProvider>);
 
-    await waitFor(() => {
-      expect(screen.getByText('test-host')).toBeInTheDocument();
-    });
-  });
-
-  it('handles refresh button click', async () => {
-    const user = userEvent.setup();
-    mockFoundry.api.get.mockResolvedValue({ data: { resources: [] } });
-
-    render(<AlertsDashboard />);
-    await waitFor(() => screen.getByRole('button', { name: /refresh/i }));
-
-    await user.click(screen.getByRole('button', { name: /refresh/i }));
-
-    expect(mockFoundry.api.get).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.getByText('Test alert')).toBeInTheDocument());
+    expect(postEntitiesAlertsV2).toHaveBeenCalledWith({ composite_ids: ['id-1'] });
   });
 });
 ```

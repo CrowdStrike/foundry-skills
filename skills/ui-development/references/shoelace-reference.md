@@ -10,9 +10,7 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/card/card.js';
 import '@shoelace-style/shoelace/dist/components/alert/alert.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
-import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/details/details.js';
-import '@shoelace-style/shoelace/dist/components/tag/tag.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/input/input.js';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
@@ -28,8 +26,10 @@ Set the base path for Shoelace icons and assets:
 
 ```typescript
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
-setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/');
+setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/');
 ```
+
+Pin the Shoelace version from `package.json`, as the samples do, so icons and assets match the components you bundle.
 
 ## Commonly Used Components
 
@@ -200,31 +200,25 @@ export const showToast = (
 
 ## CSS Customization
 
-Override Shoelace component styles using CSS parts and custom properties:
+Override Shoelace component styles through CSS parts, using Toucan tokens for colors (falcon-shoelace defines no `--sl-color-*` tokens; see [falcon-theming.md](falcon-theming.md#design-tokens)):
 
 ```css
 /* Override card styling */
 sl-card::part(base) {
-  border: 1px solid var(--sl-color-neutral-200);
+  border: 1px solid var(--border-reg);
 }
 
 sl-card::part(header) {
-  background: var(--sl-color-neutral-50);
-}
-
-/* Override button styling */
-sl-button::part(base) {
-  border-radius: var(--sl-border-radius-medium);
+  background: var(--surface-md);
 }
 
 /* Override input styling */
 sl-input::part(base) {
-  border-color: var(--sl-color-neutral-300);
+  border-color: var(--border-bold);
 }
 
 sl-input::part(base):focus-within {
-  border-color: var(--sl-color-primary-500);
-  box-shadow: 0 0 0 3px var(--sl-color-primary-100);
+  border-color: var(--focus);
 }
 ```
 

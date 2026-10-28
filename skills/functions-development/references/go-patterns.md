@@ -4,7 +4,7 @@
 
 ## FDK Handler with Configuration
 
-Load configuration from `config.json` or `config.yaml` in the function directory:
+Load configuration from `config.json` or `config.yaml` in the function directory. The config type must implement `OK() error`, which the FDK calls to validate it:
 
 ```go
 func newHandler(_ context.Context, _ *slog.Logger, cfg myConfig) fdk.Handler {
@@ -15,9 +15,9 @@ func newHandler(_ context.Context, _ *slog.Logger, cfg myConfig) fdk.Handler {
 }
 ```
 
-## Alerts Handler with Falcon Client Auth and Response Helpers
+## Alerts Handler with Falcon Client Auth
 
-Full alerts handler using `PostCombinedAlertsV1` (query + get in one call). Uses the concrete gofalcon response types rather than `interface{}`, and checks `Payload.Errors` the way the SDK examples do:
+`PostCombinedAlertsV1` queries and returns alerts in one call. The FDK hands the caller's token to the handler as `r.AccessToken`; build the gofalcon client from it inside the handler with `fdk.FalconClientOpts()` (the pattern foundry-sample-anomali-threatstream uses). Return failures with `fdk.ErrResp(fdk.APIError{...})`:
 
 ```go
 // functions/alerts/main.go
@@ -25,128 +25,81 @@ package main
 
 import (
     "context"
-    "encoding/json"
-    "fmt"
+    "log/slog"
     "net/http"
-    "os"
 
+    fdk "github.com/CrowdStrike/foundry-fn-go"
     "github.com/crowdstrike/gofalcon/falcon"
     "github.com/crowdstrike/gofalcon/falcon/client"
     "github.com/crowdstrike/gofalcon/falcon/client/alerts"
     "github.com/crowdstrike/gofalcon/falcon/models"
-    fdk "github.com/CrowdStrike/foundry-fn-go"
 )
 
-// Response structures
-type APIResponse struct {
-    Data    interface{} `json:"data,omitempty"`
-    Error   *APIError   `json:"error,omitempty"`
-    Status  int         `json:"status"`
+type alertsReq struct {
+    Filter string `json:"filter"`
+    Limit  int32  `json:"limit"`
 }
 
-type APIError struct {
-    Code    string `json:"code"`
-    Message string `json:"message"`
+func main() {
+    fdk.Run(context.Background(), newHandler)
 }
 
-// Handler is the main entry point
-func Handler(w http.ResponseWriter, r *http.Request) {
-    ctx := r.Context()
+func newHandler(_ context.Context, logger *slog.Logger, _ fdk.SkipCfg) fdk.Handler {
+    m := fdk.NewMux()
+    m.Post("/alerts", fdk.HandleFnOf(func(ctx context.Context, r fdk.RequestOf[alertsReq]) fdk.Response {
+        limit := r.Body.Limit
+        if limit == 0 {
+            limit = 50
+        }
+        if limit < 0 || limit > 100 {
+            return fdk.ErrResp(fdk.APIError{Code: http.StatusBadRequest, Message: "limit must be between 1 and 100"})
+        }
 
-    if r.Method != http.MethodGet {
-        respondError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Only GET method is supported")
-        return
-    }
+        falconClient, err := newFalconClient(ctx, r.AccessToken)
+        if err != nil {
+            logger.Error("failed to create Falcon client", "error", err)
+            return fdk.ErrResp(fdk.APIError{Code: http.StatusInternalServerError, Message: falcon.ErrorExplain(err)})
+        }
 
-    accessToken := r.Header.Get("X-CS-ACCESSTOKEN")
+        params := alerts.NewPostCombinedAlertsV1Params().
+            WithContext(ctx).
+            WithBody(&models.DetectsapiPostCombinedAlertsV1RequestSwagger{
+                Filter: r.Body.Filter,
+                Limit:  limit,
+            })
+        resp, err := falconClient.Alerts.PostCombinedAlertsV1(params)
+        if err != nil {
+            logger.Error("alerts query failed", "error", err)
+            return fdk.ErrResp(fdk.APIError{Code: http.StatusBadGateway, Message: falcon.ErrorExplain(err)})
+        }
+        if err := falcon.AssertNoError(resp.Payload.Errors); err != nil {
+            return fdk.ErrResp(fdk.APIError{Code: http.StatusBadGateway, Message: err.Error()})
+        }
+
+        return fdk.Response{
+            Code: http.StatusOK,
+            Body: fdk.JSON(map[string]any{"alerts": resp.Payload.Resources}),
+        }
+    }))
+    return m
+}
+
+func newFalconClient(ctx context.Context, accessToken string) (*client.CrowdStrikeAPISpecification, error) {
     opts := fdk.FalconClientOpts()
-    falconClient, err := falcon.NewClient(&falcon.ApiConfig{
+    return falcon.NewClient(&falcon.ApiConfig{
         AccessToken:       accessToken,
         Cloud:             falcon.Cloud(opts.Cloud),
         Context:           ctx,
         UserAgentOverride: opts.UserAgent,
     })
-    if err != nil {
-        respondError(w, http.StatusInternalServerError, "AUTH_FAILED",
-            fmt.Sprintf("Failed to authenticate: %s", falcon.ErrorExplain(err)))
-        return
-    }
-
-    alertsData, err := fetchAlerts(ctx, falconClient, r)
-    if err != nil {
-        respondError(w, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
-        return
-    }
-
-    respondSuccess(w, alertsData)
-}
-
-func fetchAlerts(ctx context.Context, c *client.CrowdStrikeAPISpecification, r *http.Request) (interface{}, error) {
-    limit := int64(50)
-    if l := r.URL.Query().Get("limit"); l != "" {
-        fmt.Sscanf(l, "%d", &limit)
-        if limit > 100 {
-            limit = 100
-        }
-    }
-
-    filter := `product:'detections'`
-    params := alerts.NewPostCombinedAlertsV1Params().
-        WithContext(ctx).
-        WithBody(&models.DetectsapiPostCombinedAlertsV1Request{
-            Filter: filter,
-            Limit:  limit,
-        })
-
-    resp, err := c.Alerts.PostCombinedAlertsV1(params)
-    if err != nil {
-        return nil, fmt.Errorf("failed to query alerts: %s", falcon.ErrorExplain(err))
-    }
-    if err = falcon.AssertNoError(resp.Payload.Errors); err != nil {
-        return nil, fmt.Errorf("API returned errors: %w", err)
-    }
-
-    return resp.Payload.Resources, nil
-}
-
-func respondSuccess(w http.ResponseWriter, data interface{}) {
-    response := APIResponse{
-        Data:   data,
-        Status: http.StatusOK,
-    }
-    writeJSON(w, http.StatusOK, response)
-}
-
-func respondError(w http.ResponseWriter, status int, code, message string) {
-    response := APIResponse{
-        Error: &APIError{
-            Code:    code,
-            Message: message,
-        },
-        Status: status,
-    }
-    writeJSON(w, status, response)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(status)
-    json.NewEncoder(w).Encode(data)
-}
-
-func main() {
-    http.HandleFunc("/", Handler)
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080"
-    }
-    http.ListenAndServe(":"+port, nil)
 }
 ```
 
+`HandleFnOf` decodes the request body into `alertsReq` and returns a 400 if it can't, so callers send a JSON body (`{}` is enough). Read query parameters from `r.Queries` and headers from `r.Headers`.
+
 ## Collection CRUD Pattern
 
-Incident store using `custom_storage` for create, read, and delete operations:
+Incident store using `custom_storage` for create, read, and delete operations. It reuses `newFalconClient` from the alerts handler; pass it `r.AccessToken` from the handler's request:
 
 ```go
 // functions/incidents/collection.go
@@ -156,14 +109,13 @@ import (
     "bytes"
     "context"
     "encoding/json"
+    "errors"
     "fmt"
     "io"
     "time"
 
-    "github.com/crowdstrike/gofalcon/falcon"
     "github.com/crowdstrike/gofalcon/falcon/client"
     "github.com/crowdstrike/gofalcon/falcon/client/custom_storage"
-    fdk "github.com/CrowdStrike/foundry-fn-go"
 )
 
 type Incident struct {
@@ -177,22 +129,25 @@ type Incident struct {
 }
 
 type IncidentStore struct {
-    client *client.CrowdStrikeAPISpecification
+    client     *client.CrowdStrikeAPISpecification
     collection string
 }
 
-func NewIncidentStore(ctx context.Context) (*IncidentStore, error) {
-    falconClient, err := falcon.NewClient(fdk.FalconClientOpts())
+func NewIncidentStore(ctx context.Context, accessToken string) (*IncidentStore, error) {
+    falconClient, err := newFalconClient(ctx, accessToken)
     if err != nil {
         return nil, fmt.Errorf("failed to create falcon client: %w", err)
     }
     return &IncidentStore{client: falconClient, collection: "incidents"}, nil
 }
 
+// Create writes the incident under incident.ID (PutObject creates or overwrites)
 func (s *IncidentStore) Create(ctx context.Context, incident *Incident) error {
-    incident.ID = generateID()
+    if incident.ID == "" {
+        return errors.New("incident ID is required")
+    }
     incident.CreatedAt = time.Now()
-    incident.UpdatedAt = time.Now()
+    incident.UpdatedAt = incident.CreatedAt
 
     data, err := json.Marshal(incident)
     if err != nil {
@@ -202,7 +157,7 @@ func (s *IncidentStore) Create(ctx context.Context, incident *Incident) error {
     params := custom_storage.NewPutObjectParamsWithContext(ctx)
     params.SetCollectionName(s.collection)
     params.SetObjectKey(incident.ID)
-    params.SetBody(bytes.NewReader(data))
+    params.SetBody(io.NopCloser(bytes.NewReader(data)))
     _, err = s.client.CustomStorage.PutObject(params)
     return err
 }

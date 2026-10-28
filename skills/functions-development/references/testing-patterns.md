@@ -84,14 +84,20 @@ foundry functions run
 
 # 2. Direct Go execution (port 8081, no Docker required)
 cd functions/my-function && go run main.go
-# Then test: curl -X POST http://localhost:8081/greetings -d '{"name":"World"}'
 
 # 3. Direct Python execution (port 8081, no Docker required)
 cd functions/my-function && python3 main.py
-# Then test: curl -X POST http://localhost:8081/greetings -d '{"name":"World"}'
 
 # 4. With configuration file (local only)
 CS_FN_CONFIG_PATH=./config.json python3 main.py
+```
+
+The local runner doesn't route on the request path. Post a request envelope to the root URL; the FDK routes on its `method` and `url` fields, which must match the handler's `api_path`:
+
+```bash
+curl -X POST http://localhost:8081 \
+  -H "Content-Type: application/json" \
+  --data '{"body": {"name": "World"}, "method": "POST", "url": "/greetings"}'
 ```
 
 **Docker vs non-Docker:** `foundry functions run` uses Docker and assigns random ports (closest to production). Direct execution (`go run` / `python3`) runs on port 8081 and is faster for development iteration but does not fully replicate the Foundry runtime.
@@ -120,72 +126,54 @@ Configuration files:
 
 When using the Foundry UI Editor (Python only), API scopes are auto-detected from FalconPy service classes used in the code. Use `CustomStorage` for collection operations so the editor auto-detects `custom-storage:read` and `custom-storage:write` scopes. The Uber class (`APIHarnessV2`) requires manual scope configuration because the editor cannot parse `.command()` calls to determine which APIs are being called.
 
-## Go Test with httptest
+## Go Handler Test
+
+Call the mux from `newHandler` directly with a request built by `fdktest.RequestOf`. This exercises routing, body decoding, and validation without a Falcon client; for the alerts handler in [go-patterns.md](go-patterns.md), the validation branch returns before the client is built:
 
 ```go
 // functions/alerts/main_test.go
 package main
 
 import (
+    "context"
     "net/http"
-    "net/http/httptest"
     "testing"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+    fdk "github.com/CrowdStrike/foundry-fn-go"
+    "github.com/CrowdStrike/foundry-fn-go/fdktest"
 )
 
-func TestHandler_Success(t *testing.T) {
-    // Set up environment
-    t.Setenv("FALCON_CLIENT_ID", "test-id")
-    t.Setenv("FALCON_CLIENT_SECRET", "test-secret")
+func TestAlerts_RejectsLimitOutOfRange(t *testing.T) {
+    h := newHandler(context.Background(), fdktest.NewLogger(t), fdk.SkipCfg{})
 
-    // Create request
-    req := httptest.NewRequest(http.MethodGet, "/alerts?limit=10", nil)
-    w := httptest.NewRecorder()
+    req := fdktest.RequestOf(t, fdk.RequestOf[alertsReq]{
+        URL:    "/alerts",
+        Method: http.MethodPost,
+        Body:   alertsReq{Limit: 500},
+    })
+    resp := h.Handle(context.Background(), req)
 
-    // Call handler (with mocked Falcon client)
-    Handler(w, req)
-
-    // Assert response
-    assert.Equal(t, http.StatusOK, w.Code)
-    assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-}
-
-func TestHandler_MethodNotAllowed(t *testing.T) {
-    req := httptest.NewRequest(http.MethodPost, "/alerts", nil)
-    w := httptest.NewRecorder()
-
-    Handler(w, req)
-
-    assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-}
-
-func TestHandler_MissingCredentials(t *testing.T) {
-    // Ensure no credentials set
-    t.Setenv("FALCON_CLIENT_ID", "")
-    t.Setenv("FALCON_CLIENT_SECRET", "")
-
-    req := httptest.NewRequest(http.MethodGet, "/alerts", nil)
-    w := httptest.NewRecorder()
-
-    Handler(w, req)
-
-    assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-// Mock Falcon client for isolated testing
-type MockFalconClient struct {
-    QueryAlertsFunc func() (interface{}, error)
-}
-
-func (m *MockFalconClient) QueryAlerts(params interface{}) (interface{}, error) {
-    if m.QueryAlertsFunc != nil {
-        return m.QueryAlertsFunc()
+    if resp.StatusCode() != http.StatusBadRequest {
+        t.Fatalf("want 400, got %d", resp.StatusCode())
     }
-    return nil, nil
+    if len(resp.Errors) != 1 || resp.Errors[0].Message != "limit must be between 1 and 100" {
+        t.Fatalf("unexpected errors: %v", resp.Errors)
+    }
+}
+
+func TestAlerts_UnknownRoute(t *testing.T) {
+    h := newHandler(context.Background(), fdktest.NewLogger(t), fdk.SkipCfg{})
+
+    req := fdktest.RequestOf(t, fdk.RequestOf[alertsReq]{URL: "/nope", Method: http.MethodPost})
+    resp := h.Handle(context.Background(), req)
+
+    if resp.StatusCode() != http.StatusNotFound {
+        t.Fatalf("want 404, got %d", resp.StatusCode())
+    }
 }
 ```
+
+To unit test the Falcon API path, put the gofalcon calls behind a small interface the handler receives, and pass a fake in tests (foundry-sample-anomali-threatstream does this for `CustomStorage`).
 
 ## Running Python Tests Like CI
 
@@ -199,70 +187,75 @@ uv pip install --python .venv/bin/python -r functions/my-function/requirements.t
 
 A repo-root `.venv` is safe to leave in place: the deploy never packages hidden paths (any path component starting with `.`). A `.venv` or `.pytest_cache` *inside* `functions/<name>/` is still excluded from the deploy, but `foundry functions exec` and `test` count it as an undeployed local change, so keep virtual environments at the repo root.
 
-## Python Test with pytest and mock
+## Python Handler Test
+
+The reference pattern from foundry-sample-functions-python: patch `Function.handler` with a pass-through decorator, reload `main` so the handlers are plain functions, then call them with a `Request()` and patch the FalconPy class where `main` imports it. This tests the `host-details` handler in [python-patterns.md](python-patterns.md#handler-with-a-falcon-api-call):
 
 ```python
-# tests/test_alerts.py
-import pytest
-import json
-from unittest.mock import Mock, patch
-from functions.alerts.main import handler, fetch_alerts
+# functions/host-details/test_main.py
+import importlib
+import unittest
+from unittest.mock import MagicMock, patch
 
-@pytest.fixture
-def mock_falcon():
-    """Create a mock Falcon API client."""
-    mock = Mock()
-    mock.query_alerts_v2.return_value = {
-        "status_code": 200,
-        "body": {"resources": ["alert-1", "alert-2"]}
-    }
-    mock.get_alerts_v2.return_value = {
-        "status_code": 200,
-        "body": {
-            "resources": [
-                {"id": "alert-1", "severity": 8, "description": "Test alert 1"},
-                {"id": "alert-2", "severity": 5, "description": "Test alert 2"},
-            ]
+from crowdstrike.foundry.function import Request
+
+import main
+
+
+def mock_handler(*_args, **_kwargs):
+    """Replace @FUNC.handler so the decorated function is returned unchanged."""
+    def identity(func):
+        return func
+    return identity
+
+
+class FnTestCase(unittest.TestCase):
+    def setUp(self):
+        patcher = patch("crowdstrike.foundry.function.Function.handler", new=mock_handler)
+        self.addCleanup(patcher.stop)
+        patcher.start()
+        importlib.reload(main)  # re-apply the decorators with the patch in place
+
+    @patch("main.Hosts")
+    def test_on_post_success(self, mock_hosts_class):
+        mock_hosts = MagicMock()
+        mock_hosts_class.return_value = mock_hosts
+        mock_hosts.get_device_details.return_value = {
+            "status_code": 200,
+            "body": {"resources": [{"device_id": "test-host-123", "hostname": "test-host"}]},
         }
-    }
-    return mock
 
-@pytest.fixture
-def api_event():
-    """Create a sample API Gateway event."""
-    return {
-        "httpMethod": "GET",
-        "queryStringParameters": {"limit": "10"},
-        "pathParameters": None,
-        "body": None
-    }
+        request = Request()
+        request.body = {"host_id": "test-host-123"}
+        response = main.on_post(request)
 
-class TestAlertHandler:
-    def test_successful_get(self, api_event, mock_falcon):
-        with patch('functions.alerts.main.Alerts', return_value=mock_falcon):
-            response = handler(api_event, None)
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.body["host_details"]["device_id"], "test-host-123")
+        mock_hosts.get_device_details.assert_called_once_with(ids="test-host-123")
 
-        assert response["statusCode"] == 200
-        body = json.loads(response["body"])
-        assert body["status"] == 200
-        assert len(body["data"]) == 2
+    def test_on_post_missing_host_id(self):
+        response = main.on_post(Request())
 
-    def test_method_not_allowed(self, api_event):
-        api_event["httpMethod"] = "DELETE"
-        response = handler(api_event, None)
+        self.assertEqual(response.code, 400)
+        self.assertEqual(response.errors[0].message, "missing host_id from request body")
 
-        assert response["statusCode"] == 405
-        body = json.loads(response["body"])
-        assert body["error"]["code"] == "METHOD_NOT_ALLOWED"
+    @patch("main.Hosts")
+    def test_on_post_api_error(self, mock_hosts_class):
+        mock_hosts_class.return_value.get_device_details.return_value = {
+            "status_code": 404,
+            "body": {"errors": [{"message": "Host not found"}]},
+        }
 
-    def test_limit_capping(self, api_event, mock_falcon):
-        api_event["queryStringParameters"]["limit"] = "500"
+        request = Request()
+        request.body = {"host_id": "nonexistent-host"}
+        response = main.on_post(request)
 
-        with patch('functions.alerts.main.Alerts', return_value=mock_falcon):
-            response = handler(api_event, None)
+        self.assertEqual(response.code, 404)
+        self.assertEqual(response.errors[0].message, "Host not found")
 
-        # Verify limit was capped at 100
-        mock_falcon.query_alerts_v2.assert_called_once()
-        call_args = mock_falcon.query_alerts_v2.call_args
-        assert call_args.kwargs.get("limit", 100) <= 100
+
+if __name__ == "__main__":
+    unittest.main()
 ```
+
+Run it from the function directory (`import main` resolves there) with the CI-style venv above. For handlers that read query parameters, set `request.params.query = {"id": ["abc"]}`; values are lists.
