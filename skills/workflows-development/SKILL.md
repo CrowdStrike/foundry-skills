@@ -21,7 +21,7 @@ metadata:
 
 - **Workflow Author role** is required in addition to the Falcon Developer role
 - Workflows are YAML templates provisioned as active instances (up to **25** per template)
-- **`provision_on_install: true` is REQUIRED** in the workflow YAML — treat it as a per-workflow checklist item, not a footnote. Without it the workflow deploys **"Successful" but never instantiates** into Falcon Fusion SOAR: no error, nothing to run, invisible at deploy time. The one deliberate exception is a workflow with an action ID you can't verify: set `false` and have the user finish it in the console (see [Platform Action Fallback Strategy](references/advanced-patterns.md#platform-action-fallback-strategy)).
+- **`provision_on_install: true` is REQUIRED** in the workflow YAML — treat it as a per-workflow checklist item, not a footnote. With `true`, installing the app creates the workflow in Falcon Fusion SOAR, turned on. With `false`, the deploy is "Successful" and the template is listed in the app's **Logic** section, but installing creates no workflow, so nothing runs until something provisions it (the `/workflows/system-definitions/provision` API). Use `false` deliberately: for a workflow with an action ID you can't verify, which the user finishes in the console (see [Platform Action Fallback Strategy](references/advanced-patterns.md#platform-action-fallback-strategy)), or to let an app install without the credentials a workflow needs, as the sample apps' e2e tests do.
 
 ## CLI Scaffolding
 

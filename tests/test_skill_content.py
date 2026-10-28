@@ -475,7 +475,7 @@ class TestAIAgentsSkill:
         """A workflow that references an unpublished AgentWorks agent fails with 2015."""
         content = _read_skill(self.SKILL)
         assert "must be published before a workflow that references it deploys" in content
-        assert "(2015) action <uuid>_<cid> does not exist" in content
+        assert "(2015) action with <uuid>_<cid> does not exist" in content
         assert "isn't published yet" in _read_skill(
             "skills/ai-agents-development/references/workflow-invocation.md")
 
@@ -1045,6 +1045,25 @@ class TestOperatingAnInstalledApp:
         assert "knowledge bases → agents → workflows" in content
         patterns = _read_skill(self.PATTERNS)
         assert patterns.index("foundry agents create") < patterns.index("foundry workflows create --name")
+
+
+class TestProvisionOnInstall:
+    """provision_on_install decides whether installing the app creates the workflow.
+
+    Checked on a throwaway app (US-2): with true, the installed app's workflow
+    appeared in Falcon Fusion SOAR, turned on; with false, the template was
+    deployed and listed under the app's Logic section, but no workflow existed.
+    """
+
+    SKILL = "skills/workflows-development/SKILL.md"
+
+    def test_false_creates_no_workflow(self):
+        content = _read_skill(self.SKILL)
+        assert "installing creates no workflow" in content
+        assert "never instantiates" not in content, "the template exists; only the workflow is missing"
+
+    def test_names_the_e2e_reason(self):
+        assert "e2e tests" in _read_skill(self.SKILL)
 
 
 class TestWorkflowRecoveryAndJoins:
