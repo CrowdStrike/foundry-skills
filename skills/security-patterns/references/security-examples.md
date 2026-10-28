@@ -436,7 +436,6 @@ functions:
         permissions: []
     language: python
     max_exec_duration_seconds: 30   # bound runaway executions
-    max_exec_memory_mb: 128
 
 collections:
   - name: incident_data

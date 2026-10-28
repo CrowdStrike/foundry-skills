@@ -238,23 +238,20 @@ For the full `SecureConsoleMessaging` class, see [references/security-examples.m
 ## Manifest Security Configuration
 
 ```yaml
-app:
-  name: "my-security-app"
-
 auth:
-  scopes:
-    - "alerts:read"
-    - "devices:read"
+  scopes:                          # only what the functions call
+    - alerts:read
+    - devices:read
 
 functions:
-  - name: "process-alerts"
-    language: "python"
-    max_exec_duration_seconds: 30  # Prevent runaway execution
-    max_exec_memory_mb: 128        # Limit resource usage
+  - name: process-alerts
+    language: python
+    max_exec_duration_seconds: 30  # bound runaway executions
 
 collections:
-  - name: "audit_logs"
-    ttl: 86400  # Auto-expire sensitive data (24 hours)
+  - name: audit_logs
+    schema: collections/audit_logs.json
+    permissions: [ "myapp:access" ]   # without this, any CID user can read and write it
 ```
 
 ## Test Data Security
