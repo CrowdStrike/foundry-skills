@@ -27,7 +27,6 @@ VOCABULARY = json.load(open(os.path.join(os.path.dirname(__file__), "fixtures", 
 KNOWN = set(VOCABULARY["paths"])
 # Top-level keys only a manifest has; a block needs one of these to be checked
 MANIFEST_SECTIONS = {"ui", "auth", "functions", "collections", "api_integrations", "ai", "rtr_scripts", "logscale"}
-TOP_LEVEL = {p for p in KNOWN if "." not in p and "[" not in p}
 FENCE = re.compile(r"^\s*```ya?ml\s*$")
 SKIP = "<!-- snippet-check: skip -->"
 
@@ -61,7 +60,9 @@ def _manifest_blocks():
             doc = yaml.safe_load(text)
         except yaml.YAMLError:
             continue  # fragments with placeholders like `…` aren't parseable
-        if isinstance(doc, dict) and set(doc) & MANIFEST_SECTIONS and set(doc) <= TOP_LEVEL:
+        # Any block with a manifest section is checked, so a misspelled top-level
+        # key fails the test instead of hiding the block.
+        if isinstance(doc, dict) and set(doc) & MANIFEST_SECTIONS:
             yield path, line, doc
 
 

@@ -57,18 +57,19 @@ Vanilla JS does not need Vite, npm install, or npm run build. The importmap load
 
 ## React Blueprint (`--from-template React`)
 
-Scaffolds a full React 19 app with routing, Shoelace, and Falcon API context.
+Scaffolds a React 19 app with routing, Shoelace, and a Falcon API context. The files below match [CrowdStrike/foundry-js-blueprint-react](https://github.com/CrowdStrike/foundry-js-blueprint-react) as of October 2026. If a freshly scaffolded file differs, the scaffold wins; read it before overwriting.
 
 ### Dependencies (package.json)
 
 ```
 @crowdstrike/falcon-shoelace: 0.4.0
-@crowdstrike/foundry-js: 0.20.0
+@crowdstrike/foundry-js: 0.22.0
 @crowdstrike/tailwind-toucan-base: 5.0.0
 @shoelace-style/shoelace: 2.20.1
 react: 19.2.1, react-dom: 19.2.1
-react-router-dom: 7.13.0
-vite: 7.1.12, @vitejs/plugin-react-swc: 3.11.0
+react-router-dom: 7.18.2
+vite: 7.3.6, @vitejs/plugin-react-swc: 3.11.0
+scripts: build (vite build), watch (vite build --watch)
 ```
 
 **Stay on Vite 7** (as of 2026-10). Vite 8 fails with this blueprint in two ways. `@vitejs/plugin-react-swc` 3.11.0 accepts Vite only up to `^7`, so npm reports an invalid peer dependency. Vite 8's CSS minifier (lightningcss) also fails on the `@crowdstrike/tailwind-toucan-base` stylesheet with `[lightningcss minify] Unexpected token Number` at `--space-0.5: 0.125rem;`. Upgrade only after both build cleanly, and don't edit `vite.config.js` to work around either error.
@@ -86,17 +87,6 @@ vite: 7.1.12, @vitejs/plugin-react-swc: 3.11.0
   <link rel="stylesheet" href="../node_modules/@crowdstrike/tailwind-toucan-base/index.css" />
   <link rel="stylesheet" href="../node_modules/@crowdstrike/falcon-shoelace/dist/style.css" />
   <link rel="stylesheet" href="./styles.css" />
-  <script>
-    // Fallback theme for local dev. FoundryJS sets theme-light/theme-dark
-    // on <html> after connect(), but in local dev it may fail to connect.
-    // Wait briefly, then apply system preference if no theme was set.
-    setTimeout(() => {
-      const h = document.documentElement;
-      if (!h.classList.contains('theme-light') && !h.classList.contains('theme-dark')) {
-        h.classList.add(matchMedia('(prefers-color-scheme: dark)').matches ? 'theme-dark' : 'theme-light');
-      }
-    }, 500);
-  </script>
 </head>
 <body class="bg-ground-floor">
 <div id="app"></div>
@@ -105,15 +95,17 @@ vite: 7.1.12, @vitejs/plugin-react-swc: 3.11.0
 </html>
 ```
 
+There is no theme script: `falcon.connect()` puts `theme-light` or `theme-dark` on `<html>` (see [falcon-theming.md](falcon-theming.md#theme-detection)).
+
 **IMPORTANT:** Since `index.html` already loads `falcon-shoelace/dist/style.css` and `tailwind-toucan-base/index.css`, do NOT add CSS imports in JavaScript files. There is no `dist/themes/light.css` or `dist/themes/dark.css` — the single `dist/style.css` file includes everything.
 
-**src/app.jsx** — sets up React Router, Falcon API context, renders routes:
+**src/app.jsx** — connects to Falcon, provides the context, and renders routes:
 ```jsx
 import React from "react";
 import { HashRouter, Routes, Route, Outlet } from "react-router-dom";
 import {
   useFalconApiContext,
-  FalconApiProvider,
+  FalconApiContext,
 } from "./contexts/falcon-api-context";
 import { Home } from "./routes/home";
 import { About } from "./routes/about";
@@ -137,83 +129,59 @@ function Root() {
   );
 }
 
-function AppContent() {
-  const { isInitialized } = useFalconApiContext();
+function App() {
+  const { falcon, navigation, isInitialized } = useFalconApiContext();
 
   if (!isInitialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Initializing Falcon API...</div>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <HashRouter>
-      <Root />
-    </HashRouter>
-  );
-}
-
-function App() {
-  return (
     <React.StrictMode>
-      <FalconApiProvider>
-        <AppContent />
-      </FalconApiProvider>
+      <FalconApiContext.Provider value={{ falcon, navigation, isInitialized }}>
+        <HashRouter>
+          <Root />
+        </HashRouter>
+      </FalconApiContext.Provider>
     </React.StrictMode>
   );
 }
 
 const domContainer = document.querySelector("#app");
-if (!domContainer) {
-  throw new Error('Failed to find the app container element');
-}
 const root = ReactDOM.createRoot(domContainer);
+
 root.render(<App />);
 ```
 
-**src/contexts/falcon-api-context.js:**
+`App` renders nothing until `connect()` resolves, and the hook doesn't catch a rejected `connect()` (it times out after 5 seconds when the console doesn't answer), so a failed connection leaves the page blank rather than showing an error. Test through `foundry ui run` and Development mode.
+
+**src/contexts/falcon-api-context.js** — a hook that creates and connects the `FalconApi` instance, plus the context `app.jsx` provides it through. There's no provider component:
 ```javascript
 import FalconApi from '@crowdstrike/foundry-js';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useEffect, useMemo, useState } from 'react';
 
 const FalconApiContext = createContext(null);
 
-function FalconApiProvider({ children }) {
+function useFalconApiContext() {
   const [isInitialized, setIsInitialized] = useState(false);
   const falcon = useMemo(() => new FalconApi(), []);
-  const navigation = useMemo(() => falcon.isConnected ? falcon.navigation : undefined, [falcon.isConnected]);
+  const navigation = useMemo(() => isInitialized ? falcon.navigation : undefined, [isInitialized]);
 
   useEffect(() => {
     (async () => {
-      try {
-        await falcon.connect();
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('Failed to connect to Falcon API:', error);
-        setIsInitialized(true);
-      }
+      await falcon.connect();
+
+      setIsInitialized(true);
     })();
-  }, [falcon]);
+  }, []);
 
-  return (
-    <FalconApiContext.Provider value={{ falcon, navigation, isInitialized }}>
-      {children}
-    </FalconApiContext.Provider>
-  );
+  return { falcon, navigation, isInitialized };
 }
 
-function useFalconApiContext() {
-  const context = useContext(FalconApiContext);
-  if (!context) {
-    throw new Error('useFalconApiContext must be used within a FalconApiProvider');
-  }
-  return context;
-}
-
-export { useFalconApiContext, FalconApiContext, FalconApiProvider };
+export { useFalconApiContext, FalconApiContext };
 ```
+
+**Call `useFalconApiContext()` only in `app.jsx`.** Each call creates and connects another `FalconApi`. Components read the shared instance with `useContext(FalconApiContext)`, as `home.jsx` and `link.jsx` do. The `FalconApiProvider` in [react-patterns.md](react-patterns.md) comes from the foundryjs-demo sample, not this blueprint.
 
 **src/styles.css** — empty, for custom styles:
 ```css
@@ -280,13 +248,15 @@ export { Link };
 ```jsx
 import React, { useContext } from "react";
 import { FalconApiContext } from "../contexts/falcon-api-context";
+import { Link } from '../components/link';
 
 function Home() {
   const { falcon } = useContext(FalconApiContext);
 
   return (
     <div className="mt-4 space-y-8">
-       <p className="text-neutral">Hello {falcon.data.user.username}</p>
+       <p className="text-neutral">Hi {falcon.data.user.username}</p>
+       <Link useFalconNavigation={true} to="/activity">Activity Dashboard</Link>
     </div>
   );
 }

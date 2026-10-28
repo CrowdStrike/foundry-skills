@@ -2,100 +2,45 @@
 
 > Parent skill: [functions-development](../SKILL.md)
 
-## Lambda-Style Handler Pattern
+## Handler with a Falcon API Call
 
-Full REST endpoint handler using the legacy lambda-style pattern (pre-FDK):
+FDK handler that validates input, calls a Falcon API with a zero-arg FalconPy client built inside the handler, and returns failures as `errors` (adapted from `host-details` in foundry-sample-functions-python):
 
 ```python
-# functions/alerts/main.py
-import json
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, asdict
-from falconpy import Alerts
+# functions/host-details/main.py
+from crowdstrike.foundry.function import Function, Request, Response, APIError
+from falconpy import Hosts
 
-@dataclass
-class APIError:
-    code: str
-    message: str
+FUNC = Function.instance()
 
-@dataclass
-class APIResponse:
-    status: int
-    data: Optional[Any] = None
-    error: Optional[APIError] = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        result = {"status": self.status}
-        if self.data is not None:
-            result["data"] = self.data
-        if self.error is not None:
-            result["error"] = asdict(self.error)
-        return result
+@FUNC.handler(method="POST", path="/host-details")
+def on_post(request: Request) -> Response:
+    if "host_id" not in request.body:
+        return Response(
+            code=400,
+            errors=[APIError(code=400, message="missing host_id from request body")]
+        )
 
-def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Main function handler for alert retrieval."""
-
-    # Validate request method
-    method = event.get("httpMethod", "GET")
-    if method != "GET":
-        return respond_error(405, "METHOD_NOT_ALLOWED", "Only GET method is supported")
-
-    try:
-        # Initialize Falcon API client (zero-arg: auto-discovers credentials)
-        falcon = Alerts()
-
-        # Parse query parameters
-        params = event.get("queryStringParameters", {}) or {}
-        limit = min(int(params.get("limit", 50)), 100)  # Cap at 100
-
-        # Fetch alerts
-        alerts_data = fetch_alerts(falcon, limit)
-
-        return respond_success(alerts_data)
-
-    except ValueError as e:
-        return respond_error(400, "INVALID_INPUT", str(e))
-    except Exception as e:
-        return respond_error(500, "INTERNAL_ERROR", "An unexpected error occurred")
-
-def fetch_alerts(falcon: Alerts, limit: int) -> List[Dict[str, Any]]:
-    """Fetch alerts from Falcon API."""
-    response = falcon.query_alerts_v2(limit=limit)
+    falcon = Hosts()  # context auth: construct inside the handler
+    response = falcon.get_device_details(ids=request.body["host_id"])
 
     if response["status_code"] != 200:
-        raise Exception(f"API error: {response.get('errors', [])}")
+        messages = [e.get("message", "") for e in response["body"].get("errors") or []]
+        return Response(
+            code=response["status_code"],
+            errors=[APIError(code=response["status_code"],
+                             message="; ".join(messages) or "host lookup failed")],
+        )
 
-    alert_ids = response.get("body", {}).get("resources", [])
+    return Response(body={"host_details": response["body"]["resources"][0]}, code=200)
 
-    if not alert_ids:
-        return []
 
-    # Get full alert details
-    details_response = falcon.get_alerts_v2(composite_ids=alert_ids)
-
-    if details_response["status_code"] != 200:
-        raise Exception("Failed to fetch alert details")
-
-    return details_response.get("body", {}).get("resources", [])
-
-def respond_success(data: Any) -> Dict[str, Any]:
-    """Create success response."""
-    response = APIResponse(status=200, data=data)
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(response.to_dict())
-    }
-
-def respond_error(status: int, code: str, message: str) -> Dict[str, Any]:
-    """Create error response."""
-    response = APIResponse(status=status, error=APIError(code=code, message=message))
-    return {
-        "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(response.to_dict())
-    }
+if __name__ == "__main__":
+    FUNC.run()
 ```
+
+A handler takes `request`, optionally `config` second and `logger` third. `Response` carries `body`, `code`, and `errors` (a list of `APIError(code, message)`); with no `code`, the FDK uses the highest code in `errors`. `tests.yml` `expect.errors` compares the `message` values.
 
 ## The `Request` Object
 
@@ -128,7 +73,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
-from crowdstrike.foundry.function import Function, Request, Response
+from crowdstrike.foundry.function import APIError, Function, Request, Response
 from falconpy import CustomStorage
 
 func = Function.instance()
@@ -197,27 +142,30 @@ def search_incidents(client: CustomStorage, fql_filter: str = "", limit: int = 5
             incidents.append(obj)
     return incidents
 
-# Handler process
+# Handlers. The FDK matches api_path exactly, so the key comes from the query string
+def _key(request: Request) -> str:
+    return request.params.query.get("id", [""])[0]
+
 @func.handler(method='POST', path='/api/incidents')
 def on_create(request: Request) -> Response:
     client = get_client()
     incident = create_incident(client, request.body)
     return Response(body=incident, code=200)
 
-@func.handler(method='GET', path='/api/incidents/{id}')
+@func.handler(method='GET', path='/api/incidents')
 def on_get(request: Request) -> Response:
     client = get_client()
-    incident = get_incident(client, request.params.get("id", ""))
+    incident = get_incident(client, _key(request))
     if not incident:
-        return Response(body={"error": "Not found"}, code=404)
+        return Response(code=404, errors=[APIError(code=404, message="incident not found")])
     return Response(body=incident, code=200)
 
-@func.handler(method='DELETE', path='/api/incidents/{id}')
+@func.handler(method='DELETE', path='/api/incidents')
 def on_delete(request: Request) -> Response:
     client = get_client()
-    if delete_incident(client, request.params.get("id", "")):
+    if delete_incident(client, _key(request)):
         return Response(body={"deleted": True}, code=200)
-    return Response(body={"error": "Not found"}, code=404)
+    return Response(code=404, errors=[APIError(code=404, message="incident not found")])
 
 if __name__ == '__main__':
     func.run()
@@ -253,92 +201,81 @@ The Foundry functions editor cannot auto-detect scopes from Uber class usage —
 
 ## Error Handling Class Pattern
 
-Structured error class with enum codes for consistent error responses:
+A small exception class keeps error responses consistent across handlers. Keep it in the function's own directory: shared files outside it don't deploy.
 
 ```python
-# functions/common/errors.py
-from enum import Enum
-from typing import Optional
-import json
+# functions/my-function/errors.py
+from crowdstrike.foundry.function import APIError, Response
 
-class ErrorCode(Enum):
-    VALIDATION_ERROR = "VALIDATION_ERROR"
-    NOT_FOUND = "NOT_FOUND"
-    UNAUTHORIZED = "UNAUTHORIZED"
-    FORBIDDEN = "FORBIDDEN"
-    RATE_LIMITED = "RATE_LIMITED"
-    INTERNAL_ERROR = "INTERNAL_ERROR"
-    SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
 
 class FunctionError(Exception):
-    def __init__(
-        self,
-        code: ErrorCode,
-        message: str,
-        status_code: int = 500,
-        details: Optional[dict] = None
-    ):
-        self.code = code
-        self.message = message
-        self.status_code = status_code
-        self.details = details or {}
+    def __init__(self, status_code: int, message: str):
         super().__init__(message)
+        self.status_code = status_code
+        self.message = message
 
-    def to_response(self) -> dict:
-        return {
-            "statusCode": self.status_code,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({
-                "status": self.status_code,
-                "error": {
-                    "code": self.code.value,
-                    "message": self.message,
-                    "details": self.details
-                }
-            })
-        }
-
-# Usage in handler
-def handler(event, context):
-    try:
-        # ... processing logic ...
-        pass
-    except FunctionError as e:
-        return e.to_response()
-    except Exception as e:
-        return FunctionError(
-            ErrorCode.INTERNAL_ERROR,
-            "An unexpected error occurred",
-            500
-        ).to_response()
+    def to_response(self) -> Response:
+        return Response(code=self.status_code,
+                        errors=[APIError(code=self.status_code, message=self.message)])
 ```
 
-## Batch Processing and Memory Management
+```python
+# functions/my-function/main.py
+from logging import Logger
+from typing import Any, Dict, Union
+from crowdstrike.foundry.function import APIError, Function, Request, Response
+from errors import FunctionError
 
-Process large data sets in batches to stay within the 1 GB memory limit. This example uses the `CustomStorage` service class for **lookup file uploads**, which is a different use case from collection CRUD (see above):
+FUNC = Function.instance()
+
+
+@FUNC.handler(method="POST", path="/process")
+def on_post(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
+    try:
+        if "hostname" not in request.body:
+            raise FunctionError(400, "hostname is required")
+        # ... processing logic ...
+        return Response(body={"result": "ok"}, code=200)
+    except FunctionError as e:
+        return e.to_response()
+    except Exception:
+        logger.exception("process failed")
+        return Response(code=500, errors=[APIError(code=500, message="An unexpected error occurred")])
+
+
+if __name__ == "__main__":
+    FUNC.run()
+```
+
+## Lookup File Uploads
+
+Falcon Next-Gen SIEM lookup files are uploaded with the `NGSIEM` service class, not `CustomStorage` (its `upload`/`PutObject` writes a collection object). Write the rows to a temporary CSV, then upload the file to a repository (adapted from foundry-sample-ngsiem-importer):
 
 ```python
-import gc
-from falconpy import CustomStorage
+import csv
+import os
+import tempfile
+from falconpy import NGSIEM
 
-def process_large_dataset(records, batch_size=10000):
-    """Process records in batches to manage memory."""
-    storage = CustomStorage()
 
-    for i in range(0, len(records), batch_size):
-        batch = records[i:i + batch_size]
-        # Process batch...
-        result = storage.upload(body=batch)
+def upload_lookup(rows, headers, repository="search-all"):
+    ngsiem = NGSIEM()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_path = os.path.join(temp_dir, "ti_example.csv")
+        with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(headers)
+            writer.writerows(rows)
 
-        # Free memory between batches
-        del batch
-        gc.collect()
+        response = ngsiem.upload_file(lookup_file=output_path, repository=repository)
+        if response["status_code"] >= 400:
+            raise RuntimeError(f"lookup upload failed: {response.get('body', {}).get('errors', [])}")
+        return response
 ```
 
 Key considerations:
-- Process in batches of ~10,000 records
-- Call `gc.collect()` between batches to free memory
 - The `humio-auth-proxy:write` scope is required for lookup file uploads (silently fails without it)
+- Stream large inputs to the CSV row by row rather than holding them all in memory; the function's memory limit covers runtime plus code
 - For large or growing lookup files, send only new or changed rows with `update_lookup_file_entries()` instead of re-uploading the whole file
 
 ## LogScale Ingestion
@@ -355,30 +292,39 @@ auth:
 
 ### Service Class Pattern (Recommended)
 
-```python
-from falconpy import FoundryLogScale
+`ingest_data` uploads a file, so pass the JSON as bytes in `data_file` (from foundry-sample-logscale):
 
-logscale = FoundryLogScale()
+```python
+import os
+from io import BytesIO
+from json import dumps
+from falconpy import FoundryLogScale
 
 data = [
     {"timestamp": "2026-01-15T10:00:00Z", "event_type": "enrichment", "source": "greynoise"},
     {"timestamp": "2026-01-15T10:00:01Z", "event_type": "enrichment", "source": "virustotal"},
 ]
+json_binary = dumps(data).encode(encoding="utf-8")
 
-response = logscale.ingest_data(body=data)
+# X-CS-APP-ID is needed only for local runs; Falcon Foundry sets it when deployed
+app_id = os.environ.get("APP_ID")
+headers = {"X-CS-APP-ID": app_id} if app_id else {}
+
+logscale = FoundryLogScale(ext_headers=headers)
+response = logscale.ingest_data(data_file=BytesIO(json_binary))
 
 if response["status_code"] != 200:
-    raise Exception(f"LogScale ingestion failed: {response.get('errors', [])}")
+    raise Exception(f"LogScale ingestion failed: {response['body'].get('errors', [])}")
 ```
 
 ### Uber Class Pattern (for advanced use)
 
 ```python
 from falconpy import APIHarnessV2
-from falconpy.api_complete import IngestDataV1
 
 uber = APIHarnessV2()
-response = uber.command("IngestDataV1", body=data)
+file_tuple = [("data_file", ("data_file", json_binary, "application/json"))]
+response = uber.command("IngestDataV1", files=file_tuple, headers=headers)
 ```
 
 Data takes 1-2 minutes to appear in LogScale after ingestion. The LogScale repository is automatically named `foundry_{app_id}_applicationrepo` (the app ID is populated in `manifest.yml` after first deploy).

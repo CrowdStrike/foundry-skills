@@ -53,7 +53,7 @@ Falcon Foundry Collections are NoSQL document stores with JSON Schema validation
 
 - **JSON Schema draft 7 only** — newer drafts (`draft/2020-12`, `draft/2019-09`) fail validation
 - Schema is auto-versioned: v1.0 on creation, auto-incremented on modification
-- `additionalProperties: false` recommended — extra fields leak internal data and break type safety
+- `additionalProperties: false` by default — extra fields leak internal data and break type safety. Exception: a collection written with `custom_storage_object_key` whose fields may grow. Schema changes may not reach it after creation (see Common Pitfalls), so ship `true` there
 - `x-cs-indexable: true` on individual properties for searchable fields (max 10 per collection)
 
 ## CLI Scaffolding
@@ -223,10 +223,10 @@ Only fields marked with `x-cs-indexable: true` can be used in FQL queries.
 | Numeric comparison | `field:>=N` | `severity:>=5` |
 | AND | `field1:'a'+field2:'b'` | `status:'open'+severity:>=5` |
 | OR | `field:'a',field:'b'` | `status:'open',status:'investigating'` |
-| Wildcard | `field:*'pattern'*` | `title:*'malware'*` |
+| Wildcard | `field:*'*pattern*'` | `title:*'*malware*'` |
 | Sorting | `sort=field\|asc` | `sort=created_at\|desc` |
 
-The `foundry-js` SDK's `search()` method accepts a `filter` parameter for FQL queries. The search endpoint is `POST /customobjects/v1/collections/{name}/objects` with a `filter` field in the request body.
+The `foundry-js` SDK's `search()` method accepts a `filter` parameter for FQL queries. The search endpoint is `POST /customobjects/v1/collections/{name}/objects`, with `filter`, `limit`, `offset`, and `sort` sent as query parameters, not in the request body.
 
 ## Workflow Share Settings
 
@@ -235,7 +235,7 @@ To make a collection accessible from workflows:
 ```yaml
 collections:
   - name: incidents
-    schema: collections/incidents/schema.json
+    schema: collections/incidents.json
     permissions: []
     workflow_integration:
       system_action: true           # true = app workflows only, false = also available as Fusion SOAR action
@@ -259,7 +259,7 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 - **Missing indexes.** Fields used in queries must be marked with `x-cs-indexable: true` or listed in `x-cs-indexable-fields`. Max 10 per collection.
 - **Invalid collection names.** Names must be 5-200 chars, start/end with letter or number, and contain only letters, numbers, and underscores.
 - **Commas or other punctuation in `--description`.** `collections create` accepts them; `foundry apps validate` and deploy reject them. Stick to letters, numbers, spaces, dashes, periods, parentheses, and underscores.
-- **Editing a schema file and redeploying does not change an existing collection.** Writes keep validating against the schema the collection was created with (observed: a new top-level field rejected as `additional properties not allowed` after the schema that declared it was deployed). Ship `"additionalProperties": true` at the top level if fields may be added later, and treat any breaking schema change as a new collection name.
+- **Schema edits may not reach a custom-storage collection.** The docs say each schema change creates a new version that new writes validate against (see Schema Versioning in [references/advanced-patterns.md](references/advanced-patterns.md)). On collections written with `custom_storage_object_key`, though, writes have been observed to keep validating against the original schema: a new top-level field was rejected as `additional properties not allowed` after the schema that declared it was deployed. For those collections, ship `"additionalProperties": true` at the top level if fields may be added later, and treat any breaking schema change as a new collection name.
 - **Custom-storage collections are effectively immutable — decide the schema at create time.** Once a collection is written via `custom_storage_object_key` (the standard app pattern: `collections.*.create` with `custom_storage_object_key`, and foundry-js `collection.write(key, obj)`), you can no longer tighten its schema (`additionalProperties: false`, a new `maxLength`, etc.). The deploy fails with `Invalid Collection - {"code":400,"message":"custom_storage_object_key is a reserved input property"}`. You can neither declare `custom_storage_object_key` in the schema (rejected as reserved) nor omit it (Foundry injects it during re-provision validation). Bake strict validation into the INITIAL definition. Compounding trap: a failed collection deploy poisons the diff base — later plain deploys report `no deployable artifacts found` or keep replaying the error, and `--re-deploy` only retries the latest failed deployment. Recover by reverting the collection schema files and the schema edit in `manifest.yml`, leaving the IDs the deploy wrote in place (the failed deploys never went live).
 - **There is no in-place collection rename.** Foundry has no rename operation; changing a collection's `name` provisions a NEW empty collection and orphans every object written under the old name: the app reads and writes the new, empty collection, and nothing migrates the old objects. Rename a collection only if you can afford to lose its contents; for a brand/display rename, leave the internal collection names untouched. (This is also why a breaking schema change is handled as a new collection name — see the bullet above.)
 - **A deleted collection name tombstones per `app_id`.** After CrowdStrike support deletes an app's collections, redeploying into the same `app_id` fails with `Invalid Collection - resource <app_id>:<name> existed previously, but was deleted`. Collection names are namespaced per `app_id`, and a previously-deleted name cannot be recreated in that same `app_id`. Escape: strip the `app_id` (and all other provisioned ids) from the manifest, give the app a new `name`, and cold-deploy a fresh `app_id` — the names are free in the new namespace. That makes a new app: existing installs, and the data in their collections, stay with the old one, so users install the new app.

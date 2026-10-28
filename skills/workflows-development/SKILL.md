@@ -55,11 +55,11 @@ This is the format produced by `foundry workflows create` and used by all produc
 | On demand | `name: On demand`, `type: On demand` |
 | Scheduled | `event: Schedule`, `schedule: {time_cycle: "0 */6 * * *", tz: Etc/UTC}` |
 
-> **⚠️ Null-guard trigger parameters:** When run from the Falcon console the UI prompts for parameters, but via API or from another workflow they may be empty. Guard with a `conditions:` branch (`cel_expression: data['param'] != null && data['param'] != ''`, routing to a handler via `else:`) or inline in CEL: `${data[?'param'].orValue("default")}` (preferred) or `${data['param'] != null ? data['param'] : "default"}` (traditional). Full `conditions:` block: [references/cel-expressions.md](references/cel-expressions.md#null-guard-trigger-parameters).
+> **⚠️ Null-guard trigger parameters:** When run from the Falcon console the UI prompts for parameters, but via API or from another workflow they may be empty. Guard with a `conditions:` branch (`cel_expression: data['param'] != null && data['param'] != ''`, routing to a handler via `else:`) or inline in CEL with a ternary: `${data['param'] != null ? data['param'] : "default"}`. Full `conditions:` block: [references/cel-expressions.md](references/cel-expressions.md#null-guard-trigger-parameters).
 
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
 
-**Version constraints:** Every action requires `version_constraint = ~N`, pinning against the activity's declared `semantic_version` (not its iteration count): **`~0`** when the activity has NO `semantic_version` (functions, API integrations, some platform actions like "contain device"); **`~1`** when it HAS one (most platform actions — Print data, Send email, Create/Update variable, Get device details). Check with `foundry workflows actions view --name "<action>" --no-prompt`; a worked `~0`/`~1` example is in [references/workflow-examples.md](references/workflow-examples.md#version-constraint-example).
+**Version constraints:** Set `version_constraint: ~N` on each action, where `N` is the major version of the activity's declared `semantic_version` (not its iteration count): **`~0`** when the activity has no `semantic_version` (functions, API integrations) or a `0.x` one (Contain device is `0.0.x`); **`~1`** for a `1.x` one (Print data, Send email, Create/Update variable, Get device details). Some samples omit it on function actions. Check with `scripts/action_search.py "<action>" --details`, which prints the `semantic_version` and the matching constraint; a worked `~0`/`~1` example is in [references/workflow-examples.md](references/workflow-examples.md#version-constraint-example).
 
 ### Manifest Configuration
 
@@ -67,7 +67,7 @@ This is the format produced by `foundry workflows create` and used by all produc
 # manifest.yml
 workflows:
   - name: my-workflow
-    path: workflows/my-workflow/workflow.yaml
+    path: workflows/my-workflow.yml
     permissions: []
 ```
 
@@ -77,7 +77,7 @@ Trigger type and schedule are defined inside the workflow YAML file (via `trigge
 
 ## Calling Functions from Workflows
 
-Functions called via `id: functions.{name}.{handler}` must have `workflow_integration` in the manifest. It binds ONLY at creation time — `foundry functions create --wf-expose` (plus `--input-schema`/`--output-schema`); hand-editing `manifest.yml` does not work. If a function was created without it, recreate it (that changes its `workflow_integration.id`, so update the `id:` reference in the workflow YAML in place — do NOT delete/recreate the workflow). Missing it fails deploy with `referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined`.
+Functions called via `id: functions.{name}.{handler}` must have `workflow_integration` in the manifest. Set it at create time with `foundry functions create --wf-expose` (plus `--input-schema`/`--output-schema`). For a function created without it whose schemas are already set, add the block to the handler in `manifest.yml` (`id: ""`, `disruptive`, `system_action`, `tags`, as `--wf-expose` writes it) and redeploy: the deploy fills in the `id` and binds it, including on a function that was already deployed without one. Missing it fails deploy with `referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined`.
 
 > **⚠️ Every non-empty `properties:` on a function action needs a declared `request_schema`.** If the action passes `properties` but the function's manifest handler has `request_schema: null`, Foundry **silently drops the inputs** — the handler receives empty strings, not an error. Symptom: a function that "runs fine" but behaves as if it got blank input. Declare the schema at create time via `foundry functions create … --input-schema` (hand-editing the manifest does not bind it).
 
@@ -91,7 +91,7 @@ Functions called via `id: functions.{name}.{handler}` must have `workflow_integr
 
 > **⚠️ Always call a registered integration** via `api_integrations.{name}.{operationId}` — never a function making raw HTTP calls to the same API with hardcoded creds or `{{API_TOKEN}}`-style templates. The platform owns auth, rate limiting, and audit logging.
 
-`{name}` must match the manifest `api_integrations` entry, prefixed `Custom_` in the variable path (the platform adds it to every integration name). The OpenAPI `operationId`'s `x-cs-operation-config` must nest the config under a `workflow:` key (`name`, `description`, `expose_to_workflow: true`, `system: false`) — a flat `expose_to_workflow: true` will not work. Auth scopes for CLI-created artifacts are managed automatically. Full action + `x-cs-operation-config` example: [references/workflow-examples.md](references/workflow-examples.md#api-integration-operation-call).
+`{name}` must match the manifest `api_integrations` entry, prefixed `Custom_` in the variable path (the platform adds it to every integration name). The action `id:` uses the `operationId`, but the next segment of the output path comes from the operation's `x-cs-operation-config.workflow.name` with spaces turned into underscores: an operation with `operationId: Get leavers data` and workflow name `Workday get leavers data` is called as `api_integrations.Workday get leavers data.Get leavers data` and read as `…API_Integration.Custom_Workday_get_leavers_data.Workday_get_leavers_data.body`. Copy the path from the editor's **Workflow data** panel. The OpenAPI `operationId`'s `x-cs-operation-config` must nest the config under a `workflow:` key (`name`, `description`, `expose_to_workflow: true`, `system: false`) — a flat `expose_to_workflow: true` will not work. Auth scopes for CLI-created artifacts are managed automatically. Full action + `x-cs-operation-config` example: [references/workflow-examples.md](references/workflow-examples.md#api-integration-operation-call).
 
 ## Platform Actions
 
@@ -99,21 +99,21 @@ Platform actions (send email, log output, create detection) require platform-spe
 
 ### Common Action Properties
 
-**Print data** has three inputs: `fields` (array — trigger/workflow metadata dropdown), `text_data` (string — general-purpose), `custom_json` (object only). Use `text_data` for API-integration responses since `body` may be an array; data path `action_key.API_Integration.Custom_{Name}.{operationId}.{field}` (copy exact paths from the editor's **Workflow data** panel). **Send email** is secondary — add only when explicitly requested, skip in headless runs, and ask for a real `to` address (placeholders fail at runtime). Full `send_email` action example: [references/workflow-examples.md](references/workflow-examples.md#send-email-action).
+**Print data** has three inputs: `fields` (the CLI reports type `string`; the samples pass a YAML list of `${...}` pills), `text_data` (string — general-purpose), `custom_json` (object only). Use `text_data` for API-integration responses since `body` may be an array; data path `action_key.API_Integration.Custom_{Name}.{Workflow_name}.body` (copy exact paths from the editor's **Workflow data** panel). **Send email** is secondary — add only when explicitly requested, skip in headless runs, and ask for a real `to` address (placeholders fail at runtime). Full `send_email` action example: [references/workflow-examples.md](references/workflow-examples.md#send-email-action).
 
 ## Variable References
 
-Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/google/cel-spec/blob/master/doc/langdef.md) for data references — all use `${data['...']}` syntax. The `action_key` is the YAML key of the action (e.g. `list_users`), NOT its `id`; an API integration's path segment is `Custom_{name}` (spaces → underscores). Common forms: API body `${data['action_key.API_Integration.Custom_Name.operationId.body']}` (append `[0].field` for an array element), platform output `${data['action_key.output.field']}`, app AI-agent reply `${data['action_key.response']}` (a `json_with_schema` agent uses `${data['action_key.<schema field>']}` instead), function output `${data['action_key.FaaS.<function>.<handler>.<field>']}` (loop item `…<field>.#.<item field>`), and trigger parameter `${data['param_name']}`. The full table with every form is in [references/cel-expressions.md](references/cel-expressions.md#variable-reference-forms); copy exact paths from the editor's **Workflow data** panel.
+Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/google/cel-spec/blob/master/doc/langdef.md) for data references — all use `${data['...']}` syntax. The `action_key` is the YAML key of the action (e.g. `list_users`), NOT its `id`; an API integration's path segment is `Custom_{name}` (spaces → underscores). Common forms: API body `${data['action_key.API_Integration.Custom_Name.Workflow_name.body']}` (`Workflow_name` is the operation's `x-cs-operation-config.workflow.name` with spaces → underscores; index an array element inside the braces: `${data['…body'][0].field}`), platform output namespaced by action type (`${data['action_key.Device.GetDetails.Platform']}`, `${data['action_key.RTR.PutAndRun.stdout']}`), app AI-agent reply `${data['action_key.response']}` (a `json_with_schema` agent uses `${data['action_key.<schema field>']}` instead), function output `${data['action_key.FaaS.<function>.<handler>.<field>']}` (loop item `…<field>.#.<item field>`), and trigger parameter `${data['param_name']}`. The full table with every form is in [references/cel-expressions.md](references/cel-expressions.md#variable-reference-forms); copy exact paths from the editor's **Workflow data** panel.
 
 **CRITICAL:** Do NOT use `$action_name.output.body` — it passes as a literal string and is NOT resolved at runtime. Always use `${data['...']}` expressions.
 
 ### CEL Expressions
 
-Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Key patterns: null-safe optional `${data[?'action.field'].orValue("default")}` (preferred) vs the traditional ternary `${data['action.field'] != null ? … : "default"}`, and array access with the index INSIDE the braces (`${data['…body'][0]}`, not after).
+Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Key patterns: null-safe access with `!= null` (`${data['action.field'] != null ? data['action.field'] : "default"}`), `size()` before indexing a list, and array access with the index INSIDE the braces (`${data['…body'][0]}`, not after).
 
 **`has()` only works on retrieved objects, not data store keys.** `has(data['key'])` fails with `Q0910`; use `data['key'] != null` for keys, or `has(data['var'].field)` to check a field on an already-retrieved object.
 
-CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) (`cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.parse()`, etc.). For the full pattern catalog, runnable snippets, the `has()`/`!= null`/optional decision guide, and extension details, see [references/cel-expressions.md](references/cel-expressions.md).
+CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) (`cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.parse()`, etc.). For the full pattern catalog, runnable snippets, the `has()` vs `!= null` guide, and extension details, see [references/cel-expressions.md](references/cel-expressions.md).
 
 ## Control Flow
 
@@ -153,15 +153,9 @@ Removing a workflow from the manifest does NOT delete its server-side artifact �
 
 A structural edit that re-provisions a workflow (a new action, an edited `next`/edge, an added trigger parameter) can fail with `Duplicate workflow name (409)` / `system definition with id … already provisioned on cid …`. **Deleting the Falcon Fusion SOAR workflow does NOT free the name — a used name stays reserved**, so re-deploying the same name keeps 409ing. The reliable escape is to **rename to a brand-new unique name AND strip the `id`** (do both; either one alone still 409s) — the full step-by-step recovery is in [references/advanced-patterns.md](references/advanced-patterns.md#sticky-409-recovery).
 
-## Workflow Sharing
-
-Declare workflow sharing with a `workflow_integration` block on the manifest `workflows:` entry — `id`, `disruptive: false`, and `system_action`.
-
-> **⚠️ SOAR action visibility:** `system_action: false` = appears as a Falcon Fusion SOAR response action (analysts trigger from detections/incidents); `true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
-
 ## Error Handling
 
-Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware. Key mechanisms: action-level `continue_on_error: true`, `continue_on_partial_execution` (loops), and `conditions:`/`else:` on `Workflow.Execution.Errors`. No built-in retry or backoff exists. For the full table, examples, and pagination-polling pattern, see [references/advanced-patterns.md](references/advanced-patterns.md).
+Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware. Key mechanisms: action-level `continue_on_error: true`, `continue_on_partial_execution` (concurrent loops), and `conditions:`/`else:` on `Workflow.Execution.Errors`. No built-in retry or backoff exists. For the full table, examples, and pagination-polling pattern, see [references/advanced-patterns.md](references/advanced-patterns.md).
 
 ## Testing
 

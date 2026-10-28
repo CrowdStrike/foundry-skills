@@ -15,7 +15,9 @@ import ts from 'typescript';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(process.argv[2] ?? path.join(here, '..', '..'));
 const workDir = path.join(here, '.work');
-const SDK = `${path.sep}@crowdstrike${path.sep}foundry-js${path.sep}`;
+// foundry-js, plus emittery, which types falcon.events
+const SDK_DIRS = [`${path.sep}@crowdstrike${path.sep}foundry-js${path.sep}`, `${path.sep}emittery${path.sep}`];
+const inSdk = (fileName) => SDK_DIRS.some((dir) => fileName.includes(dir));
 const LANGS = { typescript: 'ts', ts: 'ts', tsx: 'tsx', javascript: 'js', js: 'js', jsx: 'jsx' };
 const FENCE = /^(\s*)```(\w+)\s*$/;
 const SKIP = '<!-- snippet-check: skip -->';
@@ -57,10 +59,12 @@ function extractSnippets(file) {
 // declarations can't be exported from inside a function.
 function wrap(snippet) {
   const imports = [];
+  const importLines = []; // snippet line index of each hoisted import
   const body = [];
-  for (const line of snippet.body) {
+  for (const [index, line] of snippet.body.entries()) {
     if (/^\s*import\s.*\sfrom\s|^\s*import\s+['"]/.test(line)) {
       imports.push(line);
+      importLines.push(index);
       body.push('');
     } else if (/^\s*export\s+(\{|\*)/.test(line)) {
       body.push('');
@@ -78,12 +82,12 @@ function wrap(snippet) {
     ? "/** @param {import('@crowdstrike/foundry-js').default} falcon */\nasync function __snippet(falcon) {\n{"
     : "async function __snippet(falcon: import('@crowdstrike/foundry-js').default) {\n{";
   const header = [...imports, 'export {};', param];
-  return { text: [...header, ...body, '}', '}', ''].join('\n'), offset: header.join('\n').split('\n').length };
+  return { text: [...header, ...body, '}', '}', ''].join('\n'), offset: header.join('\n').split('\n').length, importLines };
 }
 
 function involvesSdk(checker, node) {
   const declaredInSdk = (symbol) =>
-    symbol?.declarations?.some((d) => d.getSourceFile().fileName.includes(SDK));
+    symbol?.declarations?.some((d) => inSdk(d.getSourceFile().fileName));
   for (let n = node, depth = 0; n && depth < 6; n = n.parent, depth++) {
     if (ts.isPropertyAccessExpression(n)) {
       if (declaredInSdk(checker.getSymbolAtLocation(n.name))) return true;
@@ -93,7 +97,7 @@ function involvesSdk(checker, node) {
     if (ts.isCallExpression(n) || ts.isNewExpression(n)) {
       if (declaredInSdk(checker.getSymbolAtLocation(n.expression))) return true;
       const signature = checker.getResolvedSignature(n);
-      if (signature?.declaration?.getSourceFile().fileName.includes(SDK)) return true;
+      if (signature?.declaration && inSdk(signature.declaration.getSourceFile().fileName)) return true;
     }
   }
   return false;
@@ -116,10 +120,10 @@ fs.rmSync(workDir, { recursive: true, force: true });
 fs.mkdirSync(workDir, { recursive: true });
 const byFile = new Map();
 snippets.forEach((snippet, index) => {
-  const { text, offset } = wrap(snippet);
+  const { text, offset, importLines } = wrap(snippet);
   const name = path.join(workDir, `snippet${index}.${snippet.ext}`);
   fs.writeFileSync(name, text);
-  byFile.set(name, { ...snippet, offset });
+  byFile.set(name, { ...snippet, offset, importLines });
 });
 
 const program = ts.createProgram([...byFile.keys()], {
@@ -138,9 +142,13 @@ const findings = [];
 for (const [name, snippet] of byFile) {
   const sourceFile = program.getSourceFile(name);
   for (const diagnostic of program.getSemanticDiagnostics(sourceFile)) {
-    if (diagnostic.start === undefined || !involvesSdk(checker, nodeAt(sourceFile, diagnostic.start))) continue;
+    if (diagnostic.start === undefined) continue;
+    const node = nodeAt(sourceFile, diagnostic.start);
+    // A missing foundry-js subpath (an invented '@crowdstrike/foundry-js/react') is SDK misuse too
+    const badImport = diagnostic.code === 2307 && /['"]@crowdstrike\/foundry-js[^'"]*['"]/.test(node.getText(sourceFile));
+    if (!badImport && !involvesSdk(checker, node)) continue;
     const { line } = sourceFile.getLineAndCharacterOfPosition(diagnostic.start);
-    const mdLine = snippet.startLine + line - snippet.offset;
+    const mdLine = snippet.startLine + (line < snippet.importLines.length ? snippet.importLines[line] : line - snippet.offset);
     const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ');
     findings.push(`${path.relative(root, snippet.file)}:${mdLine}: ${message}`);
   }

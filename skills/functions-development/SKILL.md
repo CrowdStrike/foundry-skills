@@ -49,7 +49,7 @@ This skill is split across multiple files. Consult these for full examples:
 
 | Task | Reference |
 |------|-----------|
-| Python handler, collection CRUD, error class, batch processing, LogScale ingestion | [references/python-patterns.md](references/python-patterns.md) |
+| Python handler, collection CRUD, error class, lookup file uploads, LogScale ingestion | [references/python-patterns.md](references/python-patterns.md) |
 | Go FDK handler, Falcon client auth, collection CRUD, alerts handler | [references/go-patterns.md](references/go-patterns.md) |
 | Falcon console testing (Python editor), function logs (viewing logs in UI and Advanced Event Search), Go/Python tests, local testing, Docker vs direct, config file patterns | [references/testing-patterns.md](references/testing-patterns.md) |
 
@@ -57,11 +57,10 @@ This skill is split across multiple files. Consult these for full examples:
 
 | Resource | Default | Maximum |
 |----------|---------|---------|
-| Request payload | — | 124 KB |
-| Response payload | — | 120 KB |
-| Execution timeout | 30s | 900s |
+| JSON payload (input + output combined) | — | 1018 KB |
+| Execution timeout | 15s | 900s |
 | Memory | 256 MB | 1 GB |
-| Package size | — | 50 MB |
+| Package size (zipped, with dependencies) | — | 50 MB |
 | Concurrent executions | — | 100 |
 
 ## Runtime Environment
@@ -97,8 +96,8 @@ Key commands:
 
 ```bash
 foundry functions exec --handler <handler> '<json>' --no-prompt
-foundry functions exec status <exec_id>
-foundry functions logs <exec_id>
+foundry functions exec status <exec_id> --no-prompt
+foundry functions logs <exec_id> --no-prompt
 foundry functions test --no-prompt
 ```
 
@@ -190,10 +189,9 @@ functions:
     language: python
     path: "functions/gather-evidence"
     environment_variables:
-      FALCON_CLIENT_ID: "${secrets.falcon_client_id}"
       LOG_LEVEL: "info"
     max_exec_duration_seconds: 30
-    max_exec_memory_mb: 128
+    max_exec_memory_mb: 256
     handlers:
       - name: process
         method: POST
@@ -240,16 +238,16 @@ func main() {
 }
 ```
 
-Key FDK concepts: `fdk.SkipCfg` (no config file), `fdk.NewMux()` (router), `fdk.HandleFnOf[T]` (typed handler), `fdk.RequestOf[T]` (typed request with `.Body`, `.Params`, `.URL`, `.Method`), `fdk.JSON()` (response body helper).
+Key FDK concepts: `fdk.SkipCfg` (no config file), `fdk.NewMux()` (router), `fdk.HandleFnOf[T]` (typed handler), `fdk.RequestOf[T]` (typed request with `.Body`, `.Headers`, `.Queries`, `.Context`, `.URL`, `.Method`, `.AccessToken`, `.TraceID`), `fdk.JSON()` (response body helper).
 
 ### Go Authentication
 
-Go requires explicit credential wiring through the FDK. Use `fdk.FalconClientOpts()` for correct cloud and user-agent configuration:
+Go requires explicit credential wiring through the FDK. Inside the handler, build the client from the request's token (`r.AccessToken`) and use `fdk.FalconClientOpts()` for correct cloud and user-agent configuration:
 
 ```go
 opts := fdk.FalconClientOpts()
 falconClient, err := falcon.NewClient(&falcon.ApiConfig{
-    AccessToken:       accessToken,
+    AccessToken:       r.AccessToken,
     Cloud:             falcon.Cloud(opts.Cloud),
     Context:           ctx,
     UserAgentOverride: opts.UserAgent,
@@ -374,34 +372,35 @@ return Response(body=[{'id': 1}, {'id': 2}], code=200)
 
 ## Error Handling
 
-Return structured JSON with status codes. MUST NOT leak raw stack traces:
+Return failures in `errors` as `APIError(code, message)`, the shape the FDK and `tests.yml` `expect.errors` use (see the `hello` handler in foundry-sample-functions-python). MUST NOT leak raw stack traces:
 
 ```python
+from crowdstrike.foundry.function import APIError, Response
+
 try:
     result = process(request.body)
-    return Response(body={"status": 200, "data": result}, code=200)
+    return Response(body={"data": result}, code=200)
 except ValueError as e:
-    return Response(body={"error": {"code": "INVALID_INPUT", "message": str(e)}}, code=400)
+    return Response(code=400, errors=[APIError(code=400, message=str(e))])
 except Exception:
-    return Response(body={"error": {"code": "INTERNAL_ERROR", "message": "An unexpected error occurred"}}, code=500)
+    logger.exception("process failed")
+    return Response(code=500, errors=[APIError(code=500, message="An unexpected error occurred")])
 ```
 
 When a Falcon API call fails, return its status and `errors[].message`, not a generic message or a guessed cause. See [references/code-review-checklist.md](references/code-review-checklist.md).
 
-For the full `FunctionError` class with enum codes, see [references/python-patterns.md](references/python-patterns.md).
+For a reusable `FunctionError` class, see [references/python-patterns.md](references/python-patterns.md).
 
 ## Common Pitfalls
 
 - **Using `requests` instead of CrowdStrike SDKs.** The SDKs handle auth, retries, regions, and error parsing.
 - **Using `APIHarnessV2` (Uber class) for collection operations.** Use `CustomStorage` service class instead so the Foundry functions editor can auto-detect OAuth scopes. See the Collection CRUD Pattern in [references/python-patterns.md](references/python-patterns.md).
-- **Manually reading env vars for FalconPy auth.** `Alerts()` with zero arguments handles all credential discovery.
 - **Constructing FalconPy clients at module scope.** `falcon = Alerts()` above the handler runs at import, before the FDK has a request token, so every call returns `401 Unauthorized`. Construct clients inside the handler.
 - **`request.query` or `request.params.get()`.** Neither exists; use `request.params.query["limit"][0]` (values are lists).
 - **Shared utility files across functions.** `sys.path.append("../")` works locally but not in Foundry's FaaS runtime. Copy shared files into each function directory.
 - **`SearchObjects` returns metadata, not objects.** Follow up with `GetObject` to retrieve actual content. For bulk reads, use FQL filters to narrow the search rather than fetching all keys and reading them one by one in a loop.
 - **Returning arrays directly to workflows.** Wrap in a JSON object (`{'items': [...]}` not `[...]`).
 - **Using PATCH with Go functions.** Go only supports GET, POST, PUT, DELETE.
-- **Using `definition_id` vs. name for API integrations.** When testing locally, use the UUID `definition_id` from `manifest.yml`. In production, the human-readable name (e.g., `"ZscalerAPI"`) works as the `definition_id` value. See the [Calling Registered API Integrations](#calling-registered-api-integrations-from-functions) section above.
 - **Making raw HTTP calls to third-party APIs.** When an API integration is registered in the manifest, MUST use `APIIntegrations().execute_command_proxy()`. Raw urllib/requests calls can technically work with hardcoded credentials or env vars, but credentials are stored unencrypted and visible in app exports — a security risk. Always prefer the API integration path.
 
 ## Use Cases

@@ -74,10 +74,10 @@ Check for JavaScript errors that might cause blank pages, failed API calls, or b
 ### Network requests
 
 ```
-browser_network_requests: { static: false, requestBody: false, requestHeaders: false }
+browser_network_requests: { static: false, filter: "/api2/" }
 ```
 
-Look for failed API calls (4xx/5xx status codes) that might explain missing data or broken workflows.
+Look for failed API calls (4xx/5xx status codes) that might explain missing data or broken workflows. `filter` is an optional URL regex; leave it out to list every non-static request. To see one request's headers and body, pass its number from the list to `browser_network_request`.
 
 ## Debugging Failing Tests
 

@@ -58,8 +58,8 @@ Every agent that lists the KB then fails as a dependent artifact (`Dependent art
 
 To ship new text, deploy it as a new knowledge base:
 
-1. Set the entry's `name` to a new name and `path` to the sanitized new name (every character outside `[a-zA-Z0-9-_]` becomes `_`, so `Threat Intel Docs v2` becomes `Threat_Intel_Docs_v2`). Rename the directory under `knowledge-bases/` to match `path`.
-2. Delete the entry's `id` key so the next save assigns a new one.
+1. Set the entry's `name` to a new name and `path` to the sanitized new name (every character outside `[a-zA-Z0-9-_]` becomes `_`, then leading and trailing `_` are trimmed, so `Threat Intel Docs (v2)` becomes `Threat_Intel_Docs__v2`). Rename the directory under `knowledge-bases/` to match `path`.
+2. Delete the entry's `id` key so the next `foundry apps validate` or `foundry apps deploy` assigns a new one.
 3. Update `knowledge_bases` on every agent that lists the KB, and any system prompt text that names it.
 
 The old KB stays in the tenant, unreferenced. Delete it in the console when nothing needs it.
@@ -68,7 +68,7 @@ The old KB stays in the tenant, unreferenced. Delete it in the console when noth
 
 `foundry apps deploy` walks the whole app directory and bundles everything not in the ignore list. Two rules bite KB files specifically:
 
-- **`.svg` files are always ignored.** The packager unconditionally appends an SVG ignore pattern, so an `.svg` you add to a KB passes `foundry apps validate` but is silently dropped from the deployed bundle. The agent will behave as if the file were never there. Convert diagrams to PNG or describe them in text.
+- **Any path containing `svg` is ignored.** The packager always appends the pattern `(?i).*?.svg`, which is unanchored and has an unescaped dot, so it matches any character followed by `svg` in any case anywhere in the file's path, not just `.svg` files. A KB file such as `diagram.svg` or `svg-guide.md`, or any file in a KB whose path contains `svg`, passes `foundry apps validate` but is silently dropped from the deployed bundle, and the agent behaves as if it were never there. Rename such files, and convert diagrams to PNG or describe them in text.
 - **25 MB total package cap.** Every artifact shares one budget. Large PDF corpora in a KB can push the whole app over the limit: `package total size is over limit [N bytes], you need to ignore or remove unused files before deploy`. Trim or split.
 
 Unlike function assets, KB binaries (PDF, etc.) are **not** skipped by the binary-file filter — they do get packaged. Only the SVG rule and the size cap apply.
@@ -80,7 +80,7 @@ The KB directory name changed over the capability's development:
 - Files now live in `knowledge-bases/` (hyphen). An early build used `knowledge_bases/` (underscore).
 - Files now resolve against the manifest `path` field. An earlier build resolved against `name`.
 
-An app scaffolded on an old CLI may have a `knowledge_bases/` directory or a name-based path and will fail validation on a current CLI with a file-not-found error. Fix by renaming the directory to `knowledge-bases/` and setting each entry's `path` to the sanitized name (every character outside `[a-zA-Z0-9-_]` replaced with `_`).
+An app scaffolded on an old CLI may have a `knowledge_bases/` directory or a name-based path and will fail validation on a current CLI with a file-not-found error. Fix by renaming the directory to `knowledge-bases/` and setting each entry's `path` to the sanitized name (every character outside `[a-zA-Z0-9-_]` replaced with `_`, then leading and trailing `_` trimmed).
 
 ## No RBAC
 
@@ -88,7 +88,7 @@ Knowledge bases have no `permissions` field and are not run through the permissi
 
 ## Minimal valid entry
 
-The smallest KB the validator accepts — `id` is auto-filled on the next save, `description` is optional:
+The smallest KB the validator accepts — `id` is filled in by the next `foundry apps validate` or `foundry apps deploy`, `description` is optional:
 
 ```yaml
 ai:

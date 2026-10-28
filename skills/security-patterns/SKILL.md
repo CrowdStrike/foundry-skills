@@ -182,7 +182,7 @@ Use strict schemas to prevent data corruption and injection:
 
 ### API Response Sanitization
 
-Sanitize CrowdStrike API responses before storing in Collections: remove sensitive fields (`raw_log`, `internal_id`, `system_metadata`), strip script injection, escape HTML entities, and truncate strings. See [references/security-examples.md](references/security-examples.md) for full implementation.
+Before storing CrowdStrike API responses in Collections, drop fields the app doesn't need (`raw_log`, `internal_id`, `system_metadata`) and bound string lengths. Store the values raw: HTML-escaping before storage double-escapes on render, and a regex can't strip every script vector. Escape or sanitize at render time instead (see XSS Prevention below). See [references/security-examples.md](references/security-examples.md) for the implementation.
 
 ### Function Input Validation
 
@@ -218,22 +218,7 @@ ui:
 
 ### Iframe Security for Extensions
 
-Extensions run in sandboxed iframes. Validate message origins against Falcon console domains:
-
-```typescript
-const allowedOrigins = [
-  'https://falcon.crowdstrike.com',
-  'https://falcon.eu-1.crowdstrike.com',
-  'https://falcon.us-gov-1.crowdstrike.com',
-];
-
-window.addEventListener('message', (event) => {
-  if (!allowedOrigins.includes(event.origin)) return;
-  // Process event.data
-});
-```
-
-For the full `SecureConsoleMessaging` class, see [references/security-examples.md](references/security-examples.md).
+Extensions and pages run in a sandboxed iframe, and foundry-js owns the channel to the Falcon console: `connect()` pins outbound messages to the console's origin. Don't add your own `postMessage` calls or `message` listeners. Read console context with `falcon.events.on('data', ...)` and talk to other extensions with `falcon.sendBroadcast()` (see `ui-development`'s `references/foundry-js.md`).
 
 ## Manifest Security Configuration
 
@@ -268,8 +253,8 @@ See [references/security-examples.md](references/security-examples.md) for mock 
 - [ ] OAuth scopes: minimal required permissions only
 - [ ] Input validation: JSON schemas enforce strict validation
 - [ ] XSS prevention: all user data sanitized before rendering
-- [ ] CSP headers: Content Security Policy configured
-- [ ] Postmessage security: origin validation implemented
+- [ ] CSP: `content_security_policy` set on each page and extension in `manifest.yml`
+- [ ] Console messaging goes through `falcon.events` / `falcon.sendBroadcast`, with no custom `message` listeners
 - [ ] Secret management: no hardcoded credentials
 - [ ] Function security: input size limits and timeout controls
 - [ ] Collection security: access controls and data sanitization. ⚠️ **Default posture is wide open:** a fresh app ships `auth: {scopes: [], permissions: {}, roles: []}` and every collection `permissions: []` — any Falcon console user in the CID can read and write every collection, including any credentials or per-tenant data stored there. Gate every collection and page (see RBAC above) before the first release if the app handles secrets or multi-tenant data.
@@ -282,5 +267,5 @@ See [references/security-examples.md](references/security-examples.md) for mock 
 |------|-----------|
 | Sanitization, command injection prevention, secure templates | [references/security-examples.md](references/security-examples.md) |
 | CI/CD security pipeline (GitHub Actions) | [references/security-examples.md](references/security-examples.md) |
-| PostMessage class, mock data validation | [references/security-examples.md](references/security-examples.md) |
-| Token lifecycle, antipatterns, manifest security, performance | [references/security-examples.md](references/security-examples.md) |
+| Mock data validation | [references/security-examples.md](references/security-examples.md) |
+| Falcon API clients in functions, CSP, antipatterns, manifest security | [references/security-examples.md](references/security-examples.md) |

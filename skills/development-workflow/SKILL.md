@@ -119,7 +119,7 @@ For other decisions, prefer reasonable defaults: use React for UI, download publ
 
 ```bash
 foundry version          # Verify CLI installed
-foundry profile active   # Verify authentication
+foundry profile list     # First line shows the active profile
 foundry apps list        # Check existing apps (avoid name collisions)
 ```
 
@@ -196,7 +196,7 @@ foundry ui run
 
 ```bash
 # Release (run ONCE after deploy succeeds)
-foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes"
+foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes" --no-prompt
 ```
 
 There is no `list-releases` command — check status via the App Manager URL printed in the output. `foundry ui run` serves UI locally only; backend capabilities resolve from the cloud, so deploy those first.

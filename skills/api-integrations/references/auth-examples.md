@@ -92,7 +92,7 @@ When the host must be **one of a known set**, such as the Falcon API regions for
 "servers": [{"url": "{host}", "variables": {"host": {"default": "api.crowdstrike.com", "enum": ["api.crowdstrike.com", "api.us-2.crowdstrike.com", "api.us-3.crowdstrike.com", "api.eu-1.crowdstrike.com"]}}}]
 ```
 
-Pair it with the token URL `{host}/oauth2/token`. Auth can't be changed after the integration is created.
+Pair it with the relative token URL `/oauth2/token`, as foundry-sample-threat-intel and foundry-sample-detection-translation do; it resolves against the selected host. Auth can't be changed after the integration is created.
 
 ## Dual Auth (ServiceNow ITSM)
 

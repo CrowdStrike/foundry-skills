@@ -53,7 +53,7 @@ Node.js LTS is recommended.
   },
   "type": "commonjs",
   "devDependencies": {
-    "@crowdstrike/foundry-playwright": "0.5.0",
+    "@crowdstrike/foundry-playwright": "0.5.6",
     "@types/node": "25.6.0"
   }
 }
@@ -61,7 +61,7 @@ Node.js LTS is recommended.
 
 **Always pin exact versions** — never use `"latest"`, `"^"`, or `"~"`. Check npm for the current version of each package.
 
-The library brings `@playwright/test`, `@dotenvx/dotenvx`, and `otpauth` as transitive dependencies. No need to install them separately.
+The library brings `@playwright/test`, `@dotenvx/dotenvx`, and `otpauth` as transitive dependencies; don't install them separately.
 
 ### 3. `.env`
 
@@ -130,22 +130,24 @@ Create `src/fixtures.ts` to wire up page objects as Playwright fixtures. **Only 
 
 ```typescript
 import { test as baseTest } from '@playwright/test';
-import { DetectionExtensionPage, WorkflowsPage } from '@crowdstrike/foundry-playwright';
+import { DetectionExtensionPage, WorkflowsPage, HostManagementPage } from '@crowdstrike/foundry-playwright';
 
 type FoundryFixtures = {
   detectionExtensionPage: DetectionExtensionPage;
   workflowsPage: WorkflowsPage;
+  hostManagementPage: HostManagementPage;
 };
 
 export const test = baseTest.extend<FoundryFixtures>({
   detectionExtensionPage: async ({ page }, use) => { await use(new DetectionExtensionPage(page)); },
   workflowsPage: async ({ page }, use) => { await use(new WorkflowsPage(page)); },
+  hostManagementPage: async ({ page }, use) => { await use(new HostManagementPage(page)); },
 });
 
 export { expect } from '@playwright/test';
 ```
 
-Playwright fixtures are lazy (only instantiated when a test requests them), so unused fixtures don't hurt performance — but they add confusion and dead code. Add fixtures as you add tests that need them.
+Playwright fixtures are lazy, so unused ones cost nothing at runtime, but they're dead code. Add fixtures as tests need them.
 
 ### Example test: workflows
 
@@ -174,7 +176,7 @@ test('should execute workflow with input', async ({ workflowsPage, hostManagemen
 });
 ```
 
-`executeAndVerifyWorkflow()` handles search, execution trigger, and initial verification. `verifyWorkflowExecutionCompleted()` opens the execution detail view in a new tab and polls until the status leaves "In Progress" — it fails the test if the execution reports "Failed" and times out after 120s by default. For render-only checks (e.g., ServiceNow workflows without credentials), use `verifyWorkflowRenders()`.
+`executeAndVerifyWorkflow()` handles search, execution trigger, and initial verification. `verifyWorkflowExecutionCompleted()` opens the execution detail view in a new tab and polls until the status leaves "In Progress" — it fails the test if the execution reports "Failed" and times out after 120s by default. For render-only checks (a workflow without credentials), use `verifyWorkflowRenders()`.
 
 ### Example test: UI extensions
 
@@ -264,11 +266,11 @@ setup('install app', async ({ page }) => {
 });
 ```
 
-This navigates to the App Builder, finds the app, toggles off workflow provisioning for each workflow, and saves. Call it before `installApp()` in your custom `app-install.setup.ts`.
+This navigates to the App Builder, finds the app, toggles off "Provision on install" for each workflow template, and saves. When it changed anything, it also deploys and releases a new version of the app from the App Builder; it skips all of that if a previous release already has provisioning disabled. Call it before `installApp()` in your custom `app-install.setup.ts`.
 
 ### Multi-Screen Configuration Wizards
 
-Some apps have settings spread across multiple screens (e.g., Workday with 4 screens, SailPoint with 3). Navigate between screens using the "Next setting" button:
+Some apps have settings spread across multiple screens (e.g., Workday and SailPoint, with 3 each). The screens don't always appear in the same order, so loop over them, detect the current screen by a field only it has, fill it, and click "Next setting" when it's visible:
 
 ```typescript
 import { test as setup } from '@playwright/test';
@@ -285,26 +287,31 @@ setup('install app', async ({ page }) => {
     configureSettings: async (page) => {
       const nextButton = page.getByRole('button', { name: 'Next setting' });
 
-      // Screen 1: First API integration settings
-      await page.getByRole('textbox', { name: 'Name' }).fill('My Integration');
-      await page.getByRole('textbox', { name: 'Host' }).fill('https://api.example.com');
-      await nextButton.click();
-      await page.waitForLoadState('networkidle').catch(() => {});
+      for (let screen = 0; screen < 3; screen++) {
+        if (await page.getByRole('textbox', { name: 'Client ID' }).isVisible({ timeout: 3000 }).catch(() => false)) {
+          await page.getByRole('textbox', { name: 'Name' }).fill('My Integration');
+          await page.getByRole('textbox', { name: 'Host' }).fill('https://api.example.com');
+          await page.getByRole('textbox', { name: 'Client ID' }).fill(process.env.CLIENT_ID!);
+          await page.getByRole('textbox', { name: 'Client Secret' }).fill(process.env.CLIENT_SECRET!);
+        } else if (await page.getByRole('textbox', { name: 'Tenant ID' }).isVisible({ timeout: 3000 }).catch(() => false)) {
+          await page.getByRole('textbox', { name: 'Tenant ID' }).fill(process.env.TENANT_ID!);
+        } else {
+          await page.getByRole('textbox', { name: 'Name' }).fill('My Second Integration');
+          await page.getByRole('textbox', { name: 'Host' }).fill('https://api.example.com');
+        }
 
-      // Screen 2: Authentication settings
-      await page.getByRole('textbox', { name: 'Client ID' }).fill(process.env.CLIENT_ID!);
-      await page.getByRole('textbox', { name: 'Client Secret' }).fill(process.env.CLIENT_SECRET!);
-      await nextButton.click();
-      await page.waitForLoadState('networkidle').catch(() => {});
-
-      // Screen 3: Additional settings (last screen — "Install app" button is visible here)
-      await page.getByRole('textbox', { name: 'Tenant ID' }).fill(process.env.TENANT_ID!);
+        // The last screen shows "Install app" instead of "Next setting"
+        if (await nextButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await nextButton.click();
+          await page.waitForLoadState('domcontentloaded').catch(() => {});
+        }
+      }
     },
   });
 });
 ```
 
-The `waitForLoadState('networkidle').catch(() => {})` after each "Next setting" click gives the next screen time to load. The `.catch(() => {})` prevents failures if the page is already idle.
+Set the loop count to your app's screen count. The `.catch()` calls keep a missing field or an already-loaded page from failing setup.
 
 ## Custom Page Objects
 
@@ -378,7 +385,7 @@ The sample apps use a shared `e2e.yml` workflow pattern. Rather than duplicating
 | `FOUNDRY_API_CLIENT_ID` | Foundry CLI authentication |
 | `FOUNDRY_API_CLIENT_SECRET` | Foundry CLI authentication |
 | `FOUNDRY_CID` | CrowdStrike Customer ID |
-| `FOUNDRY_CLOUD_REGION` | Cloud region (us-1, us-2, us-3, eu-1) |
+| `FOUNDRY_CLOUD_REGION` | Cloud region (us-1, us-2, eu-1, us-gov-1, us-gov-2) |
 | `FALCON_USERNAME` | Falcon console login for Playwright |
 | `FALCON_PASSWORD` | Falcon console password |
 | `FALCON_AUTH_SECRET` | TOTP secret for 2FA |

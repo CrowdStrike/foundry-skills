@@ -19,8 +19,10 @@ await falcon.connect(); // MUST complete before any SDK calls
 // Create a reference (reusable)
 const collection = falcon.collection({ collection: 'demo_items' });
 
-// Write (creates or overwrites the object at this key)
-await collection.write('item-1', { name: 'Test', value: 42 });
+// Write (creates or overwrites the object at this key).
+// The SDK types write() as Promise<void>, but it resolves to the API envelope.
+const result = (await collection.write('item-1', { name: 'Test', value: 42 })) as unknown as
+  { errors?: { message?: string }[] } | undefined;
 
 // Read
 const item = await collection.read('item-1');
@@ -32,7 +34,7 @@ const results = await collection.search({ filter: "name:'Test'", sort: 'name|asc
 await collection.delete('item-1');
 ```
 
-`write`, `read`, and `delete` take the key as a plain string. The SDK doesn't throw on a validation failure, so check `result?.errors?.length` after a write. See `collections-development` for the not-found envelope `read` returns for a missing key.
+`write`, `read`, and `delete` take the key as a plain string. The SDK doesn't throw on a validation failure, so check `result?.errors?.length` after a write (the cast above makes that compile). See `collections-development` for the not-found envelope `read` returns for a missing key.
 
 **Gotcha:** Add 50ms delays between sequential reads to avoid rate limiting in rapid operations.
 
@@ -50,8 +52,8 @@ const response = await apiIntegration.execute({
   request: { params: {} }      // Pass query/path parameters here
 });
 
-// Response structure
-const resource = response.resources?.[0];
+// Response structure: resources is typed unknown[], so cast to the fields you read
+const resource = response.resources?.[0] as { status_code?: number; response_body?: unknown } | undefined;
 const statusCode = resource?.status_code;    // HTTP status from the external API
 const body = resource?.response_body;         // Parsed response body
 ```
@@ -105,7 +107,7 @@ const results = await falcon.logscale.query({
 const saved = await falcon.logscale.savedQuery({ id: 'saved-query-id', start: '7d', mode: 'sync', parameters: {} });
 ```
 
-**Scopes:** `humio-auth-proxy:read` for queries, `humio-auth-proxy:write` for writing events.
+**Scopes:** `app-logs:read` for queries, `app-logs:write` for writing events, as the foundryjs-demo and foundry-sample-logscale manifests declare.
 
 ## Cloud Functions
 
@@ -213,6 +215,6 @@ Opening by `name` survives an app clone, like `cloudFunction({ name })`.
 - **Don't set `theme-dark`/`theme-light` on `<body>`** — foundry-js sets it on `<html>`. Putting it on body causes CSS specificity conflicts.
 - Use `@crowdstrike/tailwind-toucan-base` design tokens for automatic theme adaptation:
   - `var(--critical)` for error states
-  - `var(--link-color)` for links
+  - `var(--titles-and-attributes)` for headings and values
   - `var(--surface-md)` for card backgrounds
 - foundry-js handles theme switching automatically when users toggle dark/light mode in the Falcon console.

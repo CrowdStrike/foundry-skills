@@ -35,177 +35,101 @@ const body = resource?.response_body;
 
 ## Python Functions (FalconPy APIIntegrations)
 
+FalconPy's `APIIntegrations` class has three methods: `get_plugin_configs`, `execute_command`, and `execute_command_proxy`. Use `execute_command_proxy`. It returns the vendor's own JSON in `response["body"]`, not a `resources` array. This pattern is from [foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream) (`functions/anomali-ioc-ingest/main.py`):
+
 ```python
-# functions/external-enrichment/main.py
+# functions/anomali-lookup/main.py
 from logging import Logger
 from typing import Any, Dict, Union
 
-from crowdstrike.foundry.function import Function, Request, Response
+from crowdstrike.foundry.function import APIError, Function, Request, Response
 from falconpy import APIIntegrations
 
 func = Function.instance()
 
-@func.handler(method='POST', path='/api/enrich')
-def enrich_with_external_api(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
-    """Call an external API via API Integration."""
-    # Get the data to enrich
-    ip_address = request.body.get("ip_address")
-    if not ip_address:
-        return Response(body={"error": "IP address required"}, code=400)
-
-    # Use API Integrations SDK to call the configured integration
-    api_integrations = APIIntegrations()
-
-    # Call the API integration operation
-    # definition_id is the integration name from manifest.yml
-    response = api_integrations.execute(
-        definition_id="VirusTotal",      # Integration name
-        operation_id="getIpReport",       # Operation ID from OpenAPI spec
-        body={
-            "request": {
-                "params": {
-                    "ip": ip_address
-                }
-            }
-        }
+@func.handler(method='POST', path='/api/lookup')
+def lookup(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
+    """Call an external API through an API integration."""
+    api = APIIntegrations()  # Zero-arg constructor; auth is automatic
+    response = api.execute_command_proxy(
+        definition_id="Anomali API",   # API integration name in manifest.yml
+        operation_id="Intelligence",   # operationId in the OpenAPI spec
+        params={"query": {"limit": 10, "status": "active"}},
     )
 
-    if response["status_code"] != 200:
-        logger.error(f"API integration failed: {response.get('errors')}")
+    if response["status_code"] >= 400:
+        logger.error(f"API integration failed: {response.get('body')}")
         return Response(
-            body={"error": "Failed to call external API"},
-            code=500
+            code=response["status_code"],
+            errors=[APIError(code=response["status_code"], message="Anomali request failed")],
         )
 
-    # Extract the external API response
-    resources = response.get("body", {}).get("resources", [])
-    if not resources:
-        return Response(body={"error": "No data returned"}, code=404)
-
-    external_data = resources[0].get("response_body", {})
-
-    return Response(
-        body={
-            "ip_address": ip_address,
-            "enrichment": external_data
-        },
-        code=200
-    )
+    # The vendor's response body, unwrapped
+    return Response(body={"objects": response["body"].get("objects", [])}, code=200)
 
 if __name__ == '__main__':
     func.run()
 ```
 
+In keyword form, FalconPy builds the request from `definition_id`, `operation_id`, `params` (or `path` / `query` / `header` / `cookie`), `data`, and the optional `id`, `version`, `config_id`, `config_auth_type`, and `description`; it ignores `request=` and `json=`. To send a JSON request body, pass the full payload as `body=` (see [Request Schema Validation](#request-schema-validation-happens-before-the-proxy-call) below).
+
 ## Go Functions (gofalcon)
 
+gofalcon has the same calls under `falcon/client/api_integrations`. This is trimmed from [foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream) (`functions/anomali-ioc-ingest/main.go`):
+
 ```go
-// functions/external-enrichment/main.go
 package main
 
 import (
     "context"
-    "encoding/json"
     "log/slog"
 
+    fdk "github.com/CrowdStrike/foundry-fn-go"
     "github.com/crowdstrike/gofalcon/falcon"
-    "github.com/crowdstrike/gofalcon/falcon/client"
-    "github.com/crowdstrike/gofalcon/falcon/client/custom_storage"
-    fdk "github.com/crowdstrike/foundry-fn-go"
+    "github.com/crowdstrike/gofalcon/falcon/client/api_integrations"
+    "github.com/crowdstrike/gofalcon/falcon/models"
 )
-
-type enrichRequest struct {
-    IPAddress string `json:"ip_address"`
-}
-
-type enrichResponse struct {
-    IPAddress  string                 `json:"ip_address"`
-    Enrichment map[string]interface{} `json:"enrichment"`
-}
 
 func newHandler(_ context.Context, _ *slog.Logger, _ fdk.SkipCfg) fdk.Handler {
     m := fdk.NewMux()
 
-    m.Post("/api/enrich", fdk.HandleFnOf(func(ctx context.Context, r fdk.RequestOf[enrichRequest]) fdk.Response {
-        if r.Body.IPAddress == "" {
-            return fdk.Response{
-                Code: 400,
-                Body: fdk.JSON(map[string]string{"error": "IP address required"}),
-            }
-        }
-
-        // Get Falcon client for API Integrations
-        accessToken := r.Header.Get("X-CS-ACCESSTOKEN")
+    m.Post("/api/lookup", fdk.HandleFnOf(func(ctx context.Context, r fdk.RequestOf[struct{}]) fdk.Response {
         opts := fdk.FalconClientOpts()
         falconClient, err := falcon.NewClient(&falcon.ApiConfig{
-            AccessToken:       accessToken,
+            AccessToken:       r.AccessToken,
             Cloud:             falcon.Cloud(opts.Cloud),
             Context:           ctx,
             UserAgentOverride: opts.UserAgent,
         })
         if err != nil {
-            return fdk.Response{
-                Code: 500,
-                Body: fdk.JSON(map[string]string{"error": "Failed to authenticate"}),
-            }
+            return fdk.Response{Code: 500, Body: fdk.JSON(map[string]string{"error": "Failed to authenticate"})}
         }
 
-        // Call API integration
-        // Note: Use the integration's definition_id from manifest.yml
-        integrationRequest := map[string]interface{}{
-            "request": map[string]interface{}{
-                "params": map[string]string{
-                    "ip": r.Body.IPAddress,
+        definitionID := "Anomali API" // API integration name in manifest.yml
+        operationID := "Intelligence" // operationId in the OpenAPI spec
+        response, err := falconClient.APIIntegrations.ExecuteCommandProxy(&api_integrations.ExecuteCommandProxyParams{
+            Body: &models.DomainExecuteCommandRequestV1{
+                Resources: []*models.DomainExecuteCommandV1{
+                    {
+                        DefinitionID: &definitionID,
+                        OperationID:  &operationID,
+                        Config: &models.DomainConfigData{
+                            Params: &models.DomainParams{
+                                Query: map[string]interface{}{"limit": 10, "status": "active"},
+                            },
+                        },
+                    },
                 },
             },
-        }
-
-        requestBody, _ := json.Marshal(integrationRequest)
-
-        // Execute API integration operation
-        params := custom_storage.NewExecuteCommandParamsWithContext(ctx)
-        params.SetDefinitionID("VirusTotal")     // Integration name from manifest.yml
-        params.SetOperationID("getIpReport")      // Operation ID from OpenAPI spec
-        params.SetBody(requestBody)
-
-        apiResponse, err := falconClient.CustomStorage.ExecuteCommand(params)
+            Context: ctx,
+        })
         if err != nil {
-            return fdk.Response{
-                Code: 500,
-                Body: fdk.JSON(map[string]string{"error": "Failed to call external API"}),
-            }
+            return fdk.Response{Code: 502, Body: fdk.JSON(map[string]string{"error": "Failed to call external API"})}
         }
 
-        // Parse the response
-        var result struct {
-            Resources []struct {
-                StatusCode   int                    `json:"status_code"`
-                ResponseBody map[string]interface{} `json:"response_body"`
-            } `json:"resources"`
-        }
-
-        if err := json.Unmarshal(apiResponse.Payload, &result); err != nil {
-            return fdk.Response{
-                Code: 500,
-                Body: fdk.JSON(map[string]string{"error": "Failed to parse response"}),
-            }
-        }
-
-        if len(result.Resources) == 0 {
-            return fdk.Response{
-                Code: 404,
-                Body: fdk.JSON(map[string]string{"error": "No data returned"}),
-            }
-        }
-
-        response := enrichResponse{
-            IPAddress:  r.Body.IPAddress,
-            Enrichment: result.Resources[0].ResponseBody,
-        }
-
-        return fdk.Response{
-            Code: 200,
-            Body: fdk.JSON(response),
-        }
+        // ExecuteCommandProxy returns the vendor's response body directly
+        body, _ := response.Payload.(map[string]interface{})
+        return fdk.Response{Code: 200, Body: fdk.JSON(map[string]interface{}{"objects": body["objects"]})}
     }))
 
     return m
@@ -215,6 +139,8 @@ func main() {
     fdk.Run(context.Background(), newHandler)
 }
 ```
+
+gofalcon treats every non-2xx status as an error, including `207 Multi-Status`. The sample unwraps `*runtime.APIError` to read a 207 body and to retry on 429; copy that handling from it when you need it.
 
 ## Request Schema Validation Happens Before the Proxy Call
 
@@ -241,7 +167,7 @@ response = api.execute_command_proxy(body={"resources": [{
 await apiIntegration.execute({ request: { params: { query: { limit: 25 } } } });  // number, not '25' or ['25']
 ```
 
-Path parameters go under `params.path`, query parameters under `params.query`, and headers under `headers`; a request body goes in `json`. Check each parameter's `schema.type` in the spec before building the request.
+Path parameters go under `params.path`, query parameters under `params.query`, and headers under `params.header`; a request body goes in `json`. Check each parameter's `schema.type` in the spec before building the request.
 
 ## Extracting Fields from API Responses
 
@@ -257,11 +183,10 @@ Before writing code that reads fields from an API response, verify the field's l
 
 | Aspect | Detail |
 |--------|--------|
-| **Python SDK** | `APIIntegrations()` from FalconPy with `execute()` method |
-| **Go SDK** | Falcon client with `CustomStorage.ExecuteCommand()` |
-| **definition_id** | Must match the integration name in `manifest.yml` |
+| **Python SDK** | `APIIntegrations().execute_command_proxy()` from FalconPy |
+| **Go SDK** | `falconClient.APIIntegrations.ExecuteCommandProxy()` from gofalcon |
+| **definition_id** | The integration `name` in `manifest.yml`, as the samples pass it |
 | **operation_id** | Must match the `operationId` in the OpenAPI spec |
 | **Authentication** | Automatic when called from within FDK handlers |
-| **Response structure** | Returns `resources` array with `status_code` and `response_body` |
+| **Response structure** | Functions: the vendor body directly in `response["body"]` (Go: `response.Payload`). foundry-js `apiIntegration().execute()`: a `resources` array with `status_code` and `response_body` |
 | **Request validation** | Validated against the spec's parameter schemas before proxying — scalars typed per the spec, not string arrays |
-| **Local development** | Use the UUID `definition_id` from `manifest.yml`, not the human-readable name (avoids 404 errors) |

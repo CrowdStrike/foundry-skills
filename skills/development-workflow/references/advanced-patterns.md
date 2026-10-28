@@ -16,7 +16,7 @@ foundry version
 #            Expand the archive and add the installation directory to PATH
 
 # 2. Check authentication
-foundry profile active
+foundry profile list   # first line shows the active profile
 
 # If no profile exists, guide through one of:
 #   foundry profile create --name "my-profile" --api-client-id "<id>" --api-client-secret "<secret>" --cid "<cid>" --cloud-region "us-1" --no-prompt
@@ -93,7 +93,7 @@ Use CLI scaffolding commands to generate artifacts. The CLI creates directories,
 
 **Foundry Profile State:** CLI authentication and environment
 - Check current profile: `foundry profile list`
-- Check active profile: `foundry profile active`
+- Check active profile: `foundry profile list`
 - Switch if needed: `foundry profile activate --name <profile-name>`
 
 **Development Server State:** UI serving for local development
@@ -114,12 +114,12 @@ Use CLI scaffolding commands to generate artifacts. The CLI creates directories,
 |-----------|------|-------|
 | **Import** | Falcon console only (not CLI) | Accepts tar.gz or ZIP |
 | **Export** | Falcon console only (not CLI) | Exports full app package |
-| **Clone** | CLI only: `foundry apps clone` | Creates a local copy of a deployed app |
+| **Clone** | CLI only: `foundry apps clone` | Downloads a deployment to start a **new** app locally; to keep working on the deployed app itself, use `sync` |
 | **Sync** | CLI: `foundry apps sync` | Pulls a deployed version's files (including the IDs the deploy assigned) into a **new subdirectory named after the app**, not the current directory |
 
 ```bash
-# Clone an existing deployed app to local
-foundry apps clone --name "existing-app"
+# Start a new local app from an existing deployment (clone has no --name flag)
+foundry apps clone --app-id <app-id> --deployment-version <version> -d ./new-app --no-git --no-prompt
 
 # Sync a deployed version's files (and the IDs the deploy assigned) into the CURRENT directory.
 # -d . targets the current dir instead of a new subdirectory; --replace-all overwrites existing files.
@@ -165,7 +165,7 @@ git diff manifest.yml   # only id lines should change
 `foundry apps deploy` walks the app directory and packages every file except:
 
 - **Hidden paths.** Any path with a component starting with `.` is skipped, so `.venv`, `.pytest_cache`, `.env`, and `.git` never need `ignored:` entries.
-- **SVG files.** `*.svg` is always excluded (an XSS guard), which is why a page should inline an SVG rather than reference one by path.
+- **SVG files.** Any path containing `svg` is always excluded (an XSS guard; the pattern is unanchored), which is why a page should inline an SVG rather than reference one by path.
 - **Anything matching an `ignored:` entry.**
 
 Each `ignored:` entry is a **Go regular expression**, not a glob, matched unanchored against the path relative to the app root. A glob like `**/*.test.ts` is an invalid regex and fails `foundry apps validate` with `ignored item "..." is not a valid regular expression`. Because matching is unanchored, `tests` also matches `contests.py`; anchor on path separators:
@@ -238,7 +238,7 @@ For action IDs in workflow YAML, use the `api_integrations.{name}.{operationId}`
 
 ## Deployment Nuance
 
-`foundry apps deploy` requires `--change-type` and `--change-log`. The `--no-prompt` flag is available as a global Controller flag and skips the deployment confirmation prompt and TUI monitor, but is not required when all flags are provided. `foundry apps release` requires `--deployment-id`, `--change-type`, and `--notes` and works fully non-interactively when all three flags are provided.
+`foundry apps deploy` requires `--change-type` and `--change-log`. `foundry apps release` requires `--deployment-id`, `--change-type`, and `--notes` (release notes must be 10 to 1000 characters). `--no-prompt` is a per-command flag, not a global one (the only global flag is `--verbose`); both commands list it in `--help`, so pass it to both.
 
 ## Testing an Existing App Locally
 
@@ -284,7 +284,7 @@ foundry functions create --name "my-fn" --language python --description "desc" \
   --handler-name process --handler-method POST --handler-path /api/process --no-prompt
 
 # 5. Knowledge bases BEFORE agents — the agent create command validates KB refs.
-#     --files is required with --no-prompt (accepts local paths or HTTP(S) URLs).
+#     --files is required with --no-prompt (comma-separated local paths or HTTP(S) URLs).
 foundry knowledge-bases create --name "Runbook Docs" --description "desc" \
   --files /tmp/runbook.md --no-prompt
 
@@ -300,7 +300,7 @@ foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-p
 
 # 8. UI pages (standalone full-page views)
 foundry ui pages create --name "my-page" --description "desc" --from-template React --homepage --no-prompt
-foundry ui navigation add --name "My Page" --path / --ref pages.my-page
+foundry ui navigation add --name "My Page" --path / --ref pages.my-page --no-prompt
 
 # 8b. UI extensions (sidebar widgets embedded in detection/host/incident pages)
 # Run `foundry ui extensions list-sockets` to see available socket IDs
@@ -327,7 +327,7 @@ Operational depth behind `SKILL.md` → App Creation Flow → Step 7.
 
 > **`foundry apps deploy --re-deploy` retries the latest failed deployment** (`--help`). It's for retrying that deployment, not for shipping a new edit: to test an edit, run a plain `foundry apps deploy`.
 
-**Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**. That option only exists if the app had settings at first install. If ⋮ shows only **Uninstall app**, release with `--change-type Major`; **Accept update** then shows the credential form, and Modify settings works after that. Don't reinstall; dependent workflows can break.
+**Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**, which the App catalog lists for installed apps. In one observed edge case, an app installed without any settings showed only **Uninstall app** in ⋮; if that happens, a Major release's **Accept update** also shows the credential form. Don't reinstall; dependent workflows can break.
 
 > **After an update, hard-refresh before you trust what you see.** The Falcon console iframe caches the built bundle, so a correctly released change can keep showing the old UI or logic until a hard refresh (Cmd/Ctrl+Shift+R). If a visual or behavioral change doesn't appear, hard-refresh first — do NOT re-deploy to "fix" it. Content-hashed asset names help, but the console shell still caches. To confirm the fix is in the package before assuming the deploy failed, use the `--diff-only` check under **Deploy never builds a UI** above.
 

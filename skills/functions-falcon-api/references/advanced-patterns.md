@@ -159,7 +159,7 @@ The Workflows search APIs (definitions, executions, activities, triggers) answer
 | "I'll handle errors generically" | Specific error handling enables proper user feedback |
 | "Mocking is extra work" | Real API calls in tests are slow, flaky, and quota-consuming |
 | "I can skip the FDK handler pattern" | Handler pattern is required for automatic auth injection |
-| "I'll use the Detects class for detection queries" | The Detects API is deprecated (405 errors). Use `Alerts()` with `query_alerts_v2` — filter by `product:'detections'` to scope to detections only |
+| "I'll use the Detects class for detection queries" | The Detects API is deprecated (405 errors). Use `Alerts()` with `query_alerts_v2` — filter by `product:'epp'` to scope to endpoint detections |
 
 ## Multi-API Enrichment
 
@@ -184,7 +184,7 @@ def enrich_host_context(request: Request, config, logger) -> Response:
     host = hosts_api.get_device_details(ids=host_ids).get("body", {}).get("resources", [{}])[0]
 
     # Get detections (via Alerts API with product filter)
-    detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'detections'", limit=10).get("body", {}).get("resources", [])
+    detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'epp'", limit=10).get("body", {}).get("resources", [])
     detections = alerts_api.get_alerts_v2(composite_ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
 
     # Get all alerts (includes detections + cases)

@@ -1,223 +1,213 @@
 # Vue Patterns for Foundry UI
 
-## Page Component (Full Example)
+There is no Vue blueprint, so these patterns follow [foundry-sample-mitre](https://github.com/CrowdStrike/foundry-sample-mitre) (`ui/pages/chart-vue` and its shared `falcon-api` plugin): create one `FalconApi`, `provide` it to the app, connect before mounting, and `inject` it in components.
 
-Vue 3 Composition API with Foundry-JS:
-
-```vue
-<template>
-  <div class="foundry-page">
-    <sl-card>
-      <div slot="header">
-        <h2>{{ title }}</h2>
-      </div>
-
-      <sl-alert v-if="error" variant="danger" open>
-        {{ error }}
-      </sl-alert>
-
-      <sl-spinner v-if="loading"></sl-spinner>
-
-      <div v-else class="content">
-        <sl-table v-if="alerts.length">
-          <thead>
-            <tr>
-              <th>Severity</th>
-              <th>Hostname</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="alert in alerts" :key="alert.id">
-              <td>
-                <span :class="`status status--${getSeverityVariant(alert.severity)}`">
-                  {{ alert.severity }}
-                </span>
-              </td>
-              <td>{{ alert.hostname }}</td>
-              <td>{{ alert.description }}</td>
-            </tr>
-          </tbody>
-        </sl-table>
-
-        <sl-button @click="refreshData" :loading="refreshing">
-          Refresh
-        </sl-button>
-      </div>
-    </sl-card>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useFoundry } from '@crowdstrike/foundry-js';
-import type { Alert } from '../types';
-
-const foundry = useFoundry();
-
-const title = ref('Security Alerts Dashboard');
-const alerts = ref<Alert[]>([]);
-const loading = ref(true);
-const refreshing = ref(false);
-const error = ref<string | null>(null);
-
-const getSeverityVariant = (severity: number): string => {
-  if (severity >= 8) return 'danger';
-  if (severity >= 5) return 'warning';
-  return 'neutral';
-};
-
-const fetchAlerts = async () => {
-  try {
-    const response = await foundry.api.get('/alerts', {
-      params: { limit: 50 }
-    });
-    alerts.value = response.data.resources;
-  } catch (err) {
-    error.value = 'Failed to fetch alerts. Please try again.';
-    console.error('Alert fetch error:', err);
-  }
-};
-
-const refreshData = async () => {
-  refreshing.value = true;
-  await fetchAlerts();
-  refreshing.value = false;
-};
-
-onMounted(async () => {
-  await fetchAlerts();
-  loading.value = false;
-});
-</script>
-
-<style scoped>
-.foundry-page {
-  padding: var(--sl-spacing-large);
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sl-spacing-medium);
-}
-</style>
-```
-
-## Extension Component with Context
-
-Console-embedded extension that reacts to Falcon console context changes:
-
-```vue
-<template>
-  <div class="extension-widget">
-    <sl-card>
-      <div slot="header">
-        <sl-icon name="shield-check"></sl-icon>
-        Host Details: {{ context?.hostname || 'Loading...' }}
-      </div>
-
-      <div v-if="hostData" class="host-info">
-        <sl-details summary="System Information">
-          <dl>
-            <dt>Platform</dt>
-            <dd>{{ hostData.platform_name }}</dd>
-            <dt>OS Version</dt>
-            <dd>{{ hostData.os_version }}</dd>
-            <dt>Agent Version</dt>
-            <dd>{{ hostData.agent_version }}</dd>
-            <dt>Last Seen</dt>
-            <dd>{{ formatDate(hostData.last_seen) }}</dd>
-          </dl>
-        </sl-details>
-
-        <sl-details summary="Security Status">
-          <span :class="`status status--${hostData.status === 'normal' ? 'success' : 'danger'}`">
-            {{ hostData.status }}
-          </span>
-        </sl-details>
-      </div>
-    </sl-card>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { useFoundryExtension } from '@crowdstrike/foundry-js';
-import type { HostContext, HostData } from '../types';
-
-const { context, onContextChange } = useFoundryExtension<HostContext>();
-
-const hostData = ref<HostData | null>(null);
-
-const formatDate = (dateStr: string): string => {
-  return new Date(dateStr).toLocaleString();
-};
-
-const fetchHostData = async (deviceId: string) => {
-  try {
-    const response = await foundry.api.get(`/devices/${deviceId}`);
-    hostData.value = response.data;
-  } catch (err) {
-    console.error('Failed to fetch host data:', err);
-  }
-};
-
-// React to context changes from Falcon console
-onContextChange((newContext) => {
-  if (newContext?.device_id) {
-    fetchHostData(newContext.device_id);
-  }
-});
-
-onMounted(() => {
-  if (context.value?.device_id) {
-    fetchHostData(context.value.device_id);
-  }
-});
-</script>
-```
-
-## Shoelace Component Registration in Vue
+## FalconApi Plugin and main.ts
 
 ```typescript
-// main.ts - Vue.js setup with Falcon theming
-import { createApp } from 'vue';
-import App from './App.vue';
+// plugins/falcon-api.ts
+import type { App, InjectionKey } from 'vue';
+import FalconApi from '@crowdstrike/foundry-js';
 
-// REQUIRED: Import Falcon-themed Shoelace (NOT vanilla Shoelace themes)
-import '@crowdstrike/falcon-shoelace/dist/style.css';  // both themes
-import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
+export const FALCON_API: InjectionKey<FalconApi> = Symbol('falconApi');
 
-// Point to Shoelace assets
-setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/');
-
-// Import specific components used
-import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@shoelace-style/shoelace/dist/components/card/card.js';
-import '@shoelace-style/shoelace/dist/components/alert/alert.js';
-import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
-import '@shoelace-style/shoelace/dist/components/badge/badge.js';
-import '@shoelace-style/shoelace/dist/components/details/details.js';
-import '@shoelace-style/shoelace/dist/components/tag/tag.js';
-import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-
-createApp(App).mount('#app');
+export function createFalconApi() {
+  const falcon = new FalconApi();
+  return {
+    falcon,
+    install(app: App) {
+      app.provide(FALCON_API, falcon);
+    },
+    async connect() {
+      try {
+        await falcon.connect();
+      } catch (error) {
+        console.error('Failed to connect to Falcon API:', error);
+      }
+    },
+  };
+}
 ```
 
-## Form Handling with Validation
+Add `@crowdstrike/tailwind-toucan-base`, `@crowdstrike/falcon-shoelace`, and `@shoelace-style/shoelace` to `package.json` (the React blueprint pins 5.0.0, 0.4.0, and 2.20.1).
+
+```typescript
+// main.ts
+import '@crowdstrike/tailwind-toucan-base/index.css';  // defines the Toucan color tokens (--surface-md, ...)
+import '@crowdstrike/falcon-shoelace/dist/style.css';  // one stylesheet, both themes
+import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
+
+// Pin the version installed in package.json
+setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/');
+
+// Import only the components you use
+import '@shoelace-style/shoelace/dist/components/alert/alert.js';
+import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/card/card.js';
+import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@shoelace-style/shoelace/dist/components/input/input.js';
+import '@shoelace-style/shoelace/dist/components/option/option.js';
+import '@shoelace-style/shoelace/dist/components/select/select.js';
+import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
+
+import { createApp } from 'vue';
+import App from './App.vue';
+import { createFalconApi } from './plugins/falcon-api';
+
+(async () => {
+  const app = createApp(App);
+  app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('sl-');
+
+  const falconApi = createFalconApi();
+  app.use(falconApi);
+  await falconApi.connect();  // connect before mount so components can call the SDK
+
+  app.mount('#app');
+})();
+```
+
+`app.config.compilerOptions` only covers templates compiled in the browser. Vite compiles single-file components, so also tell `@vitejs/plugin-vue` that `sl-` tags are custom elements, as mitre's `vite.config.ts` does. Without it, Vue tries to resolve every `sl-` tag as a Vue component and warns `Failed to resolve component`:
+
+```typescript
+// vite.config.ts (keep the scaffold's other settings, such as noAttr())
+import vue from '@vitejs/plugin-vue';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag.startsWith('sl-'),
+        },
+      },
+    }),
+  ],
+});
+```
+
+## Page Component (Full Example)
+
+Falcon APIs live under `falcon.api.<namespace>.<method>()` and resolve to `{ resources, errors }`. A query call returns IDs, then an entities call returns the details:
 
 ```vue
 <template>
-  <sl-form @sl-submit="handleSubmit">
+  <sl-card>
+    <div slot="header">Recent alerts</div>
+    <sl-alert v-if="error" variant="danger" open>{{ error }}</sl-alert>
+    <sl-spinner v-if="loading"></sl-spinner>
+    <table v-else>
+      <thead><tr><th>Severity</th><th>Alert</th></tr></thead>
+      <tbody>
+        <tr v-for="alert in alerts" :key="alert.composite_id">
+          <td>{{ alert.severity }}</td>
+          <td>{{ alert.display_name }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <sl-button :loading="loading" @click="fetchAlerts">Refresh</sl-button>
+  </sl-card>
+</template>
+
+<script setup lang="ts">
+import { inject, onMounted, ref } from 'vue';
+import type FalconApi from '@crowdstrike/foundry-js';
+import { FALCON_API } from '../plugins/falcon-api';
+
+interface Alert {
+  composite_id: string;
+  display_name?: string;
+  severity?: number;
+}
+
+const falcon = inject(FALCON_API) as FalconApi;
+const alerts = ref<Alert[]>([]);
+const loading = ref(true);
+const error = ref<string | null>(null);
+
+async function fetchAlerts() {
+  loading.value = true;
+  error.value = null;
+  try {
+    const query = await falcon.api.alerts.getQueriesAlertsV2({ limit: 50 });
+    const ids = (query.resources ?? []) as string[];
+    if (ids.length === 0) {
+      alerts.value = [];
+      return;
+    }
+    // The generated body type is Record<string, never>, so cast the body.
+    const body: Record<string, unknown> = { composite_ids: ids };
+    const details = await falcon.api.alerts.postEntitiesAlertsV2(body as Record<string, never>);
+    // foundry-js resolves with errors instead of rejecting
+    if (details.errors?.length) throw new Error(details.errors[0].message);
+    alerts.value = (details.resources ?? []) as Alert[];
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to fetch alerts';
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(fetchAlerts);
+</script>
+```
+
+Each `falcon.api` namespace needs its scope in `manifest.yml` (`alerts:read` here).
+
+## Extension Component with Console Context
+
+An extension reads its socket's context from `falcon.data` and hears about changes through `falcon.events.on('data', …)`. On `activity.detections.details` the selected detection arrives as `detectionId`, which is how mitre's remediations extension follows the console:
+
+```vue
+<template>
+  <sl-card>
+    <span v-if="detection">{{ detection.display_name }} (severity {{ detection.severity }})</span>
+    <sl-spinner v-else></sl-spinner>
+  </sl-card>
+</template>
+
+<script setup lang="ts">
+import { inject, onUnmounted, ref, watchEffect } from 'vue';
+import type FalconApi from '@crowdstrike/foundry-js';
+import { FALCON_API } from '../plugins/falcon-api';
+
+interface Detection {
+  composite_id: string;
+  display_name?: string;
+  severity?: number;
+}
+
+const falcon = inject(FALCON_API) as FalconApi;
+const detectionId = ref(falcon.data?.detectionId as string | undefined);
+const detection = ref<Detection>();
+
+const onData = (data: Record<string, unknown>) => {
+  detectionId.value = data.detectionId as string | undefined;
+};
+falcon.events.on('data', onData);
+onUnmounted(() => falcon.events.off('data', onData));
+
+watchEffect(async () => {
+  if (!detectionId.value) return;
+  const body: Record<string, unknown> = { composite_ids: [detectionId.value] };
+  const response = await falcon.api.alerts.postEntitiesAlertsV2(body as Record<string, never>);
+  detection.value = response.resources?.[0] as Detection | undefined;
+});
+</script>
+```
+
+## Form Handling
+
+Shoelace has no form component. Put its controls in a native `<form>`, where they submit and validate like native inputs:
+
+```vue
+<template>
+  <form @submit.prevent="applyFilters">
     <sl-input
       name="hostname"
-      label="Hostname Filter"
-      placeholder="Enter hostname pattern"
+      label="Hostname filter"
       :value="filters.hostname"
-      @sl-change="(e) => filters.hostname = e.target.value"
+      @sl-input="filters.hostname = ($event.target as HTMLInputElement).value"
       clearable
     >
       <sl-icon name="search" slot="prefix"></sl-icon>
@@ -225,69 +215,78 @@ createApp(App).mount('#app');
 
     <sl-select
       name="severity"
-      label="Minimum Severity"
+      label="Minimum severity"
       :value="filters.severity"
-      @sl-change="(e) => filters.severity = e.target.value"
+      @sl-change="filters.severity = ($event.target as HTMLSelectElement).value"
     >
-      <sl-option value="1">Low (1+)</sl-option>
-      <sl-option value="5">Medium (5+)</sl-option>
-      <sl-option value="8">High (8+)</sl-option>
+      <sl-option value="20">Low (20+)</sl-option>
+      <sl-option value="50">Medium (50+)</sl-option>
+      <sl-option value="70">High (70+)</sl-option>
     </sl-select>
 
-    <sl-button type="submit" variant="primary">
-      Apply Filters
-    </sl-button>
-  </sl-form>
+    <sl-button type="submit" variant="primary">Apply filters</sl-button>
+  </form>
 </template>
+
+<script setup lang="ts">
+import { reactive } from 'vue';
+
+const filters = reactive({ hostname: '', severity: '1' });
+const emit = defineEmits<{ apply: [filters: { hostname: string; severity: string }] }>();
+
+function applyFilters() {
+  emit('apply', { ...filters });
+}
+</script>
 ```
 
 ## Unit Testing Vue Components
 
+Hand the component a stub through `global.provide` instead of the plugin. Only the API methods the component calls need stubs:
+
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import AlertsDashboard from '@/components/AlertsDashboard.vue';
-import { mockFoundry } from '../mocks/foundry';
+import AlertsDashboard from '../components/AlertsDashboard.vue';
+import { FALCON_API } from '../plugins/falcon-api';
 
-vi.mock('@crowdstrike/foundry-js', () => ({
-  useFoundry: () => mockFoundry,
-}));
+const getQueriesAlertsV2 = vi.fn();
+const postEntitiesAlertsV2 = vi.fn();
+const falconStub = { api: { alerts: { getQueriesAlertsV2, postEntitiesAlertsV2 } } };
+
+const mountDashboard = () =>
+  mount(AlertsDashboard, {
+    global: {
+      provide: { [FALCON_API as symbol]: falconStub },
+      config: { compilerOptions: { isCustomElement: (tag: string) => tag.startsWith('sl-') } },
+    },
+  });
 
 describe('AlertsDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders loading state initially', () => {
-    const wrapper = mount(AlertsDashboard);
-    expect(wrapper.find('sl-spinner').exists()).toBe(true);
-  });
-
-  it('displays alerts after loading', async () => {
-    mockFoundry.api.get.mockResolvedValueOnce({
-      data: {
-        resources: [
-          { id: '1', severity: 8, hostname: 'test-host', description: 'Test alert' },
-        ],
-      },
+  it('shows alerts returned by the API', async () => {
+    getQueriesAlertsV2.mockResolvedValueOnce({ resources: ['id-1'] });
+    postEntitiesAlertsV2.mockResolvedValueOnce({
+      resources: [{ composite_id: 'id-1', display_name: 'Test alert', severity: 70 }],
     });
 
-    const wrapper = mount(AlertsDashboard);
+    const wrapper = mountDashboard();
     await flushPromises();
 
-    expect(wrapper.find('sl-spinner').exists()).toBe(false);
-    expect(wrapper.text()).toContain('test-host');
-    expect(wrapper.find('.status').text()).toContain('8');
+    expect(wrapper.text()).toContain('Test alert');
   });
 
-  it('shows error message on API failure', async () => {
-    mockFoundry.api.get.mockRejectedValueOnce(new Error('API Error'));
+  it('shows the error when the API call fails', async () => {
+    getQueriesAlertsV2.mockRejectedValueOnce(new Error('API Error'));
 
-    const wrapper = mount(AlertsDashboard);
+    const wrapper = mountDashboard();
     await flushPromises();
 
     expect(wrapper.find('sl-alert[variant="danger"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('Failed to fetch alerts');
+    expect(wrapper.text()).toContain('API Error');
   });
 });
 ```

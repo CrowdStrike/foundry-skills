@@ -4,29 +4,21 @@
 
 ## API Response Sanitization (Python)
 
+Trim API responses before storing them: drop fields the app doesn't need and bound string lengths. Store the values raw. HTML-escaping before storage double-escapes when the UI renders the value, and no regex strips every script vector; escape or sanitize at render time instead (see the React and Vue examples below).
+
 ```python
-import re
-from typing import Dict, Any
+from typing import Any, Dict
 
-def sanitize_api_response(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Sanitize CrowdStrike API response before storing in Collections"""
+SENSITIVE_FIELDS = ("raw_log", "internal_id", "system_metadata")
+MAX_STRING_LENGTH = 1000
 
-    # Remove sensitive fields
-    sensitive_fields = ['raw_log', 'internal_id', 'system_metadata']
-    for field in sensitive_fields:
-        data.pop(field, None)
-
-    # Sanitize string fields
-    for key, value in data.items():
+def trim_api_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Drop unneeded fields and bound string lengths before storing in a collection."""
+    trimmed = {k: v for k, v in data.items() if k not in SENSITIVE_FIELDS}
+    for key, value in trimmed.items():
         if isinstance(value, str):
-            # Remove potential script injection
-            value = re.sub(r'<script[^>]*>.*?</script>', '', value, flags=re.IGNORECASE | re.DOTALL)
-            # Escape HTML entities
-            value = value.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            # Truncate long strings
-            data[key] = value[:1000]
-
-    return data
+            trimmed[key] = value[:MAX_STRING_LENGTH]
+    return trimmed
 ```
 
 ## Command Injection Prevention (Python)
@@ -129,109 +121,54 @@ export default {
 </script>
 ```
 
-## Secure Postmessage Communication
-
-```typescript
-class SecureConsoleMessaging {
-  private allowedOrigins = [
-    'https://falcon.crowdstrike.com',
-    'https://falcon.eu-1.crowdstrike.com',
-    'https://falcon.us-gov.crowdstrike.com'
-  ];
-
-  setupMessageHandler() {
-    window.addEventListener('message', (event) => {
-      if (!this.allowedOrigins.includes(event.origin)) {
-        console.warn('Rejected message from unauthorized origin:', event.origin);
-        return;
-      }
-
-      if (!this.isValidMessage(event.data)) {
-        console.warn('Rejected invalid message structure');
-        return;
-      }
-
-      this.handleSecureMessage(event.data);
-    });
-  }
-
-  private isValidMessage(data: any): boolean {
-    return (
-      data &&
-      typeof data.type === 'string' &&
-      data.type.length < 50 &&
-      typeof data.payload === 'object'
-    );
-  }
-}
-```
-
 ## Secure Function Structure (Python)
 
+Use the FDK handler pattern from the `functions-development` skill. The FDK supplies credentials inside the handler, so don't check for credential environment variables; they aren't set in the Falcon cloud. Let `request_schema.json` validate the body's shape, and bound its size in code.
+
 ```python
-import os
 import json
-from typing import Dict, Any
+from logging import Logger
+from typing import Dict, Optional
 
-def validate_environment():
-    """Validate runtime environment security"""
-    required_vars = ['FALCON_CLIENT_ID', 'FOUNDRY_FUNCTION_ID']
-    missing = [var for var in required_vars if not os.environ.get(var)]
+from crowdstrike.foundry.function import Function, Request, Response, APIError
 
-    if missing:
-        raise RuntimeError(f"Missing required environment variables: {missing}")
+FUNC = Function.instance()
+MAX_BODY_BYTES = 10_000
 
-def main(event: Dict[str, Any]) -> Dict[str, Any]:
-    """Main function handler with security controls"""
+
+@FUNC.handler(method="POST", path="/process")
+def on_post(request: Request, _config: Optional[Dict[str, object]], logger: Logger) -> Response:
+    if not isinstance(request.body, dict):
+        return Response(code=400, errors=[APIError(code=400, message="Request body must be a JSON object")])
+
+    if len(json.dumps(request.body)) > MAX_BODY_BYTES:
+        return Response(code=413, errors=[APIError(code=413, message="Request body is too large")])
 
     try:
-        validate_environment()
+        result = process_event_safely(request.body)
+    except (KeyError, ValueError) as e:
+        logger.error(f"Processing failed: {type(e).__name__}")  # no payload or stack trace
+        return Response(code=500, errors=[APIError(code=500, message="Internal error")])
 
-        if not isinstance(event, dict):
-            return {"error": "Invalid input format", "status": 400}
+    return Response(body={"data": result}, code=200)
 
-        if len(str(event)) > 10000:  # 10KB limit
-            return {"error": "Input too large", "status": 413}
 
-        result = process_event_safely(event)
-        return {"data": result, "status": 200}
-
-    except Exception as e:
-        print(f"Function error: {type(e).__name__}")
-        return {"error": "Internal error", "status": 500}
+if __name__ == "__main__":
+    FUNC.run()
 ```
 
-## Role-Based Collection Access (Python)
+## Role-Based Collection Access
+
+The FDK `Request` has no roles field, so don't build role checks into function code. Gate the collection itself with `permissions` and assign the role in the console; see the RBAC section of the parent skill and the full manifest example at the end of this file. To narrow what a handler returns, filter server-side with FQL on `x-cs-indexable` fields:
 
 ```python
-from typing import List, Dict, Optional, Any
+from falconpy import CustomStorage
 
-class SecureCollectionAccess:
-    def __init__(self, user_context: Dict[str, Any]):
-        self.user_id = user_context.get('user_id')
-        self.roles = user_context.get('roles', [])
-
-    def read_incidents(self, filters: Optional[Dict] = None) -> List[Dict]:
-        """Read incidents with role-based filtering"""
-        if 'incident_reader' not in self.roles:
-            raise PermissionError("Insufficient permissions for incident data")
-
-        security_filters = self._get_security_filters()
-        if filters:
-            filters.update(security_filters)
-        else:
-            filters = security_filters
-
-        results = self.collection.query(filters, limit=100)
-        return self._sanitize_results(results)
-
-    def _get_security_filters(self) -> Dict[str, Any]:
-        if 'admin' in self.roles:
-            return {}
-        elif 'analyst' in self.roles:
-            return {'severity': {'$gte': 3}}
-        else:
-            return {'severity': {'$gte': 5}}
+storage = CustomStorage()  # inside the handler; pass ext_headers={"X-CS-APP-ID": ...} for local runs
+response = storage.SearchObjects(collection_name="incidents", filter="severity:>=3", limit=100)
+if response["status_code"] != 200:
+    ...  # return an error Response
+object_keys = [r["object_key"] for r in response["body"]["resources"]]  # metadata only; GetObject for content
 ```
 
 ## Secure Mock Data (TypeScript)
@@ -324,31 +261,27 @@ jobs:
           safety check -r requirements.txt
 ```
 
-## Token Lifecycle Management (Python)
+## Falcon API Clients in Functions (Python)
+
+Inside an FDK handler, construct FalconPy service classes with no arguments; the FDK supplies auth. Passing `client_id` / `client_secret` breaks context-based auth in the Falcon cloud (see `functions-falcon-api`). Check `status_code` on every response rather than validating a token up front.
 
 ```python
-import os
-from falconpy import OAuth2
+from crowdstrike.foundry.function import Function, Request, Response, APIError
+from falconpy import Hosts
 
-def get_secure_client():
-    # Environment-based credentials (NEVER hardcode)
-    client_id = os.environ.get('FALCON_CLIENT_ID')
-    client_secret = os.environ.get('FALCON_CLIENT_SECRET')
+FUNC = Function.instance()
 
-    if not client_id or not client_secret:
-        raise ValueError("Missing required OAuth credentials")
 
-    # Auto-detect cloud region
-    auth = OAuth2(
-        client_id=client_id,
-        client_secret=client_secret
-    )
-
-    # Validate token before use
-    if not auth.token():
-        raise RuntimeError("Failed to authenticate with Falcon API")
-
-    return auth
+@FUNC.handler(method="POST", path="/host-details")
+def on_post(request: Request) -> Response:
+    falcon = Hosts()  # no credentials: auth comes from the handler context
+    response = falcon.get_device_details(ids=request.body["host_id"])
+    if response["status_code"] != 200:
+        return Response(
+            code=response["status_code"],
+            errors=[APIError(code=response["status_code"], message="Failed to retrieve host")],
+        )
+    return Response(body={"host_details": response["body"]["resources"][0]}, code=200)
 ```
 
 ## Multi-Environment Security
@@ -363,43 +296,18 @@ auth:
 
 ## Local Development Security
 
+For running functions locally, FalconPy reads credentials from the environment. Use a separate API client with only the scopes the app needs, keep the values in an untracked file, and never commit them.
+
 ```bash
-# .env.development - Local security practices
-# Use separate dev credentials (limited scope)
+# .env (gitignored): local function testing only
 FALCON_CLIENT_ID=<API_CLIENT_ID>
 FALCON_CLIENT_SECRET=<API_CLIENT_SECRET>
-
-# Local server security
-FOUNDRY_UI_HOST=localhost
-FOUNDRY_UI_PORT=3000
-FOUNDRY_UI_HTTPS=true  # Always use HTTPS locally
-
-# Database security
-DB_CONNECTION_TIMEOUT=5000
-DB_MAX_CONNECTIONS=10
-
-# Logging security (no sensitive data)
-LOG_LEVEL=INFO
-LOG_SENSITIVE_DATA=false
+APP_ID=<APP_ID>   # sent as X-CS-APP-ID for collection calls
 ```
 
-## CSP Headers for UI Pages (Supplementary TypeScript)
+## CSP for UI Pages and Extensions
 
-```typescript
-// Vue/React app security headers
-const securityHeaders = {
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",  // Avoid if possible
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "connect-src 'self' https://api.crowdstrike.com",
-    "frame-ancestors 'self' https://falcon.crowdstrike.com"
-  ].join('; '),
-  'X-Frame-Options': 'SAMEORIGIN',
-  'X-Content-Type-Options': 'nosniff'
-};
-```
+Foundry apps don't set HTTP response headers, so `X-Frame-Options`, `frame-ancestors`, and similar header-based controls don't apply. The Falcon console builds the CSP from each page's or extension's `content_security_policy` block in `manifest.yml`, which accepts `connect-src`, `img-src`, `script-src`, `style-src`, `style-src-elem`, `form-action`, `media-src`, and `object-src`. List only the external hosts the code calls; the full manifest example below shows the block in place.
 
 ## Secure Manifest Settings (Full Example)
 
@@ -456,8 +364,10 @@ The Falcon console renders pages and extensions in a sandboxed iframe that the a
 auth:
   scopes: ["*:*", "alerts:*", "devices:*"]
 
-# Insecure CSP
-csp: "default-src *; script-src * 'unsafe-eval' 'unsafe-inline'"
+# Wildcard CSP sources (under a page's content_security_policy)
+content_security_policy:
+  connect-src: ["*"]
+  script-src: ["*"]
 
 # No input validation
 def process_data(user_input):
@@ -474,7 +384,6 @@ logger.info(f"Processing user {email} with token {api_token}")
 
 ## Performance Considerations
 
-- **OAuth token caching:** Cache tokens securely to reduce API calls
 - **Input validation caching:** Cache validation results for repeated data
 - **CSP optimization:** Use specific sources instead of wildcards
 - **Sanitization efficiency:** Use efficient sanitization libraries
