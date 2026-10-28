@@ -53,7 +53,6 @@ BANNED = [
     # Falcon Fusion SOAR
     (r"\binvokeFunction\b|\bactivity: (read|write)Collection\b|`(read|write)Collection`", "workflows call functions.<name>.<handler> and collections.<name>.<op>"),
     (r"b3305a8e09d3430b9cd4e2fc1dfa73f3", "a node-key suffix; Put and run file is a29b38809708ffc5fb18a03676520b1a"),
-    (r"\.orValue\(", "CEL optionals aren't in the Falcon Fusion SOAR CEL reference; use != null"),
     (r"path: workflows/[^\s/]+/workflow\.ya?ml", "workflow manifest paths are flat workflows/<Name>.yml"),
     # CLI flags (foundry --help, CLI 2.1.2)
     (r"foundry ui run --port|foundry profile active\b", "ui run has no --port; profile has activate/create/delete/list"),

@@ -13,12 +13,17 @@ Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/go
 # Null-safe field access
 "${data['action.field'] != null ? data['action.field'] : \"default\"}"
 
+# The same with CEL optional access
+"${data[?'action.field'].orValue(\"default\")}"
+
 # Array element access (index goes INSIDE the ${...}, not after it)
 "${data['action.API_Integration.Custom_Name.op.body'][0]}"
 
 # Lookup table (map literal needs its own braces inside ${...})
 "${ {'1': 'Low', '2': 'Medium', '3': 'High', '4': 'Critical'}[string(data['severity'])] }"
 ```
+
+Neither form lets you reference a field the workflow doesn't define; deploy rejects that reference either way. Both treat an empty string as a value, so a declared parameter left empty comes through as `""`, not the default. Quote any expression that contains a colon followed by a space, such as a ternary, or the YAML won't parse.
 
 ## `has()` vs `!= null` — know the difference
 
