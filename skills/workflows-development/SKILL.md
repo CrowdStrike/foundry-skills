@@ -1,6 +1,6 @@
 ---
 name: workflows-development
-description: Create and configure Falcon Fusion SOAR workflow YAML for Falcon Foundry apps. TRIGGER when user asks to "create a workflow", "build an automation", "configure Fusion SOAR", "add an on-demand workflow", runs `foundry workflows create`, or needs help with Fusion YAML syntax, triggers, actions, or variable references. DO NOT TRIGGER for UI pages, functions, or collection schemas — use the appropriate sub-skill.
+description: Create and configure Falcon Fusion SOAR workflow YAML for Falcon Foundry apps. TRIGGER when user asks to "create a workflow", "build an automation", "configure Falcon Fusion SOAR", "add an on-demand workflow", runs `foundry workflows create`, or needs help with Falcon Fusion YAML syntax, triggers, actions, or variable references. DO NOT TRIGGER for UI pages, functions, or collection schemas — use the appropriate sub-skill.
 version: 1.6.0
 updated: 2026-10-01
 tags: [foundry, workflows, fusion-soar, yaml]
@@ -13,18 +13,15 @@ metadata:
 
 # Foundry Workflows Development
 
-> Write every workflow definition in Fusion YAML, validate step dependencies before running it, and handle failures with conditional routing and action-level flags ([Error Handling](#error-handling)) — Fusion has no `onError` blocks and no built-in retry.
+> Write every workflow definition in Falcon Fusion YAML, validate step dependencies before running it, and handle failures with conditional routing and action-level flags ([Error Handling](#error-handling)) — Fusion has no `onError` blocks and no built-in retry.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
-
-Falcon Foundry Workflows are YAML-defined automation units executed by the Falcon Fusion engine. They orchestrate multi-step operations across Functions, Collections, CrowdStrike APIs, and RTR sessions with parallelism and state management.
 
 ## Prerequisites
 
 - **Workflow Author role** is required in addition to the Falcon Developer role
-- Workflows are YAML templates that can be provisioned as active workflow instances
-- Up to **25 workflows** can be provisioned from a single template
-- Set `provision_on_install: true` to auto-provision when the app is installed
+- Workflows are YAML templates provisioned as active instances (up to **25** per template)
+- **`provision_on_install: true` is REQUIRED** in the workflow YAML — treat it as a per-workflow checklist item, not a footnote. Without it the workflow deploys **"Successful" but never instantiates** into Falcon Fusion SOAR: no error, nothing to run, invisible at deploy time. The one deliberate exception is a workflow with an action ID you can't verify: set `false` and have the user finish it in the console (see [Platform Action Fallback Strategy](references/advanced-patterns.md#platform-action-fallback-strategy)).
 
 ## CLI Scaffolding
 
@@ -43,37 +40,13 @@ foundry workflows actions view --name "send email" --no-prompt --mock       # Mo
 foundry workflows triggers view --no-prompt                                 # List triggers
 ```
 
-> **Always use `--no-prompt` on `actions view` and `triggers view`.** As of CLI 2.1.1, multiple matches are listed non-interactively. On older CLIs, partial matches trigger an interactive prompt that fails in headless environments (`Error: no TTY available`). The bundled `action_search.py` is an alternative that works without a manifest directory — see [references/action-discovery.md](references/action-discovery.md).
+> **Always use `--no-prompt` on `actions view`/`triggers view`** — without it, multiple or partial matches trigger an interactive prompt that fails in headless environments (`Error: no TTY available`); as of CLI 2.1.1 matches are listed non-interactively. The bundled `action_search.py` works without a manifest directory — see [references/action-discovery.md](references/action-discovery.md).
 
 ## Workflow Structure
 
 ### Trigger + Actions Format (standard)
 
-This is the format produced by `foundry workflows create` and used by all production Foundry sample apps:
-
-```yaml
-name: list-okta-users
-description: On-demand workflow to list Okta users and print results
-provision_on_install: true
-trigger:
-    next:
-        - list_users
-    name: On demand
-    type: On demand
-actions:
-    list_users:
-        id: api_integrations.Okta.listUsers
-        next:
-            - print_results
-        properties: {}
-        version_constraint: ~0
-    print_results:
-        id: aadbf530e35fc452a032f5f8acaaac2a
-        properties:
-            text_data: "${data['list_users.API_Integration.Custom_Okta.listUsers.body']}"
-        version_constraint: ~1
-output_fields: []
-```
+This is the format produced by `foundry workflows create` and used by all production Foundry sample apps — a `trigger:` (with `next:` naming the first action) plus an `actions:` map where each action carries an `id`, `properties`, `version_constraint`, and optional `next:`, closing with `output_fields: []`. See [references/workflow-examples.md](references/workflow-examples.md#standard-trigger-actions-format) for the full canonical YAML (on-demand Okta list → print).
 
 **Trigger types:**
 
@@ -82,48 +55,11 @@ output_fields: []
 | On demand | `name: On demand`, `type: On demand` |
 | Scheduled | `event: Schedule`, `schedule: {time_cycle: "0 */6 * * *", tz: Etc/UTC}` |
 
-> **⚠️ Null-guard trigger parameters:** When run from the Falcon console, the UI prompts users to fill in parameters. However, when triggered via API or from another workflow, parameters may be empty. Guard defensively:
->
-> ```yaml
-> conditions:
->     check_param:
->         cel_expression: "data['param_name'] != null && data['param_name'] != ''"
->         next:
->             - use_param
->         display:
->             - param_name was provided
->         else:
->             - handle_missing
-> ```
->
-> Or inline in CEL: `${data[?'param'].orValue("default")}` (preferred) or `${data['param'] != null ? data['param'] : "default"}` (traditional)
+> **⚠️ Null-guard trigger parameters:** When run from the Falcon console the UI prompts for parameters, but via API or from another workflow they may be empty. Guard with a `conditions:` branch (`cel_expression: data['param'] != null && data['param'] != ''`, routing to a handler via `else:`) or inline in CEL: `${data[?'param'].orValue("default")}` (preferred) or `${data['param'] != null ? data['param'] : "default"}` (traditional). Full `conditions:` block: [references/cel-expressions.md](references/cel-expressions.md#null-guard-trigger-parameters).
 
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
 
-**Version constraints:** Every action requires `version_constraint`. The `~N` value pins against the activity's declared `semantic_version` field, not its internal iteration count. The rule:
-
-- `~0` = activity has **no** `semantic_version` defined (functions, API integrations, and some platform actions like "contain device")
-- `~1` = activity **has** a `semantic_version` (most platform actions: Print data, Send email, Create/Update variable, Get device details, etc.)
-
-Use `foundry workflows actions view --name "<action>" --no-prompt` to check. If the activity output shows a semantic_version field, use `~1`. If it does not, use `~0`.
-
-```yaml
-actions:
-    my_function:
-        id: functions.my-func.process
-        properties: {}
-        version_constraint: ~0       # no semantic_version defined
-    contain_host:
-        id: <contain-device-action-id>
-        properties:
-            device_id: "${data['trigger.device_id']}"
-        version_constraint: ~0       # no semantic_version defined
-    print_results:
-        id: aadbf530e35fc452a032f5f8acaaac2a
-        properties:
-            text_data: "${data['my_function.output']}"
-        version_constraint: ~1       # has semantic_version
-```
+**Version constraints:** Every action requires `version_constraint = ~N`, pinning against the activity's declared `semantic_version` (not its iteration count): **`~0`** when the activity has NO `semantic_version` (functions, API integrations, some platform actions like "contain device"); **`~1`** when it HAS one (most platform actions — Print data, Send email, Create/Update variable, Get device details). Check with `foundry workflows actions view --name "<action>" --no-prompt`; a worked `~0`/`~1` example is in [references/workflow-examples.md](references/workflow-examples.md#version-constraint-example).
 
 ### Manifest Configuration
 
@@ -137,189 +73,69 @@ workflows:
 
 Trigger type and schedule are defined inside the workflow YAML file (via `trigger:` block), not in the manifest. The manifest only declares the workflow name, path, and optional permissions.
 
-For full RTR multi-host orchestration and investigation pipeline examples, see [references/workflow-examples.md](references/workflow-examples.md).
-
-> RTR scripts are not supported in certified Foundry apps (apps published to the CrowdStrike Store). RTR workflows work in custom/internal apps only.
+> RTR scripts are not supported in certified Foundry apps (apps published to the CrowdStrike Store). RTR workflows work in custom/internal apps only. For full RTR multi-host orchestration and investigation-pipeline examples, see [references/workflow-examples.md](references/workflow-examples.md).
 
 ## Calling Functions from Workflows
 
-Functions referenced in workflow actions (via `id: functions.{name}.{handler}`) must have `workflow_integration` in the manifest. This binds only at creation time, via `foundry functions create --wf-expose` (plus `--input-schema`/`--output-schema`) — hand-editing `manifest.yml` does not work.
+Functions called via `id: functions.{name}.{handler}` must have `workflow_integration` in the manifest. It binds ONLY at creation time — `foundry functions create --wf-expose` (plus `--input-schema`/`--output-schema`); hand-editing `manifest.yml` does not work. If a function was created without it, recreate it (that changes its `workflow_integration.id`, so update the `id:` reference in the workflow YAML in place — do NOT delete/recreate the workflow). Missing it fails deploy with `referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined`.
 
-If a function was created without it, recreate the function. That changes its `workflow_integration.id`, so update the `id: functions.{name}.{handler}` reference in your workflow YAML in place. Do NOT delete and recreate the workflow itself — see the warning below.
+> **⚠️ Every non-empty `properties:` on a function action needs a declared `request_schema`.** If the action passes `properties` but the function's manifest handler has `request_schema: null`, Foundry **silently drops the inputs** — the handler receives empty strings, not an error. Symptom: a function that "runs fine" but behaves as if it got blank input. Declare the schema at create time via `foundry functions create … --input-schema` (hand-editing the manifest does not bind it).
 
-**Deploy error if missing:**
-```
-❌ Error: referenced function '{name}' and handler '{handler}' does not have workflow_integration properties defined
-```
+**Calling the app's own AI agent**: `id: ai_agents.<agent name>` with `input` (the prompt) and `version_constraint: ~1`; the agent needs `exposure.workflows.system_action: true`, and its reply is read downstream as `${data['action_key.response']}`. `apps validate` doesn't resolve it — check the deploy output. Full walkthrough (aliasing, the `(2018) Action was not found` trap, `json_with_schema` field access) in the `ai-agents-development` skill's `references/workflow-invocation.md`.
 
-**Calling the app's own AI agent**: use `id: ai_agents.<agent name>` (the manifest `name`) with `input` for the prompt and `version_constraint: ~1`; the agent needs `exposure.workflows.system_action: true`. `apps validate` doesn't resolve it, so check the deploy output. See the `ai-agents-development` skill's `references/workflow-invocation.md`.
-
-> **⚠️ Reading Falcon alerts, detections, or incidents? It depends on whether the workflow already holds the object.** *Enriching* a detection the workflow was triggered on (query by its ID, e.g. `Ngsiem.detection.id = ?detectID`) → Event Query action, go schemaless. *Fetching a population you don't have* ("summarize all high-severity alerts") → source-of-truth API: a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — an Event Query can silently return nothing since NG-SIEM contents are connector-dependent. See [references/event-query-vs-api.md](references/event-query-vs-api.md).
+> **⚠️ Reading Falcon alerts/detections/incidents? Depends on whether the workflow already holds the object.** *Enriching* one the workflow was triggered on (query by its ID) → Event Query action, schemaless. *Fetching a population you don't have* ("summarize all high-severity alerts") → source-of-truth API: a native platform action (e.g. Cases → Search Cases) or a FalconPy `Alerts`/`Detects` function — an Event Query can silently return nothing (NG-SIEM contents are connector-dependent). See [references/event-query-vs-api.md](references/event-query-vs-api.md).
 
 ## Calling API Integration Operations
 
-> **💡 Consider HTTP Actions first.** For a simple REST call that doesn't need a custom UI or reusable function, an [HTTP Action](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/) is faster than an API integration — no app, no OpenAPI spec, no deploy, and 130+ pre-built templates. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).
+> **💡 Consider HTTP Actions first.** For a one-off REST call (no custom UI or reusable function), an [HTTP Action](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/) is faster than an API integration — no app, no OpenAPI spec, no deploy, 130+ templates. Use a full API integration when the operation is reused across workflows or paired with functions/UI. See [references/http-actions.md](references/http-actions.md).
 
-Workflows invoke API integration operations using the `api_integrations.{name}.{operationId}` pattern:
+> **⚠️ Always call a registered integration** via `api_integrations.{name}.{operationId}` — never a function making raw HTTP calls to the same API with hardcoded creds or `{{API_TOKEN}}`-style templates. The platform owns auth, rate limiting, and audit logging.
 
-> **⚠️ Always use registered integrations.** If an API integration is declared in `manifest.yml`, the workflow MUST call it via `api_integrations.{name}.{operationId}`. Do NOT use a function that makes raw HTTP calls to the same API with hardcoded credentials or template variables like `{{API_TOKEN}}`. The platform manages authentication, rate limiting, and audit logging through the integration.
-
-```yaml
-actions:
-    list_users_action:
-        id: api_integrations.Okta.listUsers    # {name}.{operationId}
-        properties: {}
-        version_constraint: ~0
-        next:
-            - print_data
-
-    print_data:
-        id: aadbf530e35fc452a032f5f8acaaac2a
-        properties:
-            text_data: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
-        version_constraint: ~1
-```
-
-The `{name}` must exactly match the `name` field from the `api_integrations` entry in `manifest.yml`, prefixed with `Custom_`. The platform adds `Custom_` to all API integration names in the variable path. The OpenAPI spec must have a matching `operationId` with a properly structured `x-cs-operation-config`:
-
-```yaml
-x-cs-operation-config:
-  workflow:
-    name: listUsers
-    description: List all users
-    expose_to_workflow: true
-    system: false
-```
-
-The `workflow` nesting is required — a flat `expose_to_workflow: true` under `x-cs-operation-config` will not work. Auth scopes for CLI-created artifacts are managed automatically.
+`{name}` must match the manifest `api_integrations` entry, prefixed `Custom_` in the variable path (the platform adds it to every integration name). The OpenAPI `operationId`'s `x-cs-operation-config` must nest the config under a `workflow:` key (`name`, `description`, `expose_to_workflow: true`, `system: false`) — a flat `expose_to_workflow: true` will not work. Auth scopes for CLI-created artifacts are managed automatically. Full action + `x-cs-operation-config` example: [references/workflow-examples.md](references/workflow-examples.md#api-integration-operation-call).
 
 ## Platform Actions
 
-Platform actions (send email, log output, create detection) require platform-specific action IDs. These IDs are verified identical across us-1, us-2, and eu-1 clouds:
-
-| Action Name | ID |
-|------------|-----|
-| Create variable | `702d15788dbbffdf0b68d8e2f3599aa4` |
-| Update variable | `6c6eab39063fa3b72d98c82af60deb8a` |
-| Print data | `aadbf530e35fc452a032f5f8acaaac2a` |
-| Sleep | `4f1af1ae4c13dc1e3bcd725f8dc0f63b` |
-| Send email | `07413ef9ba7c47bf5a242799f59902cc` |
-| Request human input - Send email | `d6731c10b24834e2e0f4bd9d390a29c8` |
-| Get device details | `6265dc947cc2252f74a5f25261ac36a9` |
-| Contain device | `bec9fbeb4999d207937854fd56088107` |
-
-For actions not in this table, use `foundry workflows actions view --name "..." --no-prompt` or the API query in [references/action-discovery.md](references/action-discovery.md). There are 9,000+ platform actions available. MUST NOT guess action IDs — use discovery commands.
+Platform actions (send email, log output, create detection) require platform-specific action IDs, verified identical across us-1, us-2, and eu-1. The two most used are **Print data** `aadbf530e35fc452a032f5f8acaaac2a` and **Send email** `07413ef9ba7c47bf5a242799f59902cc`; the full lookup table (Create/Update variable, Sleep, Get device details, Contain device, Request human input) is in [references/action-discovery.md](references/action-discovery.md#common-platform-action-ids). For any action not listed, use `foundry workflows actions view --name "..." --no-prompt`. There are 9,000+ platform actions — MUST NOT guess action IDs; use discovery commands.
 
 ### Common Action Properties
 
-**Print data** (`aadbf530e35fc452a032f5f8acaaac2a`):
-
-Print data has three input properties: `fields` (array — dropdown of trigger/workflow metadata), `text_data` (string — general-purpose), and `custom_json` (object only). Use `text_data` for API integration responses since `body` may be an array (example above).
-
-The data path follows the pattern: `action_key.API_Integration.Custom_{IntegrationName}.{operationId}.{field}`. The platform adds `Custom_` to all API integration names in the variable path. Copy exact paths from the workflow editor's **Workflow data** panel: clicking a data pill copies its `${data['...']}` expression.
-
-**Send email** (`07413ef9ba7c47bf5a242799f59902cc`):
-
-Use Print data as the primary output action. Only add Send email when the user explicitly requests it. In headless/automated runs (`claude -p`), use Print data only — skip Send email entirely since the recipient cannot be prompted.
-
-In interactive mode, when the user requests email, **ask for their email address** (with the assistant's input mechanism, or in chat). Never guess or infer it. The `to` field must be a real address — placeholders like `user@example.com` fail at runtime.
-
-```yaml
-    send_email:
-        id: 07413ef9ba7c47bf5a242799f59902cc
-        properties:
-            to:
-                - recipient@company.com    # Ask user for real address, or mark as parameterized
-            subject: "Email subject"
-            msg: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
-            msg_type: "text"
-        version_constraint: ~1
-```
+**Print data** has three inputs: `fields` (array — trigger/workflow metadata dropdown), `text_data` (string — general-purpose), `custom_json` (object only). Use `text_data` for API-integration responses since `body` may be an array; data path `action_key.API_Integration.Custom_{Name}.{operationId}.{field}` (copy exact paths from the editor's **Workflow data** panel). **Send email** is secondary — add only when explicitly requested, skip in headless runs, and ask for a real `to` address (placeholders fail at runtime). Full `send_email` action example: [references/workflow-examples.md](references/workflow-examples.md#send-email-action).
 
 ## Variable References
 
-Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/google/cel-spec/blob/master/doc/langdef.md) for data references. All variable references use `${data['...']}` expression syntax:
+Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/google/cel-spec/blob/master/doc/langdef.md) for data references — all use `${data['...']}` syntax. The `action_key` is the YAML key of the action (e.g. `list_users`), NOT its `id`; an API integration's path segment is `Custom_{name}` (spaces → underscores). Common forms: API body `${data['action_key.API_Integration.Custom_Name.operationId.body']}` (append `[0].field` for an array element), platform output `${data['action_key.output.field']}`, app AI-agent reply `${data['action_key.response']}` (a `json_with_schema` agent uses `${data['action_key.<schema field>']}` instead), function output `${data['action_key.FaaS.<function>.<handler>.<field>']}` (loop item `…<field>.#.<item field>`), and trigger parameter `${data['param_name']}`. The full table with every form is in [references/cel-expressions.md](references/cel-expressions.md#variable-reference-forms); copy exact paths from the editor's **Workflow data** panel.
 
-| Syntax | Description |
-|--------|-------------|
-| `${data['action_key.API_Integration.Custom_Name.operationId.body']}` | Response body from an API integration action |
-| `${data['action_key.API_Integration.Custom_Name.operationId.body']}[0].field` | Access a field in the first element of an array response |
-| `${data['action_key.output.field']}` | Field from a platform action's output |
-| `${data['action_key.response']}` | Reply from an app's own AI agent (`ai_agents.<agent name>`); no `.output` segment. A `json_with_schema` agent has no `response`: use `${data['action_key.<schema field>']}` |
-| `${data['action_key.FaaS.<function>.<handler>.<field>']}` | Function action output; a loop item's field is `...<field>.#.<item field>` |
-| `${data['param_name']}` | On-demand trigger parameter value (use the parameter name directly, no prefix) |
-
-**CRITICAL:** Do NOT use `$action_name.output.body` — this passes as a literal string and is NOT resolved at runtime. Always use `${data['...']}` expressions.
-
-The `action_key` is the YAML key of the action (e.g., `list_users` from `actions: list_users:`), NOT the action's `id`. The integration name in the variable path is `Custom_{name}` where `{name}` is the `name` field in your `api_integrations` manifest entry (spaces become underscores). Use the **Workflow data** panel in the workflow editor to copy exact data paths — it produces the correct expression when you click a data pill.
+**CRITICAL:** Do NOT use `$action_name.output.body` — it passes as a literal string and is NOT resolved at runtime. Always use `${data['...']}` expressions.
 
 ### CEL Expressions
 
-Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Common patterns:
-
-```yaml
-# Null-safe field access — optional pattern (preferred)
-"${data[?'action.field'].orValue(\"default\")}"
-
-# Traditional null check
-"${data['action.field'] != null ? data['action.field'] : \"default\"}"
-
-# Array element access (index goes INSIDE the ${...}, not after it)
-"${data['action.API_Integration.Custom_Name.op.body'][0]}"
-```
+Falcon Fusion SOAR supports CEL for data transformations, conditions, and field access. Key patterns: null-safe optional `${data[?'action.field'].orValue("default")}` (preferred) vs the traditional ternary `${data['action.field'] != null ? … : "default"}`, and array access with the index INSIDE the braces (`${data['…body'][0]}`, not after).
 
 **`has()` only works on retrieved objects, not data store keys.** `has(data['key'])` fails with `Q0910`; use `data['key'] != null` for keys, or `has(data['var'].field)` to check a field on an already-retrieved object.
 
-CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) (`cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.parse()`, etc.). For the full pattern catalog, the `has()`/`!= null`/optional decision guide, and extension details, see [references/cel-expressions.md](references/cel-expressions.md).
+CrowdStrike adds [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) (`cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.parse()`, etc.). For the full pattern catalog, runnable snippets, the `has()`/`!= null`/optional decision guide, and extension details, see [references/cel-expressions.md](references/cel-expressions.md).
 
 ## Control Flow
 
-**Loops** iterate over arrays or paginate with cursor-based conditions. Loops are self-contained sub-workflows at the root `loops:` level. The action before a loop must name it in its `next:` list, or the loop deploys but never runs:
+**Loops** iterate over arrays or paginate with cursor-based conditions. They are self-contained sub-workflows at the root `loops:` level; the action before a loop must name it in its `next:` list or the loop deploys but never runs. A loop item is referenced with `${<input>.#}`, and a loop item's field is `...<field>.#.<item field>`.
 
-```yaml
-loops:
-    DeviceLoop:
-        for:
-            input: device_query.Device.query.devices
-            continue_on_partial_execution: true
-            sequential: true
-        trigger:
-            next:
-                - get_device_details
-        actions:
-            get_device_details:
-                id: 6265dc947cc2252f74a5f25261ac36a9
-                next:
-                    - platform_check
-                properties:
-                    device_id: "${device_query.Device.query.devices.#}"
-                version_constraint: ~1
-        conditions:
-            platform_check:
-                next:
-                    - remediate
-                expression: get_device_details.Device.GetDetails.Platform:'Windows'
-                display:
-                    - Platform is Windows
-                else:
-                    - skip_device
-```
+**Conditions** route with an FQL-style `expression:` or a CEL `cel_expression:`, each with an optional `else:` fallback branch.
 
-**Conditions** use FQL-style `expression:` or CEL `cel_expression:` with optional `else:` for fallback routing:
+See [references/workflow-examples.md](references/workflow-examples.md#control-flow-loop-and-condition-examples) for full loop (`DeviceLoop` with platform-check routing) and condition examples from production apps.
 
-```yaml
-conditions:
-    has_detection:
-        next:
-            - GetDetectionDetails
-        cel_expression: data['detection_id'] != null && data['detection_id'] != ''
-        display:
-            - Detection ID was provided
-        else:
-            - PrintSummary
-```
+## Join Resolution & Cyclic References
 
-See [references/workflow-examples.md](references/workflow-examples.md) for full loop and condition examples from production apps.
+Falcon Fusion SOAR builds a DAG. A node inside a parallel branch MUST NOT reach a downstream join **both directly and through a child** — Falcon Fusion SOAR reads that as a cycle and fails the deploy:
+
+❌ `A.next: [Join, B]` + `B.next: [Join]` → `2001 cyclic reference to previously seen node … FROM_B_TO_parallel_A`
+
+**Fix: linearize.** Make every node whose output a consumer reads a *single-path ancestor* of that consumer — `A → B → Join`. The pill from `A` still reaches `Join` because `A` stays an ancestor.
+
+> **Silent variant (no error):** a store/aggregator that reads a node `X`'s output (`${data['X.<field>']}`) when `X` sits on a **diamond fork** resolves **EMPTY** at the join — the pill comes back blank, not an error, which is very hard to diagnose. Same rule, same fix: any node whose output you read must be a single-path ancestor of the reader, never a shared fork.
+
+> **A consumer can only read an ancestor's output.** A parallel branch whose `next:` chain never leads to the consumer deploys fine, yet its pill comes back blank there. Make the producer an ancestor of the consumer: add a direct `next:` edge when nothing else the producer feeds also reaches the consumer, and otherwise linearize as above, since a direct edge plus a path through a sibling is the `2001` cycle.
+
+See [Diamond Joins](references/advanced-patterns.md#diamond-joins--the-2001-cyclic-reference) for a worked diamond showing the failure and the linearized rewrite.
 
 ## The "0" Gotcha
 
@@ -331,25 +147,17 @@ Workflow names must be unique across all apps in the same tenant. If two apps de
 
 ## NEVER Delete and Recreate Workflows
 
-> **⚠️ DANGER:** Deleting a workflow and recreating it with the same name causes cascading failures requiring a fresh app to recover.
+Removing a workflow from the manifest does NOT delete its server-side artifact — recreating with the same name → `409 name must be unique for an app`, and a once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys. **Update in place instead**: keep the manifest entry and its name, edit the YAML, and redeploy; to re-bind to a recreated function, update the `id: functions.{name}.{handler}` reference. Only delete a workflow if you truly won't recreate it with the same name. If an in-place structural edit hits a 409, use the sticky-409 recipe below. A `400 dependent artifact failed` is different: the failed artifact blocks every later deploy of the app, and recovery means a fresh app (see `ai-agents-development`'s `references/workflow-invocation.md`).
 
-Removing a workflow from the manifest does NOT delete its server-side artifact. Recreating with the same name → `409 name must be unique for an app`. A once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys.
+### Sticky-409 recovery (structural change re-provisions and 409s)
 
-**Instead, update in place** — edit the workflow YAML and redeploy. To re-bind a workflow to a recreated function, update the `id: functions.{name}.{handler}` reference in the YAML. Only delete a workflow if you genuinely no longer need it and won't recreate it with the same name.
+A structural edit that re-provisions a workflow (a new action, an edited `next`/edge, an added trigger parameter) can fail with `Duplicate workflow name (409)` / `system definition with id … already provisioned on cid …`. **Deleting the Falcon Fusion SOAR workflow does NOT free the name — a used name stays reserved**, so re-deploying the same name keeps 409ing. The reliable escape is to **rename to a brand-new unique name AND strip the `id`** (do both; either one alone still 409s) — the full step-by-step recovery is in [references/advanced-patterns.md](references/advanced-patterns.md#sticky-409-recovery).
 
 ## Workflow Sharing
 
-```yaml
-workflows:
-  - name: my-workflow
-    path: workflows/my-workflow/workflow.yaml
-    workflow_integration:
-      id: <generated-id>
-      disruptive: false
-      system_action: false   # false = available as a Fusion SOAR response action; true = internal app use only
-```
+Declare workflow sharing with a `workflow_integration` block on the manifest `workflows:` entry — `id`, `disruptive: false`, and `system_action`.
 
-> **⚠️ SOAR action visibility:** `system_action: false` = workflow appears as a Fusion SOAR response action (analysts trigger from detections/incidents). `system_action: true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
+> **⚠️ SOAR action visibility:** `system_action: false` = appears as a Falcon Fusion SOAR response action (analysts trigger from detections/incidents); `true` = internal app use only (scheduled sync, helpers). If the user asks for a "SOAR action" or "response action", use `false`.
 
 ## Error Handling
 
@@ -366,23 +174,18 @@ See [references/advanced-patterns.md](references/advanced-patterns.md) for workf
 | Reading alerts/detections: Event Query vs. source-of-truth API | [references/event-query-vs-api.md](references/event-query-vs-api.md) |
 | Full workflow examples (RTR, investigation) | [references/workflow-examples.md](references/workflow-examples.md) |
 | Platform action discovery via API | [references/action-discovery.md](references/action-discovery.md) |
-| CEL expressions (patterns, has() vs null, extensions) | [references/cel-expressions.md](references/cel-expressions.md) |
-| CEL syntax, schemaless queries, dynamic data | [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/) |
-| CEL extension functions reference | [Data Transformation Functions](https://docs.crowdstrike.com/r/k223d842) |
+| CEL expressions (patterns, has() vs null, extensions, schemaless, extension functions) | [references/cel-expressions.md](references/cel-expressions.md) |
 | Pagination strategies | [references/pagination-patterns.md](references/pagination-patterns.md) |
 | HTTP Actions (call REST APIs without an app) | [references/http-actions.md](references/http-actions.md) |
 | Error handling, HTTP Request actions, parameterized fields, counter-rationalizations | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
 
-For real-world implementation patterns, see:
-- `use-cases/schemaless-queries.md` — CEL expressions, dynamic data, Event Query configuration
-- `use-cases/api-pagination.md` — Pagination strategies in functions and workflows
-- `use-cases/custom-soar-actions.md` — Custom Falcon Fusion SOAR actions
+Real-world patterns: `use-cases/schemaless-queries.md` (CEL, Event Query config), `use-cases/api-pagination.md` (pagination in functions and workflows), `use-cases/custom-soar-actions.md` (custom Falcon Fusion SOAR actions).
 
 ## Reference Implementations
 
-- **[foundry-sample-threat-intel](https://github.com/CrowdStrike/foundry-sample-threat-intel)**: Threat intelligence workflows with pagination
-- **[foundry-sample-rapid-response](https://github.com/CrowdStrike/foundry-sample-rapid-response)**: Rapid response automation
-- **[foundry-sample-scalable-rtr](https://github.com/CrowdStrike/foundry-sample-scalable-rtr)**: Scalable RTR orchestration
-- **[foundry-sample-ngsiem-importer](https://github.com/CrowdStrike/foundry-sample-ngsiem-importer)**: Threat intel import for NG-SIEM
+- [foundry-sample-threat-intel](https://github.com/CrowdStrike/foundry-sample-threat-intel) — threat-intel workflows + pagination
+- [foundry-sample-rapid-response](https://github.com/CrowdStrike/foundry-sample-rapid-response) — rapid-response automation
+- [foundry-sample-scalable-rtr](https://github.com/CrowdStrike/foundry-sample-scalable-rtr) — scalable RTR orchestration
+- [foundry-sample-ngsiem-importer](https://github.com/CrowdStrike/foundry-sample-ngsiem-importer) — NG-SIEM threat-intel import

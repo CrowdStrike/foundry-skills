@@ -234,7 +234,7 @@ Between capability phases, verify:
 
 ## Workflow YAML Action ID Patterns
 
-For action IDs in workflow YAML, use the `api_integrations.{name}.{operationId}` pattern for API integration operations. Do NOT guess platform action docIDs (e.g., `send_email`, `log`). If the workflow needs platform actions, set `provision_on_install: false` and add a TODO comment -- the user will configure these in the Falcon console's App Builder.
+For action IDs in workflow YAML, use the `api_integrations.{name}.{operationId}` pattern for API integration operations. Do NOT guess platform action docIDs (e.g., `send_email`, `log`). Look up platform action IDs with `foundry workflows actions view --name "..." --no-prompt` and keep `provision_on_install: true`. Only when an action ID can't be found, set `provision_on_install: false` and add a TODO comment so the user configures that action in the Falcon console's App Builder (see `workflows-development`).
 
 ## Deployment Nuance
 
@@ -246,7 +246,7 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 
 1. **Configure credentials** — copy `.env.sample` to `.env` in the `e2e/` directory and fill in valid Falcon credentials (username, password, TOTP secret, base URL) and app name. `APP_NAME` defaults to the repo name. `FALCON_` credentials must be for a non-SSO user because TOTP is used in e2e tests. This file is gitignored and required for local test runs.
 
-2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Remember to `git checkout manifest.yml` after deploy to revert ID changes.
+2. **Align the app name** — the manifest `name` and the e2e test `APP_NAME` environment variable (in `.env`) must match for local test runs. CI pipelines typically rewrite the manifest name automatically (e.g., `${REPO}-ci-${PIPELINE_ID}`), so this only affects local development. Preferred approach: update the manifest `name` to match the repo name (e.g., `foundry-sample-logscale`) to avoid spaces and simplify artifact lookup. Step 5 cleans up after the run.
 
 3. **Deploy and release:**
 
@@ -260,4 +260,103 @@ When running e2e tests against a CrowdStrike/foundry-sample-* app on GitHub:
 
 4. **Run tests:** `cd e2e && npm test`
 
-5. **Revert manifest:** `git checkout manifest.yml` (deploy writes IDs into the manifest)
+5. **Delete the test app, then revert the manifest:** from the app root, run `foundry apps delete --force-delete --no-prompt` while `manifest.yml` still has the deployed IDs (the reference sample's CI does the same), then `git checkout manifest.yml`. Reverting without deleting orphans the app, and the next deploy fails with `an app with the provided name already exists`. **This revert applies ONLY to throwaway e2e runs of the public `foundry-sample-*` repos, which commit blanked IDs so the app installs into any CID. For an app you own and operate, do the OPPOSITE — commit the IDs the first deploy writes back (see `SKILL.md` → Manifest Coordination); reverting them breaks the next deploy, which fails with `an app with the provided name already exists` (see `debugging-workflows` → Manifest Issues).**
+
+## Capability Create Commands
+
+Full capability-create sequence (from `SKILL.md` → App Creation Flow → Step 5). Run in dependency order: knowledge bases before agents, and agents before the workflows that call them. Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs.
+
+```bash
+# 1. API integrations — delegate spec work to api-integrations sub-skill
+#    IMPORTANT: Download specs inline with gh/curl. Do NOT spawn Explore agents for spec download.
+foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/MyApi.yaml --no-prompt
+
+# 2. Collections (names: letters, numbers, underscores ONLY)
+foundry collections create --name "my_col" --schema /tmp/my_schema.json --description "desc" --no-prompt
+
+# 3. VALIDATE EARLY — fail fast if specs or schemas are bad
+foundry apps validate --no-prompt
+# If validation fails, STOP. Fix the spec/schema — do not build UI on a broken backend.
+# The adapt script handles known spec issues. If one remains, patch only that spot and tell the user what the script missed.
+
+# 4. Functions
+foundry functions create --name "my-fn" --language python --description "desc" \
+  --handler-name process --handler-method POST --handler-path /api/process --no-prompt
+
+# 5. Knowledge bases BEFORE agents — the agent create command validates KB refs.
+#     --files is required with --no-prompt (accepts local paths or HTTP(S) URLs).
+foundry knowledge-bases create --name "Runbook Docs" --description "desc" \
+  --files /tmp/runbook.md --no-prompt
+
+# 6. AI agents — reference KBs by NAME. Exposure is set with --expose-* flags;
+#     see ai-agents-development for the model/tools manifest hand-edits.
+foundry agents create --name "My Agent" --description "desc" \
+  --system-prompt /tmp/system_prompt.md \
+  --knowledge-bases "Runbook Docs" --expose-charlotte-chat --no-prompt
+
+# 7. Workflows — MUST load workflows-development sub-skill before writing the spec file.
+#    After agents, so a workflow can call one by its ai_agents.<name> alias.
+foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
+
+# 8. UI pages (standalone full-page views)
+foundry ui pages create --name "my-page" --description "desc" --from-template React --homepage --no-prompt
+foundry ui navigation add --name "My Page" --path / --ref pages.my-page
+
+# 8b. UI extensions (sidebar widgets embedded in detection/host/incident pages)
+# Run `foundry ui extensions list-sockets` to see available socket IDs
+foundry ui extensions create --name "my-ext" --description "desc" --from-template React --sockets "activity.detections.details" --no-prompt
+```
+
+**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Let `adapt_spec_for_foundry.py` fix spec issues; if it misses one, patch only that spot and tell the user what it missed.
+
+## Sub-Skill Loading
+
+Load the relevant sub-skill before writing domain-specific code (from `SKILL.md` → App Creation Flow → Step 6). Foundry formats and SDK calls differ from what general knowledge suggests; these are the failures seen when the sub-skill wasn't loaded:
+
+| Writing... | Load | What goes wrong without it |
+|---|---|---|
+| Workflow YAML | `workflows-development` | Invented `definition/node_types/sdk_type` format instead of correct `trigger` + `actions` with `version_constraint` |
+| Function code calling Falcon APIs | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` instead of FalconPy SDK classes (`from falconpy import Hosts`) |
+| Function code calling a third-party API (Slack, Jira, PagerDuty, etc.) | `functions-falcon-api` + check `use-cases/` | Invented `falcon.command("createNotification")` or raw HTTP calls instead of `APIIntegrations().execute_command(definition_id="...", operation_id="...")`. The app MUST have an API integration (OpenAPI spec) for the service, then call it from the function via FalconPy `APIIntegrations` class. See foundry-sample-functions-python for reference. |
+| Function code accessing collections | `collections-development` | Invented REST endpoints for collection CRUD instead of FalconPy `CustomStorage` service class |
+| AI agent or knowledge base manifest | `ai-agents-development` | Invented `model` values, wrong `tools` reference format, or agents created before the knowledge bases they reference (fails validation) |
+
+## Deploy & Release
+
+Operational depth behind `SKILL.md` → App Creation Flow → Step 7.
+
+> **`foundry apps deploy --re-deploy` retries the latest failed deployment** (`--help`). It's for retrying that deployment, not for shipping a new edit: to test an edit, run a plain `foundry apps deploy`.
+
+**Patch releases update an installed app in place**; no reinstall. Enter or rotate API integration credentials, including for an integration added in a later patch, under **App catalog > the app > ⋮ > Modify settings**. That option only exists if the app had settings at first install. If ⋮ shows only **Uninstall app**, release with `--change-type Major`; **Accept update** then shows the credential form, and Modify settings works after that. Don't reinstall; dependent workflows can break.
+
+> **After an update, hard-refresh before you trust what you see.** The Falcon console iframe caches the built bundle, so a correctly released change can keep showing the old UI or logic until a hard refresh (Cmd/Ctrl+Shift+R). If a visual or behavioral change doesn't appear, hard-refresh first — do NOT re-deploy to "fix" it. Content-hashed asset names help, but the console shell still caches. To confirm the fix is in the package before assuming the deploy failed, use the `--diff-only` check under **Deploy never builds a UI** above.
+
+> **Three version numbers — don't conflate them.**
+> - **App Catalog version** (`v0.1.x`) — bumped by `foundry apps release --change-type`; authoritative; what App Manager shows.
+> - **Pre-release deploy number** (`v0.1.x-pre-release`) — bumped by every `foundry apps deploy`, failed ones included; shown in `list-deployments`. It differs from the catalog version a release produces (see the release-numbering note above).
+> - **Any version string shown in the app's own UI** — cosmetic; set it to the version this release will produce, but it isn't the release number.
+>
+> `foundry apps release --deployment-id` takes the ID of a deployment record from `list-deployments`; the catalog version it produces is not the deployment's number.
+
+## Multi-Cloud Deployment
+
+To deploy the same app to multiple clouds (US-1, US-2, US-3, EU-1, etc.):
+
+1. **Strip all IDs** before deploying to a new cloud — IDs are cloud-specific:
+   ```bash
+   yq -i 'del(.. | select(has("id")).id) | del(.. | select(has("app_id")).app_id)' manifest.yml
+   ```
+   This DELETES the keys entirely. Setting them to empty/null is NOT the same and will cause errors.
+
+2. **Switch profile** to the target cloud:
+   ```bash
+   foundry profile activate --name "eu-1-profile"
+   ```
+
+3. **Deploy and release** as normal.
+
+4. **Install from App Catalog** — after releasing on a new cloud, the app must be explicitly installed from the Falcon console App Catalog. It does NOT auto-install.
+
+5. **Wait for propagation** — installation may take several minutes before the page URL becomes accessible. A 404 on `/api2/ui-extensions/entities/pages/v1` immediately after install is normal; retry after a few minutes.
+
+**Important:** Back up your manifest before stripping IDs if you want to preserve the original cloud's IDs: `cp manifest.yml manifest.yml.backup`

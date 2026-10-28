@@ -161,7 +161,7 @@ class TestWorkflowDeletionWarning:
                "name must be unique" in content
 
     def test_recovery_cost_explained(self):
-        """Must explain that recovery often requires a fresh app."""
+        """A 400 dependent-artifact failure still means a fresh app; a 409 doesn't."""
         content = _read_skill(self.SKILL)
         assert "fresh app" in content or \
                "delete the entire app" in content or \
@@ -948,3 +948,109 @@ class TestDebuggingRecovery:
 
     def test_console_shell_noise(self):
         assert "deserializeSitemap" in _read_skill(self.SKILL)
+
+
+class TestCollectionsSdkExamples:
+    """foundry-js collections: falcon.collection() with write/read/delete/search/list.
+
+    The SDK has no Collection constructor taking a name and no create/get/update/
+    query methods (foundry-js 0.22.0 dist/abstraction/collection.d.ts).
+    """
+
+    FILES = ("skills/collections-development/SKILL.md",
+             "skills/collections-development/references/advanced-patterns.md")
+
+    def test_no_invented_collection_api(self):
+        for path in self.FILES:
+            content = _read_skill(path)
+            for bad in ("new Collection<", "collection.get(", "collection.query(",
+                        "collection.update(", "this.collection.create(", "readCollection"):
+                assert bad not in content, f"{path}: {bad} is not foundry-js"
+
+    def test_client_uses_the_real_api(self):
+        content = _read_skill(self.FILES[1])
+        assert "falcon.collection({ collection: 'incidents' })" in content
+        assert "obj?.errors?.[0]?.code === 404 || !obj?.created_at" in content
+        assert "## Schema Versioning" in content, "documented: v1.0 at creation, +1 per change"
+
+
+class TestOperatingAnInstalledApp:
+    """Iterating on a deployed app: keep its IDs, and know what --re-deploy does."""
+
+    SKILL = "skills/development-workflow/SKILL.md"
+    PATTERNS = "skills/development-workflow/references/advanced-patterns.md"
+
+    def test_commit_deploy_written_ids(self):
+        content = _read_skill(self.SKILL)
+        assert "COMMIT those" in content
+        assert "an app with the provided name already exists" in content
+        patterns = _read_skill(self.PATTERNS)
+        assert "`debugging-workflows` → Manifest Issues" in patterns
+        assert "foundry apps delete --force-delete --no-prompt" in patterns, "delete the e2e app before reverting"
+
+    def test_re_deploy_matches_help(self):
+        assert "retries the latest failed deployment" in _read_skill(self.PATTERNS)
+
+    def test_one_dependency_order(self):
+        content = _read_skill(self.SKILL)
+        assert "knowledge bases → agents → workflows" in content
+        patterns = _read_skill(self.PATTERNS)
+        assert patterns.index("foundry agents create") < patterns.index("foundry workflows create --name")
+
+
+class TestWorkflowRecoveryAndJoins:
+    """Sticky-409 recovery and join rules from apps that hit them.
+
+    A used workflow name stays reserved, so the escape is a new name plus a
+    removed id; and a consumer reads only an ancestor's output, so a direct
+    edge that also has a path through a sibling is the 2001 cycle.
+    """
+
+    SKILL = "skills/workflows-development/SKILL.md"
+
+    def test_sticky_409_recipe(self):
+        content = _read_skill(self.SKILL)
+        assert "rename to a brand-new unique name AND strip the `id`" in content
+        assert "an added trigger parameter, or a rename" not in content, "a rename is the fix, not a trigger"
+
+    def test_ancestor_rule_and_linearize_agree(self):
+        content = _read_skill(self.SKILL)
+        assert "A consumer can only read an ancestor's output" in content
+        assert "#diamond-joins--the-2001-cyclic-reference" in content
+        patterns = _read_skill("skills/workflows-development/references/advanced-patterns.md")
+        assert "## Diamond joins & the 2001 cyclic reference" in patterns, "anchor target heading"
+        assert "added trigger parameter, rename)" not in patterns, "a rename is the fix, not a trigger"
+
+
+class TestRbacWiring:
+    """RBAC examples an agent copies into manifest.yml must match the real format.
+
+    ui.pages is a map keyed by page ID and navigation links point at pages with
+    ref:, and permissions create rejects keys without a colon and descriptions
+    over 50 characters (CLI 2.1.2).
+    """
+
+    SKILL = "skills/security-patterns/SKILL.md"
+    EXAMPLES = "skills/security-patterns/references/security-examples.md"
+
+    def test_page_gates_use_the_manifest_map_form(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            content = _read_skill(path)
+            assert "ref: pages.dashboard" in content, path
+            assert not re.search(r"\n\s*pages:\n\s*- ", content), f"{path}: ui.pages is a map, not a list"
+            assert "content_security_policy:" in content, path
+            for bad in ("  csp:", "connect_src", "read_only: true"):
+                assert bad not in content, f"{path}: {bad} is not a manifest field"
+
+    def test_rollback_resets_gates_to_empty_lists(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            assert "permissions: []" in _read_skill(path), path
+
+    def test_permissions_create_limits_quote_the_cli(self):
+        content = _read_skill(self.SKILL)
+        assert "should be permission segments separated by :" in content
+        assert "input must be at most 50 characters long" in content
+
+    def test_rollback_keeps_deploy_written_ids(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            assert "Do NOT `git checkout manifest.yml`" in _read_skill(path), path
