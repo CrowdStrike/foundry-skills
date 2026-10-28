@@ -440,7 +440,7 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
   # Check for manual mkdir of app structure
   MANUAL_MKDIR=false
   if [ -s "$TOOLS_FILE" ]; then
-    if grep -qE 'mkdir.*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null; then
+    if grep -qE 'mkdir[^;&|]*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null; then
       echo "  ❌ Used mkdir for app structure (should use Foundry CLI)"
       MANUAL_MKDIR=true
     fi
@@ -730,7 +730,7 @@ for i in $(seq 1 $RUNS); do
     grep -qi "foundry apps init" "$TEXT_FILE" "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qi "switching.*oauth\|changed.*auth\|switch.*clientCredentials" "$TEXT_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qi "replace.*subdomain\|replace.*your-org\|replace.*okta\.com.*with" "$TEXT_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
-    grep -qE 'mkdir.*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
+    grep -qE 'mkdir[^;&|]*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qE 'touch manifest\.yml|echo.*>.*manifest\.yml|cat.*>.*manifest\.yml' "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
   fi
   # Count spec file reads as anti-pattern (token waste)

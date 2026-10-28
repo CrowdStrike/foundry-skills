@@ -244,7 +244,7 @@ fi
 
 # Check for forbidden manual directory/file creation
 FORBIDDEN_PATTERNS=(
-  'mkdir.*\b(api-integrations|workflows|functions|collections|ui|agents|knowledge-bases|knowledge_bases)\b'
+  'mkdir[^;&|]*\b(api-integrations|workflows|functions|collections|ui|agents|knowledge-bases|knowledge_bases)\b'
   'touch.*manifest\.yml'
   'mkdir.*\bapp\b.*&&.*touch.*manifest'
   'echo.*>.*manifest\.yml'
