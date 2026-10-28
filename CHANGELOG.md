@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 
 - **Upgrading template-installed apps** — new `app-upgrades` skill updates an app installed from a Falcon Foundry template to a newer version of the template, in place. Give it the app ID and a `.tar.gz`, `.zip`, directory, or `owner/repo[@ref]`, or let it find the template by name. It keeps the IDs of artifacts in both versions, lists what it adds and removes, asks before removing anything, then deploys and releases.
+- **Gating an app with RBAC** — `security-patterns` shows how a permission, its role, and the `permissions:` lists on pages, links, and collections fit together, and the limits `foundry auth permissions create` enforces. It also covers rolling RBAC out without locking yourself out, and rolling it back without losing the IDs a deploy wrote to `manifest.yml`.
 - **`xdr.cases.details` socket (CLI 2.1.2+)** — `ui-development` lists the new Next-Gen SIEM cases details socket, and the CLI guard accepts it. The table also fixes the label for `xdr.cases.panel`, which is the cases panel, not the details section.
 - **Scopes the CLI rejects** — `scopes add` rejects some valid names (`humio-auth-proxy:read` and the Falcon Next-Gen SIEM persisted aggregation scopes, as of CLI 2.1.2), so `security-patterns` says to add them to `auth.scopes` by hand. Adding a scope makes the next release a major version that users must accept. `development-workflow` and `AGENTS.md` list this edit, and renaming a deployed KB, as sanctioned manifest edits.
 - **Which identity makes the call** — `debugging-workflows` separates the CLI profile's API client, other API clients used by local scripts, and the installed app. The app's `auth.scopes` are the only scopes a function has, including under `exec` and `test`. A missing scope returns `403` for every input; an input error returns `404` or `400` (queryjobs is the exception).
@@ -49,6 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **Manifest examples in `security-patterns`** — the CSP and secure-manifest examples used a list for `ui.pages` and keys the CLI doesn't write (`csp:`, `connect_src`, `read_only`, an app-set iframe `sandbox`). They now use the page map, `content_security_policy`, and the field names the CLI writes in the sample apps.
 - **OpenAPI spec hook with quoted paths** — `api-integrations create` now checks specs passed as quoted paths, paths with escaped spaces, or `--spec=path` instead of skipping adaptation.
 - **OpenAPI import safety** — the hook no longer adapts a spec named inside another command's quoted text, and Swagger 2.0 specs are detected even when a long description comes before the version field.
 - **App-upgrade access controls** — the upgrade plan now requires confirmation when a template removes a role or permission definition, or changes permissions on an existing role or artifact, instead of silently treating the change as a safe add-only upgrade.
