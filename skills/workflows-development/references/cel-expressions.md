@@ -41,3 +41,49 @@ Falcon Fusion SOAR uses [Common Expression Language (CEL)](https://github.com/go
 CrowdStrike provides [custom CEL extensions](https://docs.crowdstrike.com/r/k223d842) including `cs.json.valid()`, `cs.json.decode()`, `cs.ip.valid()`, `cs.timestamp.now()`, and `cs.timestamp.parse()`. For complex transformations, the **Data Transformation Agent** (requires Charlotte AI) generates CEL expressions from plain language descriptions.
 
 For schemaless event queries and dynamic data handling patterns, see [Falcon Fusion SOAR Event Queries: When and How to Go Schemaless](https://www.crowdstrike.com/tech-hub/ng-siem/falcon-fusion-soar-event-queries-when-and-how-to-go-schemaless/).
+
+## Variable reference forms
+
+All references use `${data['...']}` syntax. The `action_key` is the YAML key of the action (e.g. `list_users`), NOT its `id`.
+
+| Syntax | Description |
+|--------|-------------|
+| `${data['action_key.API_Integration.Custom_Name.operationId.body']}` | Response body from an API integration action |
+| `${data['action_key.API_Integration.Custom_Name.operationId.body']}[0].field` | A field in the first element of an array response |
+| `${data['action_key.output.field']}` | Field from a platform action's output |
+| `${data['action_key.response']}` | Reply from an app's own AI agent (`ai_agents.<agent name>`); no `.output` segment. A `json_with_schema` agent has no `response`: use `${data['action_key.<schema field>']}` |
+| `${data['action_key.FaaS.<function>.<handler>.<field>']}` | Function action output; a loop item's field is `...<field>.#.<item field>` |
+| `${data['param_name']}` | On-demand trigger parameter value (name directly, no prefix) |
+
+The integration name in the path is `Custom_{name}` where `{name}` is the `api_integrations` manifest `name` (spaces become underscores). Copy exact paths from the editor's **Workflow data** panel.
+
+### Null-safe and array access
+
+```yaml
+# Null-safe field access — optional pattern (preferred)
+"${data[?'action.field'].orValue(\"default\")}"
+
+# Traditional null check
+"${data['action.field'] != null ? data['action.field'] : \"default\"}"
+
+# Array element access (index goes INSIDE the ${...}, not after it)
+"${data['action.API_Integration.Custom_Name.op.body'][0]}"
+```
+
+## Null-guard trigger parameters
+
+When run from the Falcon console the UI prompts for parameters, but via API or from another workflow they may be empty. Guard with a `conditions:` branch:
+
+```yaml
+conditions:
+    check_param:
+        cel_expression: "data['param_name'] != null && data['param_name'] != ''"
+        next:
+            - use_param
+        display:
+            - param_name was provided
+        else:
+            - handle_missing
+```
+
+Or inline in CEL: `${data[?'param'].orValue("default")}` (preferred) or `${data['param'] != null ? data['param'] : "default"}` (traditional).
