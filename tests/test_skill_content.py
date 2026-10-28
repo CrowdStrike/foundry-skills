@@ -161,7 +161,7 @@ class TestWorkflowDeletionWarning:
                "name must be unique" in content
 
     def test_recovery_cost_explained(self):
-        """Must explain that recovery often requires a fresh app."""
+        """A 400 dependent-artifact failure still means a fresh app; a 409 doesn't."""
         content = _read_skill(self.SKILL)
         assert "fresh app" in content or \
                "delete the entire app" in content or \
@@ -952,3 +952,61 @@ class TestOperatingAnInstalledApp:
         assert "knowledge bases → agents → workflows" in content
         patterns = _read_skill(self.PATTERNS)
         assert patterns.index("foundry agents create") < patterns.index("foundry workflows create --name")
+
+
+class TestWorkflowRecoveryAndJoins:
+    """Sticky-409 recovery and join rules from apps that hit them.
+
+    A used workflow name stays reserved, so the escape is a new name plus a
+    removed id; and a consumer reads only an ancestor's output, so a direct
+    edge that also has a path through a sibling is the 2001 cycle.
+    """
+
+    SKILL = "skills/workflows-development/SKILL.md"
+
+    def test_sticky_409_recipe(self):
+        content = _read_skill(self.SKILL)
+        assert "rename to a brand-new unique name AND strip the `id`" in content
+        assert "an added trigger parameter, or a rename" not in content, "a rename is the fix, not a trigger"
+
+    def test_ancestor_rule_and_linearize_agree(self):
+        content = _read_skill(self.SKILL)
+        assert "A consumer can only read an ancestor's output" in content
+        assert "#diamond-joins--the-2001-cyclic-reference" in content
+        patterns = _read_skill("skills/workflows-development/references/advanced-patterns.md")
+        assert "## Diamond joins & the 2001 cyclic reference" in patterns, "anchor target heading"
+        assert "added trigger parameter, rename)" not in patterns, "a rename is the fix, not a trigger"
+
+
+class TestRbacWiring:
+    """RBAC examples an agent copies into manifest.yml must match the real format.
+
+    ui.pages is a map keyed by page ID and navigation links point at pages with
+    ref:, and permissions create rejects keys without a colon and descriptions
+    over 50 characters (CLI 2.1.2).
+    """
+
+    SKILL = "skills/security-patterns/SKILL.md"
+    EXAMPLES = "skills/security-patterns/references/security-examples.md"
+
+    def test_page_gates_use_the_manifest_map_form(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            content = _read_skill(path)
+            assert "ref: pages.dashboard" in content, path
+            assert not re.search(r"\n\s*pages:\n\s*- ", content), f"{path}: ui.pages is a map, not a list"
+            assert "content_security_policy:" in content, path
+            for bad in ("  csp:", "connect_src", "read_only: true"):
+                assert bad not in content, f"{path}: {bad} is not a manifest field"
+
+    def test_rollback_resets_gates_to_empty_lists(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            assert "permissions: []" in _read_skill(path), path
+
+    def test_permissions_create_limits_quote_the_cli(self):
+        content = _read_skill(self.SKILL)
+        assert "should be permission segments separated by :" in content
+        assert "input must be at most 50 characters long" in content
+
+    def test_rollback_keeps_deploy_written_ids(self):
+        for path in (self.SKILL, self.EXAMPLES):
+            assert "Do NOT `git checkout manifest.yml`" in _read_skill(path), path
