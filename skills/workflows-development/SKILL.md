@@ -46,7 +46,7 @@ foundry workflows triggers view --no-prompt                                 # Li
 
 ### Trigger + Actions Format (standard)
 
-This is the format produced by `foundry workflows create` and used by all production Foundry sample apps — a `trigger:` (with `next:` naming the first action) plus an `actions:` map where each action carries an `id`, `properties`, `version_constraint`, and optional `next:`, closing with `output_fields: []`. See [references/workflow-examples.md](references/workflow-examples.md#standard-trigger-actions-format) for the full canonical YAML (on-demand Okta list → print).
+This is the format produced by `foundry workflows create` and used by many Foundry sample apps — a `trigger:` (with `next:` naming the first action) plus an `actions:` map where each action carries an `id`, `properties`, `version_constraint`, and optional `next:`, closing with `output_fields: []`. See [references/workflow-examples.md](references/workflow-examples.md#standard-trigger-actions-format) for the full canonical YAML (on-demand Okta list → print).
 
 **Trigger types:**
 

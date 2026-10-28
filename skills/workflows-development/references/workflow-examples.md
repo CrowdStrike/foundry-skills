@@ -2,7 +2,7 @@
 
 > Parent skill: [workflows-development](../SKILL.md)
 
-Real production examples from foundry-sample repos. All examples use the actual Fusion YAML schema: `trigger` + `actions` + optional `loops`/`conditions`.
+Real examples from the foundry-sample repos. All examples use the actual Fusion YAML schema: `trigger` + `actions` + optional `loops`/`conditions`.
 
 ## Simple On-Demand Workflow
 
@@ -358,7 +358,7 @@ The `get-channel-config` function reads from the collection using the `CustomSto
 
 ## Standard trigger actions format
 
-The format produced by `foundry workflows create`, used by all production Foundry sample apps:
+The format produced by `foundry workflows create`, used by many Foundry sample apps:
 
 ```yaml
 name: list-okta-users
