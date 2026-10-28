@@ -244,14 +244,14 @@ Verifies apps created by `test-skill.sh` or A/B tests — analyzes OpenAPI specs
 ```bash
 ./run-ab-test.sh                   # 5 runs per phase (baseline: main)
 ./run-ab-test.sh 1                 # Quick single run per phase
-./run-ab-test.sh 5 --ref v1.6.0    # Compare against a specific release tag
+./run-ab-test.sh 5 --ref v1.0.0    # Compare against a specific release tag
 ./run-ab-test.sh --no-skill        # No plugin vs local plugin (1 run each)
 ```
 
 To compare against the last release with a fresh baseline, without macOS sleeping mid-run:
 
 ```bash
-caffeinate -i ./run-ab-test.sh --ref v1.6.0 --fresh 5
+caffeinate -i ./run-ab-test.sh --ref "$(git describe --tags --abbrev=0)" --fresh 5
 ```
 
 Compares baseline ref skills (RED) against local branch skills (GREEN). The `--ref` flag accepts any git ref (tag, branch, commit SHA) and defaults to `main`. Results saved to `/tmp/foundry-skill-ab/baseline.json` and `/tmp/foundry-skill-ab/optimized.json`.
