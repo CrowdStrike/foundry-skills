@@ -930,6 +930,26 @@ class TestScopeTableCasesAndRtr:
         assert "`real-time-response-admin:write`" in content
 
 
+class TestDebuggingRecovery:
+    """Recovery steps an agent follows when a release looks wrong or gets stuck."""
+
+    SKILL = "skills/debugging-workflows/SKILL.md"
+
+    def test_missing_ui_fix_means_rebuild(self):
+        content = _read_skill(self.SKILL)
+        assert "### Confirm a Fix Is in the Built Bundle" in content
+        assert "run `npm run build` in that UI directory" in content
+
+    def test_jammed_release_escape_names_its_costs(self):
+        content = _read_skill(self.SKILL)
+        section = content[content.index("### Jammed Release Pipeline"):]
+        assert "an app with the provided name already exists" in section
+        assert "collections start empty" in section
+
+    def test_console_shell_noise(self):
+        assert "deserializeSitemap" in _read_skill(self.SKILL)
+
+
 class TestCollectionsSdkExamples:
     """foundry-js collections: falcon.collection() with write/read/delete/search/list.
 
