@@ -234,7 +234,7 @@ Between capability phases, verify:
 
 ## Workflow YAML Action ID Patterns
 
-For action IDs in workflow YAML, use the `api_integrations.{name}.{operationId}` pattern for API integration operations. Do NOT guess platform action docIDs (e.g., `send_email`, `log`). If the workflow needs platform actions, set `provision_on_install: false` and add a TODO comment -- the user will configure these in the Falcon console's App Builder.
+For action IDs in workflow YAML, use the `api_integrations.{name}.{operationId}` pattern for API integration operations. Do NOT guess platform action docIDs (e.g., `send_email`, `log`). Look up platform action IDs with `foundry workflows actions view --name "..." --no-prompt` and keep `provision_on_install: true`. Only when an action ID can't be found, set `provision_on_install: false` and add a TODO comment so the user configures that action in the Falcon console's App Builder (see `workflows-development`).
 
 ## Deployment Nuance
 
