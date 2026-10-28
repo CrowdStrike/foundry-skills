@@ -232,15 +232,16 @@ For UI pages that need to load external resources, configure Content Security Po
 ```yaml
 ui:
   pages:
-    - name: my-page
-      csp:
-        connect_src:
-          - "'self'"
-          - "https://api.example.com"
-        img_src:
-          - "'self'"
-          - "data:"
-          - "https://images.example.com"
+    my_page:                       # map keyed by page ID; path and entrypoint are CLI-written
+      name: my-page
+      path: ui/pages/my-page/src/dist
+      entrypoint: ui/pages/my-page/src/dist/index.html
+      content_security_policy:
+        connect-src:
+          - https://api.example.com
+        img-src:
+          - https://images.example.com
+      permissions: []
 ```
 
 ## Additional Reference Implementations

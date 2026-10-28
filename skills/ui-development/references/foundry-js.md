@@ -19,18 +19,20 @@ await falcon.connect(); // MUST complete before any SDK calls
 // Create a reference (reusable)
 const collection = falcon.collection({ collection: 'demo_items' });
 
-// Write
-await collection.write({ key: 'item-1', data: { name: 'Test', value: 42 } });
+// Write (creates or overwrites the object at this key)
+await collection.write('item-1', { name: 'Test', value: 42 });
 
 // Read
-const item = await collection.read({ key: 'item-1' });
+const item = await collection.read('item-1');
 
-// List/Search with FQL
-const results = await collection.search({ filter: "name:'Test'" });
+// Search with FQL (indexable fields only)
+const results = await collection.search({ filter: "name:'Test'", sort: 'name|asc', limit: 50, offset: '0' });
 
 // Delete
-await collection.delete({ key: 'item-1' });
+await collection.delete('item-1');
 ```
+
+`write`, `read`, and `delete` take the key as a plain string. The SDK doesn't throw on a validation failure, so check `result?.errors?.length` after a write. See `collections-development` for the not-found envelope `read` returns for a missing key.
 
 **Gotcha:** Add 50ms delays between sequential reads to avoid rate limiting in rapid operations.
 
@@ -54,83 +56,91 @@ const statusCode = resource?.status_code;    // HTTP status from the external AP
 const body = resource?.response_body;         // Parsed response body
 ```
 
+**Gotcha — parameter types must match the OpenAPI spec.** `execute()` types params as `Record<string, unknown>`, so a quoted number compiles and ships, then fails server-side at runtime with `got string want integer`; the extension still renders, so it reads as an API/credential error, not a code bug. Check each parameter's `schema.type` — numbers and booleans unquoted, only `type: string` takes quotes (`{ query: { limit: 25 } }` ✅, `{ query: { limit: '25' } }` ❌).
+
 UI extensions run in sandboxed iframes and cannot make arbitrary HTTP requests. All external API calls must go through `falcon.apiIntegration()`. See [calling-patterns.md](../../api-integrations/references/calling-patterns.md) for calling API integrations from Python and Go functions.
 
 ## Workflow Execution (Async Polling)
 
-Workflows are asynchronous — trigger then poll for completion:
+Workflows are asynchronous. Trigger an on-demand workflow by name through `falcon.api.workflows`, then poll for the result:
 
 ```typescript
-async function executeWorkflow(falcon: FalconApi, workflowId: string, input: object) {
-  // Trigger
-  const trigger = await falcon.workflow({ id: workflowId }).execute({ body: input });
-  const executionId = trigger.execution_id;
+async function executeWorkflow(falcon: FalconApi, name: string, input: Record<string, unknown>) {
+  // The SDK's generated body type is Record<string, never>, so cast the input.
+  const trigger = await falcon.api.workflows.postEntitiesExecuteV1(input as Record<string, never>, { name, depth: 0 });
+  const executionId = trigger.resources?.[0] as string | undefined;
+  if (!executionId) throw new Error('No execution ID returned');
 
-  // Poll (up to 20 attempts, ~1s intervals)
   for (let i = 0; i < 20; i++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    const status = await falcon.workflow({ id: workflowId }).status({ executionId });
-
-    if (status.state === 'Completed') return status.result;
-    if (status.state === 'Failed' || status.state === 'Cancelled') {
-      throw new Error(`Workflow ${status.state}: ${status.error || 'unknown'}`);
-    }
+    const result = await falcon.api.workflows.getEntitiesExecutionResultsV1({ ids: [executionId] });
+    const status = result.resources?.[0]?.status;
+    if (status === 'Completed') return result.resources[0];
+    if (status === 'Failed' || status === 'Cancelled') throw new Error(`Workflow ${status}`);
   }
   throw new Error('Workflow timed out after 20 attempts');
 }
 ```
 
+The workflow name must match exactly; names are unique per CID. Each activity's output is in the `resources[0].activities` array; find one by its `node_id`.
+
 ## LogScale Operations
 
+The SDK types `logscale.write` with a second `properties` argument and marks its shape as unsettled; the foundryjs-demo sample calls it with the event alone, as below.
+
+<!-- snippet-check: skip -->
 ```typescript
-// Write events
-await falcon.logscale.write({
-  data: [{ message: 'User logged in', userId: '123', timestamp: Date.now() }]
-});
+// Write an event; the response reports resources[0].rows_written
+await falcon.logscale.write({ message: 'User logged in', userId: '123' });
 
 // Dynamic query
 const results = await falcon.logscale.query({
-  query: '#event_simpleName=ProcessRollup2 | count()',
-  start: '-1h',
-  end: 'now'
+  name: 'LogScaleRepo',
+  search_query: '#event_simpleName=ProcessRollup2 | count()',
+  start: '1h',
+  end: 'now',
 });
 
-// Execute saved query by ID
-const saved = await falcon.logscale.savedQuery({ id: 'saved-query-id' });
+// Saved query by ID
+const saved = await falcon.logscale.savedQuery({ id: 'saved-query-id', start: '7d', mode: 'sync', parameters: {} });
 ```
 
 **Scopes:** `humio-auth-proxy:read` for queries, `humio-auth-proxy:write` for writing events.
 
 ## Cloud Functions
 
-Call serverless functions deployed with your app:
+Call serverless functions deployed with your app. `cloudFunction()` requires a definition, `{ name }` or `{ id }`, with an optional `version`:
 
 ```typescript
-const response = await falcon.cloudFunction()
-  .path('/my-endpoint')
-  .post({ key: 'value' });
+const fn = falcon.cloudFunction({ name: 'my-function' });
 
-// GET with query params
-const data = await falcon.cloudFunction()
-  .path('/items')
-  .query({ limit: '10', offset: '0' })
-  .get();
+const response = await fn.path('/my-endpoint').post({ key: 'value' });
+
+// Query parameters go in the path
+const data = await fn.path('/items?limit=10&offset=0').get();
 ```
 
+`path()` returns `get`, `post`, `put`, `patch`, and `delete`.
+
 Use cloud functions as an escape hatch when you need to call Falcon API endpoints outside the allowlisted `falcon.api` namespaces.
+
+**Invoke by `name`, not `id` — clone-portable.** `falcon.cloudFunction({ name })` resolves at runtime and survives an app clone; a hardcoded `id` (and any hardcoded page-ID constants used for cross-page nav) point at the ORIGINAL app's IDs after a clone, because Falcon Foundry gives a cloned app new IDs.
 
 ## Events (Inter-Extension Communication)
 
 ```typescript
 // Listen for console context changes (e.g., detection selected)
-const handler = (data: any) => { console.log('Context:', data); };
-falcon.events.on('data', handler);
+const onData = (data: any) => { console.log('Context:', data); };
+falcon.events.on('data', onData);
 
-// Broadcast between extensions on the same page
-falcon.events.broadcast({ type: 'refresh', payload: { id: '123' } });
+// Broadcast to other extensions on the same page, and listen for theirs
+falcon.sendBroadcast({ type: 'refresh', payload: { id: '123' } });
+const onBroadcast = (payload: unknown) => { console.log('Broadcast:', payload); };
+falcon.events.on('broadcast', onBroadcast);
 
 // Always clean up listeners
-falcon.events.off('data', handler);
+falcon.events.off('data', onData);
+falcon.events.off('broadcast', onBroadcast);
 ```
 
 ## Navigation Gotchas
@@ -185,19 +195,18 @@ function ExternalLink({ href, children, newTab = true }) {
 
 **Note:** `falcon.navigation.onClick(event.nativeEvent)` is deprecated. Use `navigateTo({ path })` instead — it accepts a URL string directly, no native event required.
 
-## Modal Page IDs
+## Modals
 
-When opening modals, you need the **auto-generated 32-character hex ID** from the deployed manifest, not the page key from your source manifest:
+Open a page or extension as a modal with `falcon.ui.openModal`, identifying it by `name` (or `id`) and its type:
 
 ```typescript
-// Wrong — this is your source manifest key
-falcon.navigation.openModal({ pageId: 'my-modal-page' });
+const result = await falcon.ui.openModal({ type: 'page', name: 'my-modal-page' }, 'Edit settings', { size: 'lg' });
 
-// Correct — use the hex ID from the exported/deployed manifest
-falcon.navigation.openModal({ pageId: 'a1b2c3d4e5f6...' });
+// Inside the modal, return a value to the opener
+falcon.ui.closeModal({ saved: true });
 ```
 
-**How to find it:** Export the deployed manifest or check the `app_id`-suffixed page entries after deploy.
+Opening by `name` survives an app clone, like `cloudFunction({ name })`.
 
 ## Theme Best Practices
 
