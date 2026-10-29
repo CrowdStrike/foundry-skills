@@ -58,6 +58,8 @@ foundry ui extensions create --name "my-ext" --description "Description" --from-
 
 The blueprint output is deterministic — see [references/blueprint-templates.md](references/blueprint-templates.md) for exact file contents, Shoelace import patterns, and API integration calling examples.
 
+**Editing a React blueprint:** put the UI in `src/routes/home.jsx`, which gets `falcon` from `useContext(FalconApiContext)` (imported from `../contexts/falcon-api-context`). The other scaffolded files (`app.jsx`, `index.html`, the context, `package.json`, `vite.config.js`, `styles.css`, `routes/about.jsx`, the `components/`) work as generated, so you don't need to read them first. Import Shoelace React wrappers from `@shoelace-style/shoelace/dist/react` (for example, `import { SlButton, SlSpinner } from "@shoelace-style/shoelace/dist/react";`).
+
 > **🚫 DO NOT MODIFY `path` or `entrypoint` in manifest.yml**
 >
 > The CLI sets `path` and `entrypoint` correctly during scaffolding. **Never edit these values.** The correct CLI-generated format uses full paths from the app root:

@@ -155,7 +155,25 @@ cd app-name
 
 ### Step 5: Add Capabilities (CLI Commands)
 
-Run in dependency order (**API integrations → collections → validate → functions → knowledge bases → agents → workflows → UI pages → extensions**). Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs. The full annotated command sequence for every capability is in [references/advanced-patterns.md](references/advanced-patterns.md) → **Capability Create Commands**.
+Run in dependency order (**API integrations → collections → validate → functions → knowledge bases → agents → workflows → UI pages → extensions**). Write spec/schema files to `/tmp/` — the CLI copies them into the project and updates `manifest.yml` with generated IDs.
+
+```bash
+foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/MyApi.yaml --no-prompt
+foundry collections create --name "my_col" --schema /tmp/my_schema.json --description "desc" --no-prompt  # letters, digits, _ only
+foundry apps validate --no-prompt   # fail fast on specs and schemas
+foundry functions create --name "my-fn" --language python --description "desc" \
+  --handler-name process --handler-method POST --handler-path /api/process --no-prompt
+foundry knowledge-bases create --name "Runbook Docs" --description "desc" --files /tmp/runbook.md --no-prompt
+foundry agents create --name "My Agent" --description "desc" --system-prompt /tmp/system_prompt.md \
+  --knowledge-bases "Runbook Docs" --expose-charlotte-chat --no-prompt
+foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
+foundry ui pages create --name "my-page" --description "desc" --from-template React --homepage --no-prompt
+foundry ui navigation add --name "My Page" --path / --ref pages.my-page --no-prompt
+foundry ui extensions create --name "my-ext" --description "desc" --from-template React \
+  --sockets "activity.detections.details" --no-prompt   # sockets: ui-development → Extension Socket Locations
+```
+
+Annotated notes for each command (KB `--files` forms, agent exposure flags, workflow-to-agent calls) are in [references/advanced-patterns.md](references/advanced-patterns.md) → **Capability Create Commands**.
 
 **Fail fast:** Validate right after API integrations and collections — `foundry apps validate --no-prompt` is a seconds-long dry-run of deploy validation (specs + schemas; NOT workflow semantics or app-name uniqueness, which only deploy checks). If it fails, STOP and fix the spec/schema before building UI on a broken backend; let `adapt_spec_for_foundry.py` fix known spec issues and tell the user what it missed. Don't validate right before deploy — deploy runs the same checks plus more.
 
@@ -172,6 +190,8 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 
 > **Load the relevant sub-skill before writing domain-specific code.** Foundry formats and SDK calls differ from what general knowledge suggests — writing without the sub-skill loaded is the top cause of invented formats (wrong workflow YAML, raw HTTP instead of FalconPy, agents created before their KBs). The per-capability "what goes wrong without it" table is in [references/advanced-patterns.md](references/advanced-patterns.md) → **Sub-Skill Loading**.
 
+**Save turns.** Every turn resends the whole conversation, so the number of turns drives a build's cost more than the size of any file. Load each sub-skill when you reach its step, in the same turn as that step's first command, not in a turn of its own. Read each `SKILL.md` separately: concatenating several in one shell command overflows the output limit and costs a turn to read back. Each sub-skill's `SKILL.md` covers the common case. Open a reference only for what it doesn't cover, and read it once rather than in several `grep`/`sed` slices. Chain dependent commands with `&&` in one Bash call.
+
 ### Step 7: Final Build and Deploy
 
 ```bash
@@ -179,30 +199,16 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 cd ui/pages/my-page && npm install && npm run build && cd ../../..
 # For extensions: cd ui/extensions/my-ext && npm install && npm run build && cd ../../..
 
-# IMPORTANT: Verify you are in the app root (where manifest.yml lives) before running
-# foundry apps/ui commands. The CLI resolves paths relative to cwd, not the manifest location.
-
-# Deploy never builds a UI: it ships dist/ as is. Check new dist/assets files are listed:
-foundry apps deploy --diff-only --no-prompt
-
-# Final deploy (run ONCE, never re-deploy to check status)
-foundry apps deploy --no-prompt --change-type Patch --change-log "Complete app"
-
-# Poll deployment status — run immediately, do NOT prepend sleep
-foundry apps list-deployments
-# If still in progress, wait 5s then poll again:
-# sleep 5 && foundry apps list-deployments
-
-# Local UI development (deploy first if UI calls backend capabilities)
-foundry ui run
+# From the app root (where manifest.yml lives): deploy once, wait, and release, in ONE call
+python3 <skill-dir>/scripts/deploy_and_release.py --change-type Patch --change-log "Complete app"
 ```
 
-**Deploy once, poll `list-deployments`** for the deployment version `deploy` printed (release numbers differ); re-deploying duplicates it. A `Failed` deployment shows no reason in the CLI — read it in the console (**App manager > the app > "Show errors (N)"**). While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress` — wait, it is not a manifest error.
+`<skill-dir>` is this `SKILL.md`'s directory, not the app workspace. The script (standard library only, no venv) runs `foundry apps deploy --no-prompt` once, polls `list-deployments` for the version deploy printed (release numbers differ), and releases that deployment ID. `--no-release` stops after the deploy. It prints the packaged `dist/` files, because **Deploy never builds a UI**: it ships `dist/` as it is.
 
-```bash
-# Release (run ONCE after deploy succeeds)
-foundry apps release --change-type Patch --deployment-id <id> --notes "Release notes" --no-prompt
-```
+- **Exit 1:** the deploy, the deployment, or the release failed. A `Failed` deployment shows no reason in the CLI; read it in the console (**App manager > the app > "Show errors (N)"**).
+- **Exit 3:** still in progress at the timeout. Don't deploy again (it duplicates); poll `foundry apps list-deployments`, then run the release command it printed.
+
+When re-deploying an existing app after a UI change, check that the new `dist/assets` files are listed first: `foundry apps deploy --diff-only --no-prompt`. While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`. Wait; it isn't a manifest error. Without the script, the manual steps are `foundry apps deploy --no-prompt --change-type Patch --change-log "..."`, then `foundry apps list-deployments` (no `sleep` before the first poll), then `foundry apps release --change-type Patch --deployment-id <id> --notes "..." --no-prompt`.
 
 There is no `list-releases` command — check status via the App Manager URL printed in the output. `foundry ui run` serves UI locally only; backend capabilities resolve from the cloud, so deploy those first.
 
