@@ -356,7 +356,7 @@ The `get-channel-config` function reads from the collection using the `CustomSto
 
 > **Note:** Always use `${data['...']}` CEL expression syntax. The older `$action.output.field` syntax passes as a literal string and is not resolved at runtime. See the parent SKILL.md [Variable References](#variable-references) section for full details.
 
-## Standard trigger actions format
+## Standard Trigger Actions Format
 
 The format produced by `foundry workflows create`, used by many Foundry sample apps:
 
@@ -384,7 +384,7 @@ actions:
 output_fields: []
 ```
 
-## Version constraint example
+## Version Constraint Example
 
 `~N` is the major version of the activity's `semantic_version`: `~0` when it has none (functions, API integrations) or a `0.x` one (Contain device), `~1` for `1.x` (most platform actions):
 
@@ -406,7 +406,7 @@ actions:
         version_constraint: ~1       # semantic_version 1.x
 ```
 
-## API integration operation call
+## API Integration Operation Call
 
 ```yaml
 actions:
@@ -435,7 +435,7 @@ x-cs-operation-config:
     system: false
 ```
 
-## Send email action
+## Send Email Action
 
 Use Print data as the primary output; add Send email only when explicitly requested (skip entirely in headless runs). The `to` field must be a real address — placeholders like `user@example.com` fail at runtime:
 
@@ -451,7 +451,7 @@ Use Print data as the primary output; add Send email only when explicitly reques
         version_constraint: ~1
 ```
 
-## Control flow: loop and condition examples
+## Control Flow: Loop and Condition Examples
 
 **Loop** — a self-contained sub-workflow at the root `loops:` level; the action before it must name it in `next:` or it never runs:
 

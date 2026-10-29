@@ -139,7 +139,7 @@ See [Diamond Joins](references/advanced-patterns.md#diamond-joins--the-2001-cycl
 
 ## The "0" Gotcha
 
-See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha) for the "0" gotcha and fix pattern. Key point: check for both null and `"0"` in loop conditions.
+See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha-in-pagination) for the "0" gotcha and fix pattern. Key point: check for both null and `"0"` in loop conditions.
 
 ## Workflow Name Uniqueness
 
