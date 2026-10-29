@@ -53,7 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
-- **Faster, cheaper app builds** — a new app build now takes fewer turns and reads less: about 24% fewer tokens and 13% lower cost than 1.6.0 across ten test builds, all of which deployed. `development-workflow` adds `scripts/deploy_and_release.py`, which deploys once, waits for that deployment, and releases it in a single call. The capability create commands are back in its `SKILL.md`, along with guidance on loading sub-skills and references without extra turns. The sub-skills now include facts builds kept looking up: a spec-listing command for `api-integrations` that works on any default branch (the old one assumed `master`), Send email's inputs and the trigger `parameters:` format in `workflows-development`, and which React blueprint files to edit in `ui-development`.
+- **Faster, cheaper app builds** — new app builds use about 24% fewer tokens and cost 13% less than 1.6.0, with no drop in deploy rate. A new `deploy_and_release.py` deploys, waits, and releases in one call, and the skills now answer the lookups builds kept repeating.
 - **Agent schema filenames name the CLI version** — CLI 2.1.2 and later write `input_schema.json` / `output_schema.json` under those names and reject any other value on every manifest load. 2.1.1 and earlier pass validate and fail at deploy.
 
 ### Fixed

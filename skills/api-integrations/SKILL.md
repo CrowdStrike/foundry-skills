@@ -46,35 +46,34 @@ CrowdStrike Falcon API
 
 ## Workflow: Download, Adapt, Register
 
-**Always follow this order.** Claude Code, Codex, Copilot CLI, and Cursor enforce adaptation with a hook when that host loads this plugin's hooks. Antigravity CLI and a skill-symlink install do not, and MUST invoke the bundled script explicitly.
+**Always follow this order.** Hosts that load this plugin's hooks enforce adaptation (see the hook safety net below). Antigravity CLI and a skill-symlink install MUST run the script explicitly.
 
 ### 1. Download the vendor's spec
 
 **NEVER write an OpenAPI spec from scratch when the vendor publishes one.** Hand-written specs produce incorrect response schemas, miss required parameters, and lack proper security definitions. Download the vendor's spec even if it has hundreds of endpoints — Foundry handles large specs fine. Do NOT rationalize writing a "focused" or "minimal" spec because the vendor spec is big.
 
 1. **Ask the user** if they have a local copy or know where to download it
-2. **Browse the repo first, don't guess URLs.** List every YAML and JSON file in one call (`HEAD` is the default branch, whatever it's named), then download the spec with `curl`. Never try multiple URLs hoping one works.
+2. **Browse the repo first, don't guess URLs.** List its YAML and JSON files in one call (`HEAD` is the default branch), then download the spec with `curl`.
 
    ```bash
    gh api "repos/{owner}/{repo}/git/trees/HEAD?recursive=1" \
      --jq '.tree[] | select(.type=="blob" and (.path|test("\\.(ya?ml|json)$"))) | .path'
    ```
 
-   Narrow a long list with `grep` instead of cutting it with `head`. Dated or versioned copies often sort first and hide the current one, so prefer a `current` or `latest` path when there is one.
+   Narrow a long list with `grep`, not `head` (versioned copies sort first); prefer a `current` or `latest` path. Never guess URLs.
 3. **Search locally** for existing specs
 4. If the vendor does not publish a spec, only then write a minimal one
 
-**Do NOT delegate spec download to Explore agents or subagents.** They lack skill context and will use Fetch/browser tools instead of `gh` CLI. Download specs inline using `gh` and `curl` as shown in the reference file.
+**Do NOT delegate spec download to Explore agents or subagents.** They lack skill context and fall back to Fetch or a browser. Download inline with `gh` and `curl`.
 
 For detailed download commands and structural fix patterns, see [references/spec-adaptation-examples.md](references/spec-adaptation-examples.md).
 
 ### 2. Adapt the spec for Foundry (MANDATORY)
 
 ```bash
-python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
-
-# Preview the fixes without saving them (a Swagger 2.0 input is still converted to .openapi3.*)
-python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
+# <skill-dir> is this SKILL.md's directory. --dry-run previews the fixes without
+# saving them, though it still converts a Swagger 2.0 input to .openapi3.*.
+python3 <skill-dir>/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
 ```
 
 > **Dependencies:** The script requires `pyyaml`, and installing the plugin does not install Python packages. A bare `pip install` fails on Homebrew and system Pythons with `externally-managed-environment` (PEP 668), so set up a venv once in the checkout and run the script from it:

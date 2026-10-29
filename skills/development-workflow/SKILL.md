@@ -190,7 +190,7 @@ The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skill
 
 > **Load the relevant sub-skill before writing domain-specific code.** Foundry formats and SDK calls differ from what general knowledge suggests — writing without the sub-skill loaded is the top cause of invented formats (wrong workflow YAML, raw HTTP instead of FalconPy, agents created before their KBs). The per-capability "what goes wrong without it" table is in [references/advanced-patterns.md](references/advanced-patterns.md) → **Sub-Skill Loading**.
 
-**Save turns.** Every turn resends the whole conversation, so the number of turns drives a build's cost more than the size of any file. Load each sub-skill when you reach its step, in the same turn as that step's first command, not in a turn of its own. Read each `SKILL.md` as a separate file read: concatenating several in one shell command overflows the tool's output limit, so the output is cut off or saved to a file that takes another turn to read back. Each sub-skill's `SKILL.md` covers the common case. Open a reference only for what it doesn't cover, and read it once rather than in several `grep`/`sed` slices. Chain dependent commands with `&&` in one Bash call.
+**Save turns.** Every turn resends the whole conversation, so the number of turns drives a build's cost more than the size of any file. Load each sub-skill when you reach its step, in the same turn as that step's first command, not in a turn of its own. Read each `SKILL.md` separately: concatenating several in one shell command overflows the output limit and costs a turn to read back. Each sub-skill's `SKILL.md` covers the common case. Open a reference only for what it doesn't cover, and read it once rather than in several `grep`/`sed` slices. Chain dependent commands with `&&` in one Bash call.
 
 ### Step 7: Final Build and Deploy
 
@@ -203,10 +203,10 @@ cd ui/pages/my-page && npm install && npm run build && cd ../../..
 python3 <skill-dir>/scripts/deploy_and_release.py --change-type Patch --change-log "Complete app"
 ```
 
-`<skill-dir>` is the directory holding this `SKILL.md`, wherever the skill is installed; resolve it from there, not from the app workspace. The script uses only the standard library, so it needs no venv. It runs `foundry apps deploy --no-prompt` once, polls `foundry apps list-deployments` for the version deploy printed (release numbers differ), and releases that deployment ID with `foundry apps release --no-prompt`. Add `--no-release` to stop after the deploy. It prints the packaged `dist/` files, because **Deploy never builds a UI**: it ships `dist/` as it is.
+`<skill-dir>` is this `SKILL.md`'s directory, not the app workspace. The script (standard library only, no venv) runs `foundry apps deploy --no-prompt` once, polls `list-deployments` for the version deploy printed (release numbers differ), and releases that deployment ID. `--no-release` stops after the deploy. It prints the packaged `dist/` files, because **Deploy never builds a UI**: it ships `dist/` as it is.
 
 - **Exit 1:** the deploy, the deployment, or the release failed. A `Failed` deployment shows no reason in the CLI; read it in the console (**App manager > the app > "Show errors (N)"**).
-- **Exit 3:** still in progress at the timeout. Don't deploy again, because re-deploying duplicates it. Poll `foundry apps list-deployments` and run the release command it printed.
+- **Exit 3:** still in progress at the timeout. Don't deploy again (it duplicates); poll `foundry apps list-deployments`, then run the release command it printed.
 
 When re-deploying an existing app after a UI change, check that the new `dist/assets` files are listed first: `foundry apps deploy --diff-only --no-prompt`. While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`. Wait; it isn't a manifest error. Without the script, the manual steps are `foundry apps deploy --no-prompt --change-type Patch --change-log "..."`, then `foundry apps list-deployments` (no `sleep` before the first poll), then `foundry apps release --change-type Patch --deployment-id <id> --notes "..." --no-prompt`.
 
