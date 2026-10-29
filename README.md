@@ -255,7 +255,7 @@ To compare against the last release with a fresh baseline, without macOS sleepin
 caffeinate -i ./run-ab-test.sh --ref "$(git describe --tags --abbrev=0)" --fresh 5
 ```
 
-Compares baseline ref skills (RED) against local branch skills (GREEN). The `--ref` flag accepts any git ref (tag, branch, commit SHA) and defaults to `main`. Results saved to `/tmp/foundry-skill-ab/baseline.json` and `/tmp/foundry-skill-ab/optimized.json`.
+Compares baseline ref skills (RED) against local branch skills (GREEN). The `--ref` flag accepts any git ref (tag, branch, commit SHA) and defaults to `main`. Results saved to `/tmp/foundry-skill-ab/baseline.json` and `/tmp/foundry-skill-ab/optimized.json`. Tokens and cost come from each session's final `result` event, so compare cost per run first; a baseline saved before that change is re-run automatically.
 
 ## Contributing
 
