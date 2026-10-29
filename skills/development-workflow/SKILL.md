@@ -34,6 +34,9 @@ Create a new Foundry app
 Upgrade a template-installed app
 └── app-upgrades
 
+Audit an existing app for anti-patterns
+└── app-audit
+
 Add a capability to an existing app
 ├── API integration       → api-integrations
 ├── Workflow              → workflows-development

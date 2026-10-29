@@ -98,6 +98,7 @@ Local Codex installs made with skill symlinks, and other assistants that do not 
 | `debugging-workflows` | Systematic troubleshooting for CLI, manifest, and deployment issues |
 | `e2e-testing` | End-to-end testing with `@crowdstrike/foundry-playwright` |
 | `app-upgrades` | Upgrade a template-installed app to a newer template version in place |
+| `app-audit` | Scan an existing app for documented anti-patterns and fix the safe ones |
 | `fusion-redirect` | Declines standalone Falcon Fusion workflow requests and points to the `crowdstrike-falcon-fusion` plugin |
 
 ## Architecture
