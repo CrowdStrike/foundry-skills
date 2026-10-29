@@ -115,6 +115,8 @@ Use cases cover common scenarios like API pagination, detection enrichment, look
 
 For other decisions, prefer reasonable defaults: use React for UI, download public OpenAPI specs from vendor GitHub repos. Only ask additional clarifying questions when the prompt is genuinely ambiguous and a wrong guess would produce an unusable app.
 
+**Plan functions by domain, not one per feature.** Each function is a separate container build at deploy, and fresh installs with dozens of functions can fail outright (a 43-function app failed where the same handlers in 11 functions deployed in about 9 minutes). Before adding a function, extend an existing one in the same language. The `functions-development` skill's `references/function-count-and-build-time.md` covers consolidation patterns.
+
 ### Step 3: CLI Prerequisite Check
 
 ```bash
