@@ -340,3 +340,83 @@ def test_fix_appends_to_flow_style_ignored(tmp_path):
     (tmp_path / "functions/one_fn/__pycache__/main.pyc").write_text("")
     main([str(tmp_path), "--fix"])
     assert yaml.safe_load((tmp_path / "manifest.yml").read_text())["ignored"] == ["e2e", PYCACHE_PATTERN]
+
+
+def test_unparseable_manifest_is_an_error(tmp_path):
+    (tmp_path / "manifest.yml").write_text("name: x\nfunctions:\n  - name: f\n   bad: [\n")
+    assert checks(tmp_path) == ["invalid-file"]
+    assert main([str(tmp_path)]) == 1
+
+
+def test_unparseable_workflow_is_an_error(tmp_path):
+    workflow_app(tmp_path, {}, files={**SCHEMAS, "workflows/wf.yml": "name: wf\n  bad: [\n"})
+    assert checks(tmp_path) == ["invalid-file"]
+
+
+def test_function_action_inside_loop_is_checked(tmp_path):
+    workflow_app(tmp_path, {}, wf_extra={"loops": {"Loop": {"actions": {
+        "run": {"id": "functions.collector.collect_data", "properties": {"client_id": "x"}}}}}}, files=SCHEMAS)
+    assert checks(tmp_path) == ["request-property-undeclared"]
+
+
+def test_go_credential_from_environment(tmp_path):
+    write_app(tmp_path, {"name": "go", "functions": [function("caller", [handler("call_api")], language="go")]},
+              {"functions/caller/main.go": 'package main\nvar k = os.Getenv("API_KEY")\n'})
+    found = [f for f in Audit(tmp_path).run() if f.check == "secret-in-env"]
+    assert [f.file for f in found] == ["functions/caller/main.go:2"]
+
+
+def test_http_server_url_with_variables(tmp_path):
+    spec_app(tmp_path, [{"url": "http://{domain}", "variables": {"domain": {"description": "Your domain"}}}])
+    assert checks(tmp_path) == ["server-url-protocol"]
+
+
+def test_ui_stale_build_with_dist_inside_src(tmp_path):
+    files = {"ui/pages/home/src/App.js": "export default 1\n", "ui/pages/home/src/dist/index.html": "<html></html>"}
+    write_app(tmp_path, {"name": "ui", "ui": {"pages": {"home": {
+        "name": "home", "path": "ui/pages/home/src/dist", "entrypoint": "ui/pages/home/src/dist/index.html"}}}}, files)
+    old, new = time.time() - 100, time.time()
+    os.utime(tmp_path / "ui/pages/home/src/dist/index.html", (old, old))
+    os.utime(tmp_path / "ui/pages/home/src/App.js", (new, new))
+    assert checks(tmp_path) == ["ui-stale-build"]
+    os.utime(tmp_path / "ui/pages/home/src/App.js", (old - 100, old - 100))
+    assert checks(tmp_path) == []
+
+
+def test_fix_provision_skips_past_block_scalar(tmp_path):
+    workflow_app(tmp_path, {}, files={**SCHEMAS, "workflows/wf.yml":
+                                      "description: |\n  two\n  lines\nname: wf\nactions: {}"})
+    main([str(tmp_path), "--fix"])
+    doc = yaml.safe_load((tmp_path / "workflows/wf.yml").read_text())
+    assert doc["description"] == "two\nlines\n" and doc["provision_on_install"] is True
+
+
+def _pycache_app(tmp_path, ignored_line):
+    (tmp_path / "manifest.yml").write_text(
+        f"name: fixme\n{ignored_line}\nfunctions:\n  - name: one_fn\n    language: python\n"
+        "    path: functions/one_fn\n    handlers:\n      - {name: handle, method: POST, api_path: /handle}\n")
+    (tmp_path / "functions/one_fn/__pycache__").mkdir(parents=True)
+    (tmp_path / "functions/one_fn/__pycache__/main.pyc").write_text("")
+    main([str(tmp_path), "--fix"])
+    return (tmp_path / "manifest.yml").read_text()
+
+
+def test_fix_ignored_with_comment_or_null_keeps_one_key(tmp_path):
+    text = _pycache_app(tmp_path, "ignored: # patterns\n  - e2e")
+    assert text.count("ignored:") == 1 and yaml.safe_load(text)["ignored"] == ["e2e", PYCACHE_PATTERN]
+
+
+def test_fix_ignored_null(tmp_path):
+    text = _pycache_app(tmp_path, "ignored: null")
+    assert text.count("ignored:") == 1 and yaml.safe_load(text)["ignored"] == [PYCACHE_PATTERN]
+
+
+def test_fix_leaves_multiline_flow_ignored_alone(tmp_path):
+    text = _pycache_app(tmp_path, "ignored: [\n  e2e\n]")
+    assert text.count("ignored:") == 1 and yaml.safe_load(text)["ignored"] == ["e2e"]
+
+
+def test_falcon_client_fallback_is_not_a_secret_finding(tmp_path):
+    write_app(tmp_path, {"name": "go", "functions": [function("caller", [handler("call_api")], language="go")]},
+              {"functions/caller/main.go": 'package main\nvar s = os.Getenv("FALCON_CLIENT_SECRET")\n'})
+    assert checks(tmp_path) == []

@@ -38,10 +38,11 @@ It exits `1` when an error-level finding remains. Each finding names the skill a
 | `provision-on-install-false` | info | Fine when deliberate. |
 | `pycache-not-ignored` | warn, fixable | A local `__pycache__/` would deploy. The CLI already skips hidden paths like `.venv/`. |
 | `secret-in-env` | warn | A function reads a key, token, secret, or password from an environment variable, which is visible in app exports. |
-| `server-url-protocol` | error | An OpenAPI server URL with variables starts with `https://`, so the protocol doubles. |
+| `server-url-protocol` | error | An OpenAPI server URL with variables starts with `https://` or `http://`, so the protocol doubles. |
 | `server-variable-default` | warn | A server variable has a `default` but no `enum`, which renders as a one-value dropdown. |
 | `ui-not-built` | error | A page or extension has no `dist/`; deploy never builds the UI. |
 | `ui-stale-build` | warn | `src/` is newer than `dist/`, so deploy would ship the previous build. |
+| `invalid-file` | error | `manifest.yml`, a workflow, or an API spec it points to doesn't parse, so the checks that read it were skipped. |
 
 ## Fixing Findings
 

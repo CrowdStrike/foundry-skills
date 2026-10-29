@@ -14,6 +14,7 @@ Requires: pyyaml (pip install pyyaml)
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import asdict, dataclass
@@ -27,8 +28,11 @@ FUNCTION_COUNT_WARN = 20
 HANDLER_NAME_MIN, HANDLER_NAME_MAX = 5, 64  # foundrycli FunctionHandlerMin/MaxLength
 PYCACHE_PATTERN = "(^|/)__pycache__(/|$)"
 SECRET_ENV = re.compile(
-    r"""os\.(?:environ(?:\.get)?\s*[\[(]|getenv\s*\()\s*["'][A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*["']"""
+    # FALCON_CLIENT_ID/SECRET are the documented local-testing fallback for the platform's own token.
+    r"""os\.(?:environ(?:\.get)?\s*[\[(]|[gG]etenv\s*\()\s*["']"""
+    r"""(?!FALCON_)[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*["']"""
 )
+SOURCE_SUFFIX = {"python": ".py", "go": ".go"}
 FAAS_REF = re.compile(r"\.FaaS\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)")
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
@@ -64,13 +68,32 @@ def _squash(name):
     return re.sub(r"[^a-z0-9]", "", str(name).lower())
 
 
+def _walk(root):
+    """Yield (dir, files) under root without descending into hidden directories, which never deploy."""
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        yield Path(dirpath), filenames
+
+
+def _actions(doc):
+    """Yield (key, action) for a workflow's actions, including those inside loops."""
+    for key, action in (doc.get("actions") or {}).items():
+        if isinstance(action, dict):
+            yield key, action
+    for loop in (doc.get("loops") or {}).values():
+        if isinstance(loop, dict):
+            yield from _actions(loop)
+
+
 class Audit:
     """Runs every check against one app directory."""
 
     def __init__(self, app_dir):
         self.app = Path(app_dir)
         self.manifest_path = self.app / "manifest.yml"
-        self.manifest = _load_yaml(self.manifest_path) or {}
+        loaded = _load_yaml(self.manifest_path)
+        self.manifest_invalid = self.manifest_path.is_file() and not isinstance(loaded, dict)
+        self.manifest = loaded if isinstance(loaded, dict) else {}
         self.findings = []
         self.functions = {f.get("name"): f for f in self.manifest.get("functions") or []}
         self.ignored = []
@@ -83,6 +106,12 @@ class Audit:
     def add(self, check, severity, file, message, skill, fixable=False):
         """Record a finding."""
         self.findings.append(Finding(check, severity, str(file), message, skill, fixable))
+
+    def _invalid_file(self, rel):
+        """Report a file the manifest points to that exists but doesn't parse."""
+        if (self.app / rel).is_file():
+            self.add("invalid-file", "error", rel, "doesn't parse, so the checks that read it were skipped.",
+                     "debugging-workflows")
 
     def is_ignored(self, rel_path):
         """Mirror the CLI: hidden path segments are always skipped, then any ignored regex search."""
@@ -115,16 +144,19 @@ class Audit:
                              "within a function.", "functions-development: Manifest Structure")
                 seen.add(name)
             fdir = self.app / str(func.get("path") or "")
-            if func.get("language") == "python" and fdir.is_dir():
-                for cache in fdir.rglob("__pycache__"):
-                    rel = cache.relative_to(self.app).as_posix()
-                    if not self.is_ignored(rel + "/x.pyc"):
-                        stray_caches.append(rel)
-                for src in fdir.rglob("*.py"):
-                    rel = src.relative_to(self.app).as_posix()
-                    if self.is_ignored(rel):
+            suffix = SOURCE_SUFFIX.get(func.get("language"))
+            if not suffix or not fdir.is_dir():
+                continue
+            for folder, files in _walk(fdir):
+                rel_dir = folder.relative_to(self.app).as_posix()
+                if suffix == ".py" and folder.name == "__pycache__" and not self.is_ignored(rel_dir + "/x.pyc"):
+                    stray_caches.append(rel_dir)
+                for name in sorted(files):
+                    rel = f"{rel_dir}/{name}"
+                    if not name.endswith(suffix) or self.is_ignored(rel):
                         continue
-                    for lineno, line in enumerate(src.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+                    for lineno, line in enumerate((folder / name).read_text(encoding="utf-8", errors="ignore")
+                                                  .splitlines(), 1):
                         if SECRET_ENV.search(line):
                             self.add("secret-in-env", "warn", f"{rel}:{lineno}",
                                      "reads a credential from an environment variable, which is visible in app "
@@ -162,6 +194,7 @@ class Audit:
             rel = str(wf.get("path") or "")
             doc = _load_yaml(self.app / rel)
             if not isinstance(doc, dict):
+                self._invalid_file(rel)
                 continue
             if "provision_on_install" not in doc:
                 self.add("provision-on-install-missing", "warn", rel,
@@ -172,9 +205,8 @@ class Audit:
                 self.add("provision-on-install-false", "info", rel,
                          "provision_on_install is false, so installing creates no workflow. Fine if deliberate.",
                          "workflows-development: Prerequisites")
-            for key, action in (doc.get("actions") or {}).items():
-                if isinstance(action, dict):
-                    self._check_function_action(rel, key, action)
+            for key, action in _actions(doc):
+                self._check_function_action(rel, key, action)
             text = (self.app / rel).read_text(encoding="utf-8", errors="ignore")
             for fname, hname, field in sorted(set(FAAS_REF.findall(text))):
                 func, handler = self._handler(fname, hname)
@@ -224,18 +256,20 @@ class Audit:
             path = self.app / rel
             spec = _load_json(path) if path.suffix == ".json" else _load_yaml(path)
             if not isinstance(spec, dict):
+                self._invalid_file(rel)
                 continue
             for server in spec.get("servers") or []:
                 variables = server.get("variables") or {}
-                if variables and str(server.get("url", "")).startswith("https://"):
+                url = str(server.get("url", ""))
+                if variables and re.match(r"https?://", url):
                     self.add("server-url-protocol", "error", rel,
-                             f"server URL {server.get('url')} has https:// and variables; the console adds the "
-                             "protocol, so it doubles.", "api-integrations: Server URLs")
+                             f"server URL {url} has a protocol and variables; the console adds the "
+                             "protocol, so it doubles.", "api-integrations: Server URL Configuration")
                 for vname, var in variables.items():
                     if isinstance(var, dict) and "default" in var and "enum" not in var:
                         self.add("server-variable-default", "warn", rel,
                                  f"variable '{vname}' has a default but no enum, which renders as a dropdown "
-                                 "with one value.", "api-integrations: Server URLs")
+                                 "with one value.", "api-integrations: Server URL Configuration")
 
     # ── UI ───────────────────────────────────────────────────
     def check_ui(self):
@@ -246,13 +280,15 @@ class Audit:
             if not entry.get("entrypoint"):
                 continue  # a JSON-defined extension has no dist/ to build
             dist = self.app / str(entry.get("path") or "")
-            src = dist.parent / "src"
+            # Blueprints build either <page>/dist from <page>/src or <page>/src/dist from <page>/src.
+            src = dist.parent if dist.parent.name == "src" else dist.parent / "src"
             if not dist.is_dir():
                 self.add("ui-not-built", "error", str(entry.get("path")),
                          "dist/ doesn't exist; deploy never builds the UI. Run npm run build.",
                          "development-workflow: Step 7")
             elif src.is_dir():
-                newest_src = max((p.stat().st_mtime for p in src.rglob("*") if p.is_file()), default=0)
+                newest_src = max((p.stat().st_mtime for p in src.rglob("*")
+                                  if p.is_file() and dist not in p.parents), default=0)
                 newest_dist = max((p.stat().st_mtime for p in dist.rglob("*") if p.is_file()), default=0)
                 if newest_src > newest_dist:
                     self.add("ui-stale-build", "warn", str(entry.get("path")),
@@ -265,6 +301,10 @@ class Audit:
             self.add("no-manifest", "error", str(self.manifest_path), "no manifest.yml here.",
                      "development-workflow")
             return self.findings
+        if self.manifest_invalid:
+            self.add("invalid-file", "error", "manifest.yml", "doesn't parse as a YAML mapping, so nothing "
+                     "else could be checked.", "debugging-workflows")
+            return self.findings
         self.check_functions()
         self.check_workflows()
         self.check_api_integrations()
@@ -274,17 +314,25 @@ class Audit:
 
 
 def _add_ignored(text, pattern):
-    """Append one pattern to the top-level ignored: list, matching how the list is already written."""
+    """Append one pattern to the top-level ignored: list, matching how the list is already written.
+
+    Returns the text unchanged when ignored: is written in a shape this can't edit safely
+    (a multi-line flow list, say), rather than adding a second ignored: key.
+    """
     lines = text.splitlines(keepends=True)
     quoted = f"'{pattern}'"
     for i, line in enumerate(lines):
-        match = re.match(r"ignored:[ \t]*(\[(.*)\])?[ \t]*$", line.rstrip("\n"))
-        if not match:
+        if not line.startswith("ignored:"):
             continue
+        match = re.match(r"ignored:[ \t]*(?:\[(.*)\]|null|~)?[ \t]*(#.*)?$", line.rstrip("\n"))
+        if not match:
+            return text
+        comment = f" {match.group(2)}" if match.group(2) else ""
         if match.group(1) is not None:  # flow style: ignored: [] or ignored: [a, b]
-            items = match.group(2).strip()
-            lines[i] = f"ignored: [{items + ', ' if items else ''}{quoted}]\n"
+            items = match.group(1).strip()
+            lines[i] = f"ignored: [{items + ', ' if items else ''}{quoted}]{comment}\n"
             return "".join(lines)
+        lines[i] = f"ignored:{comment}\n"  # block style; an explicit null becomes an empty block
         last, indent = i, "  "
         for j in range(i + 1, len(lines)):
             item = re.match(r"([ \t]*)- ", lines[j])
@@ -308,12 +356,20 @@ def apply_fixes(app_dir, findings):
             continue
         if f.check == "pycache-not-ignored":
             path = app / "manifest.yml"
-            path.write_text(_add_ignored(path.read_text(encoding="utf-8"), PYCACHE_PATTERN), encoding="utf-8")
-            fixed.append(f)
+            before = path.read_text(encoding="utf-8")
+            after = _add_ignored(before, PYCACHE_PATTERN)
+            if after != before:
+                path.write_text(after, encoding="utf-8")
+                fixed.append(f)
         elif f.check == "provision-on-install-missing":
             path = app / f.file
             lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
             at = next((i + 1 for i, line in enumerate(lines) if re.match(r"(name|description):", line)), 0)
+            # Step past a block scalar or other continuation lines so the key stays top level.
+            while 0 < at < len(lines) and (not lines[at].strip() or lines[at][0] in " \t"):
+                at += 1
+            if at and not lines[at - 1].endswith("\n"):
+                lines[at - 1] += "\n"
             lines.insert(at, "provision_on_install: true\n")
             path.write_text("".join(lines), encoding="utf-8")
             fixed.append(f)
