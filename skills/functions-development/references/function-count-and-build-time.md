@@ -35,8 +35,9 @@ def on_post(request: Request) -> Response:
     mode = request.body.get("source")
     if mode not in MODES:
         return Response(code=400, errors=[APIError(code=400, message=f"unknown source: {mode}")])
+    run = MODES[mode]
     try:
-        return Response(code=200, body=MODES[mode](request.body))
+        return Response(code=200, body=run(request.body))
     except Exception as e:  # one mode failing must not look like the whole function failing
         return Response(code=500, errors=[APIError(code=500, message=f"{mode} failed: {e}")])
 
