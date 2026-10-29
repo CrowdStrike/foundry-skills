@@ -51,6 +51,7 @@ This skill is split across multiple files. Consult these for full examples:
 |------|-----------|
 | Python handler, collection CRUD, error class, lookup file uploads, LogScale ingestion | [references/python-patterns.md](references/python-patterns.md) |
 | Go FDK handler, Falcon client auth, collection CRUD, alerts handler | [references/go-patterns.md](references/go-patterns.md) |
+| Too many functions: build failures, consolidation | [references/function-count-and-build-time.md](references/function-count-and-build-time.md) |
 | Falcon console testing (Python editor), function logs (viewing logs in UI and Advanced Event Search), Go/Python tests, local testing, Docker vs direct, config file patterns | [references/testing-patterns.md](references/testing-patterns.md) |
 
 ## Resource Limits
@@ -201,7 +202,7 @@ functions:
         api_path: "/api/health"
 ```
 
-Handler fields: `name`, `method`, `api_path`. One function can expose several endpoints. The Python FDK matches `api_path` exactly (no `{param}` placeholders), so pass IDs in the body or query. Descriptions are length-checked only: 1024 characters per function, 512 per handler.
+Handler fields: `name` (5–64 chars, unique per function), `method`, `api_path`. One function can expose several endpoints; every function is a separate build, so keep the count low. The Python FDK matches `api_path` exactly (no `{param}` placeholders), so pass IDs in the body or query. Descriptions are length-checked only: 1024 characters per function, 512 per handler.
 
 ### Adding a Handler to an Existing Function
 
