@@ -645,6 +645,40 @@ class TestSkillLinksStayInPackage:
                             offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
         assert not offenders, f"links point at missing files: {offenders}"
 
+    @staticmethod
+    def _anchors(path):
+        """GitHub-style anchors for every heading in a markdown file."""
+        anchors = set()
+        in_fence = False
+        with open(path) as f:
+            for line in f:
+                if line.startswith("```"):
+                    in_fence = not in_fence
+                m = None if in_fence else re.match(r"#{1,6}\s+(.*?)\s*$", line)
+                if m:
+                    slug = re.sub(r"[^\w\- ]", "", m.group(1).lower()).replace(" ", "-")
+                    anchors.add(slug)
+        return anchors
+
+    def test_link_anchors_exist(self):
+        offenders = []
+        skills_dir = os.path.join(_ROOT, "skills")
+        for skill in sorted(os.listdir(skills_dir)):
+            skill_dir = os.path.join(skills_dir, skill)
+            path = os.path.join(skill_dir, "SKILL.md")
+            if not os.path.isfile(path):
+                continue
+            with open(path) as f:
+                for lineno, line in enumerate(f, 1):
+                    for target in self._LINK.findall(line):
+                        if re.match(r"[a-z]+:", target) or "#" not in target:
+                            continue
+                        file_part, anchor = target.split("#", 1)
+                        resolved = os.path.join(skill_dir, file_part) if file_part else path
+                        if os.path.isfile(resolved) and anchor not in self._anchors(resolved):
+                            offenders.append(f"skills/{skill}/SKILL.md:{lineno} -> {target}")
+        assert not offenders, f"links point at missing headings: {offenders}"
+
 
 # ── Lessons from a live Next-Gen SIEM app ───────────────────────────────────
 
