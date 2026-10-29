@@ -53,7 +53,14 @@ CrowdStrike Falcon API
 **NEVER write an OpenAPI spec from scratch when the vendor publishes one.** Hand-written specs produce incorrect response schemas, miss required parameters, and lack proper security definitions. Download the vendor's spec even if it has hundreds of endpoints — Foundry handles large specs fine. Do NOT rationalize writing a "focused" or "minimal" spec because the vendor spec is big.
 
 1. **Ask the user** if they have a local copy or know where to download it
-2. **Browse the repo first, don't guess URLs.** Use `gh api repos/{owner}/{repo}/git/trees/master --jq '.tree[].path'` to find the spec file, then download with `curl`. Never try multiple URLs hoping one works.
+2. **Browse the repo first, don't guess URLs.** List every YAML and JSON file in one call (`HEAD` is the default branch, whatever it's named), then download the spec with `curl`. Never try multiple URLs hoping one works.
+
+   ```bash
+   gh api "repos/{owner}/{repo}/git/trees/HEAD?recursive=1" \
+     --jq '.tree[] | select(.type=="blob" and (.path|test("\\.(ya?ml|json)$"))) | .path'
+   ```
+
+   Narrow a long list with `grep` instead of cutting it with `head`. Dated or versioned copies often sort first and hide the current one, so prefer a `current` or `latest` path when there is one.
 3. **Search locally** for existing specs
 4. If the vendor does not publish a spec, only then write a minimal one
 

@@ -55,6 +55,22 @@ This is the format produced by `foundry workflows create` and used by many Found
 | On demand | `name: On demand`, `type: On demand` |
 | Scheduled | `event: Schedule`, `schedule: {time_cycle: "0 */6 * * *", tz: Etc/UTC}` |
 
+**Trigger parameters** (inputs the console prompts for when an on-demand workflow runs) are a JSON Schema object under `trigger:`, read in actions as `${data['name']}`:
+
+```yaml
+trigger:
+    name: On demand
+    type: On demand
+    parameters:
+        type: object
+        properties:
+            recipient:
+                type: string
+                description: Who gets the report
+        required:
+            - recipient
+```
+
 > **⚠️ Null-guard trigger parameters:** When run from the Falcon console the UI prompts for parameters, but via API or from another workflow they may be empty. Guard with a `conditions:` branch (`cel_expression: data['param'] != null && data['param'] != ''`, routing to a handler via `else:`) or inline in CEL with a ternary: `${data['param'] != null ? data['param'] : "default"}`. Full `conditions:` block: [references/cel-expressions.md](references/cel-expressions.md#null-guard-trigger-parameters).
 
 **Variable syntax in actions:** Use `${data['action_key.path.to.field']}` CEL expressions. See [Variable References](#variable-references) for the full syntax. Do NOT use `$action_name.output.body` — it passes as a literal string and is not resolved.
@@ -99,7 +115,7 @@ Platform actions (send email, log output, create detection) require platform-spe
 
 ### Common Action Properties
 
-**Print data** has three inputs: `fields` (the CLI reports type `string`; the samples pass a YAML list of `${...}` pills), `text_data` (string — general-purpose), `custom_json` (object only). Use `text_data` for API-integration responses since `body` may be an array; data path `action_key.API_Integration.Custom_{Name}.{Workflow_name}.body` (copy exact paths from the editor's **Workflow data** panel). **Send email** is secondary — add only when explicitly requested, skip in headless runs, and ask for a real `to` address (placeholders fail at runtime). Full `send_email` action example: [references/workflow-examples.md](references/workflow-examples.md#send-email-action).
+**Print data** has three inputs: `fields` (the CLI reports type `string`; the samples pass a YAML list of `${...}` pills), `text_data` (string — general-purpose), `custom_json` (object only). Use `text_data` for API-integration responses since `body` may be an array; data path `action_key.API_Integration.Custom_{Name}.{Workflow_name}.body` (copy exact paths from the editor's **Workflow data** panel). **Send email** is secondary — add only when explicitly requested, skip in headless runs, and ask for a real `to` address (placeholders fail at runtime). Its inputs are `to` (a list of addresses), `subject`, `msg`, and `msg_type` (`text` or `html`), plus optional `file_attachment` and `skip_workflow_header`. Its ID is the verified one above, so it needs no lookup; `actions view --name "Send email"` also matches similarly named actions such as Gmail - Send Email. Full `send_email` action example: [references/workflow-examples.md](references/workflow-examples.md#send-email-action).
 
 ## Variable References
 
