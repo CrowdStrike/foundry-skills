@@ -143,9 +143,9 @@ See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha-in-pagi
 
 ## Workflow Name Uniqueness
 
-Workflow names must be unique across all apps in the same tenant. If two apps deploy workflows with the same name, the second deploy fails silently or produces an "Unknown error." Use app-specific prefixes when the workflow name is generic.
+Workflow names must be unique across all apps installed in a CID. The clash shows up at **install**, not deploy: two apps whose workflows share a name both deploy and release, but installing the second one ends in **Install failed** (the app's state reads `Installation failed`). Use app-specific prefixes when the workflow name is generic.
 
-The exception is `multi_instance: true` at the top of the workflow YAML, which lets several workflows with the same name exist in one CID. Set it when several apps created from the same template may be installed in one CID; without it the next install fails with `workflow with name '<name>' already exists`. It doesn't change whether installing creates the workflow, which is still `provision_on_install`.
+The exception is `multi_instance: true` at the top of the workflow YAML. With it, the second app installs, and Falcon Fusion SOAR renames its copy with a timestamp suffix (`<name> - 2026-10-29T05:01:07Z`) instead of rejecting it. Set it when several apps created from the same template may be installed in one CID. It doesn't change whether installing creates the workflow, which is still `provision_on_install`.
 
 ## NEVER Delete and Recreate Workflows
 
