@@ -145,6 +145,8 @@ See [pagination-patterns](references/pagination-patterns.md#the-0-gotcha-in-pagi
 
 Workflow names must be unique across all apps in the same tenant. If two apps deploy workflows with the same name, the second deploy fails silently or produces an "Unknown error." Use app-specific prefixes when the workflow name is generic.
 
+The exception is `multi_instance: true` at the top of the workflow YAML, which lets several workflows with the same name exist in one CID. Set it when several apps created from the same template may be installed in one CID; without it the next install fails with `workflow with name '<name>' already exists`. It doesn't change whether installing creates the workflow, which is still `provision_on_install`.
+
 ## NEVER Delete and Recreate Workflows
 
 Removing a workflow from the manifest does NOT delete its server-side artifact — recreating with the same name → `409 name must be unique for an app`, and a once-failed artifact taints the dependency graph (`400 dependent artifact failed`), blocking all further deploys. **Update in place instead**: keep the manifest entry and its name, edit the YAML, and redeploy; to re-bind to a recreated function, update the `id: functions.{name}.{handler}` reference. Only delete a workflow if you truly won't recreate it with the same name. If an in-place structural edit hits a 409, use the sticky-409 recipe below. A `400 dependent artifact failed` is different: the failed artifact blocks every later deploy of the app, and recovery means a fresh app (see `ai-agents-development`'s `references/workflow-invocation.md`).
