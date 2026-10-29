@@ -114,7 +114,16 @@ if [ "$NO_SKILL" != "1" ] && [ "$FRESH" != "1" ]; then
 
   if [ -f "$BASELINE_JSON" ] && [ -f "$BASELINE_SHA_FILE" ]; then
     CACHED_SHA=$(cat "$BASELINE_SHA_FILE")
-    if [ "$CACHED_SHA" = "$CURRENT_BASELINE_SHA" ]; then
+    # A baseline saved before test-skill.sh read tokens from the result event
+    # double-counted them, so it can't be compared with a new run.
+    if ! jq -e '.token_source == "result_event"' "$BASELINE_JSON" >/dev/null 2>&1; then
+      echo "========================================="
+      echo "  OUTDATED BASELINE DETECTED"
+      echo "========================================="
+      echo "  The cached baseline counted tokens per streamed message, which"
+      echo "  double-counts. Re-running RED phase."
+      echo ""
+    elif [ "$CACHED_SHA" = "$CURRENT_BASELINE_SHA" ]; then
       SKIP_RED=1
       BASELINE_RUNS=$(jq -r '.runs // 0' "$BASELINE_JSON" 2>/dev/null || echo "?")
       echo "========================================="
