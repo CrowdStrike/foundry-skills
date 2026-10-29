@@ -34,7 +34,7 @@ It exits `1` when an error-level finding remains. Each finding names the skill a
 | `response-key-missing` | warn | A workflow reads a `FaaS` output key the handler's `response_schema` doesn't declare. |
 | `unknown-function-action` | error | A workflow calls `functions.<name>.<handler>` that isn't in the manifest. |
 | `missing-workflow-integration` | error | A workflow calls a handler that has no `workflow_integration`, so deploy fails. |
-| `provision-on-install-missing` | warn, fixable | Installing won't create the workflow. Skipped for `multi_instance: true` templates, which the app provisions per job. |
+| `provision-on-install-missing` | warn, fixable | Installing won't create the workflow. Leave it off only when the app provisions the workflow itself through the Workflows API, as rapid-response and scalable-rtr do. |
 | `provision-on-install-false` | info | Fine when deliberate. |
 | `pycache-not-ignored` | warn, fixable | A local `__pycache__/` would deploy. The CLI already skips hidden paths like `.venv/`. |
 | `secret-in-env` | warn | A function reads a key, token, secret, or password from an environment variable, which is visible in app exports. |
@@ -59,4 +59,4 @@ Run the audit again after fixing, and run `foundry apps validate --no-prompt` be
 
 ## Reading Results
 
-The checks are static, so treat a finding as a strong lead, not proof. A warning can be deliberate (a large app may need many functions, and a template workflow may skip `provision_on_install`). If a finding looks wrong for the app in front of you, say why instead of forcing a fix.
+The checks are static, so treat a finding as a strong lead, not proof. A warning can be deliberate (a large app may need many functions, and an app that provisions its own workflows skips `provision_on_install`). If a finding looks wrong for the app in front of you, say why instead of forcing a fix.

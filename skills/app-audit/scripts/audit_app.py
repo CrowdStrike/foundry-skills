@@ -163,12 +163,10 @@ class Audit:
             doc = _load_yaml(self.app / rel)
             if not isinstance(doc, dict):
                 continue
-            if doc.get("multi_instance") is True:
-                pass  # a template the app provisions per job through the Workflows API
-            elif "provision_on_install" not in doc:
+            if "provision_on_install" not in doc:
                 self.add("provision-on-install-missing", "warn", rel,
                          "no provision_on_install; installing the app won't create this workflow. "
-                         "Set it to true unless you mean to provision it later.",
+                         "Set it to true, unless the app provisions it itself through the Workflows API.",
                          "workflows-development: Prerequisites", fixable=True)
             elif doc.get("provision_on_install") is False:
                 self.add("provision-on-install-false", "info", rel,

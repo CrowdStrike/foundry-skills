@@ -188,14 +188,16 @@ def test_missing_provision_on_install(tmp_path):
     assert checks(tmp_path) == ["provision-on-install-missing"]
 
 
-def test_multi_instance_template_needs_no_provision_on_install(tmp_path):
+def test_multi_instance_does_not_exempt_provision_on_install(tmp_path):
+    # multi_instance lets the same workflow name exist more than once in a CID; it says
+    # nothing about whether installing creates the workflow.
     workflow_app(tmp_path, {}, files=SCHEMAS)
     path = tmp_path / "workflows/wf.yml"
     doc = yaml.safe_load(path.read_text())
     del doc["provision_on_install"]
     doc["multi_instance"] = True
     path.write_text(yaml.safe_dump(doc, sort_keys=False))
-    assert checks(tmp_path) == []
+    assert checks(tmp_path) == ["provision-on-install-missing"]
 
 
 def test_provision_on_install_false_is_info(tmp_path):
