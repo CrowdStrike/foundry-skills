@@ -164,6 +164,8 @@ MATCH_PROMPTS=(
   "I need a Foundry app with a Python function"
   "connect the OpenRouter API to a Foundry app"
   "Can you set up a Foundry app with a data store for investigation notes?"
+  "audit my foundry app for anti-patterns"
+  "review this Falcon Foundry app before I deploy it"
 )
 
 MATCH_NAMES=(
@@ -181,6 +183,8 @@ MATCH_NAMES=(
   "1.12 need verb (I need a foundry app)"
   "1.13 verb five words from noun (connect ... foundry app)"
   "1.14 two-word verb (set up a foundry app)"
+  "1.17 audit verb (audit my foundry app)"
+  "1.18 review verb (review this falcon foundry app)"
 )
 
 for i in "${!MATCH_PROMPTS[@]}"; do

@@ -1156,3 +1156,19 @@ class TestRbacWiring:
     def test_rollback_keeps_deploy_written_ids(self):
         for path in (self.SKILL, self.EXAMPLES):
             assert "Do NOT `git checkout manifest.yml`" in _read_skill(path), path
+
+
+# ── Auditing an existing app (app-audit) ────────────────────────────────────
+
+
+class TestAppAudit:
+    """The app-audit SKILL.md documents exactly the checks its script emits."""
+
+    SKILL = "skills/app-audit/SKILL.md"
+    SCRIPT = os.path.join(_ROOT, "skills", "app-audit", "scripts", "audit_app.py")
+
+    def test_every_check_is_documented(self):
+        with open(self.SCRIPT, encoding="utf-8") as f:
+            emitted = set(re.findall(r'self\.add\(\s*"([a-z-]+)"', f.read())) - {"no-manifest"}
+        documented = set(re.findall(r"^\| `([a-z-]+)` \|", _read_skill(self.SKILL), re.M))
+        assert emitted == documented

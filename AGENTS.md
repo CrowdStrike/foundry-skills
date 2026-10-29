@@ -71,6 +71,7 @@ The `skills/` directory contains specialized skills that provide systematic appr
 - **debugging-workflows**: Systematic troubleshooting for CLI, manifest, and API issues
 - **e2e-testing**: End-to-end testing with `@crowdstrike/foundry-playwright`
 - **app-upgrades**: Upgrade a template-installed app to a newer template version, keeping its IDs
+- **app-audit**: Scan an existing app for documented anti-patterns, with `--fix` for the safe ones
 - **fusion-redirect**: Points a standalone Falcon Fusion workflow request (no Falcon Foundry app needed) to the Falcon Fusion plugin
 
 ### Use Cases
@@ -109,6 +110,7 @@ The `use-cases/` directory contains real-world implementation patterns extracted
 - **"Troubleshoot deployment"** → debugging-workflows skill
 - **"Add e2e tests"** → e2e-testing skill
 - **"Upgrade an app installed from a template"** → app-upgrades skill
+- **"Audit my app" / "check it for anti-patterns"** → app-audit skill
 
 ## Essential Foundry CLI Commands
 
