@@ -3,7 +3,7 @@
 """
 adapt_spec_for_foundry.py — Transform OpenAPI specs for Falcon Foundry
 
-Applies deterministic transformations derived from 12 production Foundry sample apps:
+Applies deterministic transformations derived from 12 Foundry sample apps:
   1. Swagger 2.0 conversion: Convert to OpenAPI 3.0 via swagger2openapi (npx)
   2. Server URLs: Strip https:// from variable-based URLs, remove default from variables
   3. Auth: Infer API key prefix via bearerFormat, remove oauth2 authorizationCode

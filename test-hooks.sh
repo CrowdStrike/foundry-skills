@@ -1195,6 +1195,18 @@ OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_contains "$OUTPUT" "Manual creation" "6.6  mkdir api-integrations → advisory"
 assert_not_contains "$OUTPUT" "deny" "6.6  no deny (advisory only)"
 
+# 6.6a — mkdir of an unrelated dir chained to a command that mentions api-integrations → no output
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "mkdir -p /tmp/okta-spec && python3 skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/okta-spec/Okta.yaml"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.6a mkdir /tmp dir && script under api-integrations/ → pass"
+
+# 6.6b — chained mkdir that does create app structure → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "cd my-app && mkdir -p workflows"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "Manual creation" "6.6b cd && mkdir workflows → advisory"
+
 # 6.7 — touch manifest.yml → advisory
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "touch manifest.yml"}}')

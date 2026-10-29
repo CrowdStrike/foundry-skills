@@ -81,7 +81,7 @@ python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_f
 
 The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 
-The script applies fixes derived from 12 production Foundry sample apps:
+The script applies fixes derived from 12 Foundry sample apps:
 - **Swagger 2.0 conversion**: Converts to OpenAPI 3.0 via `swagger2openapi` (npx) and writes the result next to the input as `<name>.openapi3.json` or `<name>.openapi3.yaml`. Register that file, not the original.
 - **Auth fixing**: Deletes an `oauth2` scheme (and its security references) when it has `authorizationCode` and no `clientCredentials` flow; a scheme with both is kept unchanged. Adds `bearerFormat` to an `apiKey`-in-Authorization scheme when its description names the prefix (`SSWS`, `Bearer`, `Token`, `Basic`). Adds a global `security` block if missing and removes per-operation `security: []` overrides.
 - **Server URLs**: Strips `https://` from variable-based URLs (Foundry adds protocol separately). Removes `default` from variables without `enum` (prevents locked dropdown).
