@@ -177,6 +177,16 @@ PY
     printf "${GREEN}✓${RESET} interface.%s resolves to %s inside the archive\n" "$icon_field" "$icon_path"
   done
 
+  # The upload form also requires a support URL, which it reads from the manifest
+  # ("support URL is required" on the v1.7.0 upload).
+  local support_url
+  support_url=$(jq -r ".interface.supportURL // empty" "$manifest" 2>/dev/null)
+  if [[ "$support_url" != https://* ]]; then
+    printf "${RED}✗${RESET} interface.supportURL missing from .codex-plugin/plugin.json; the portal rejects the upload\n"; fail=1
+  else
+    printf "${GREEN}✓${RESET} interface.supportURL is %s\n" "$support_url"
+  fi
+
   # At least one skill.
   local skills
   skills=$(find "$work/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
