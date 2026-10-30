@@ -996,8 +996,10 @@ run_group() {   # source...   (every assistant whose source is one of these)
 # An app found elsewhere is reported as "escaped", not as a failure.
 
 # Newline-separated "name<TAB>state" for everything on the tenant. One call, reused.
+# The CLI draws its table with box-drawing bars (│), so map them to | before splitting;
+# splitting on | alone found no apps and judged every deployed app ABSENT.
 tenant_apps() {
-  foundry apps list 2>/dev/null | awk -F'|' 'NF>3 && $2 !~ /APP ID/ {
+  foundry apps list 2>/dev/null | sed 's/│/|/g' | awk -F'|' 'NF>3 && $2 !~ /APP ID/ {
     gsub(/^[ \t]+|[ \t]+$/, "", $3); gsub(/^[ \t]+|[ \t]+$/, "", $4)
     if ($3 != "") printf "%s\t%s\n", $3, $4
   }'
