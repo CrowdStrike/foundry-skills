@@ -37,6 +37,8 @@ jobs:
           ./test-hooks.sh
       - name: Run Antigravity swap tests
         run: ./test-agy-plugin-swap.sh
+      - name: Run Cursor plugin stash tests
+        run: ./test-cursor-plugin-stash.sh
       - name: Run A/B scoring tests
         run: ./test-skill-scoring.sh
 
