@@ -1,8 +1,8 @@
 ---
 name: app-audit
 description: Audit an existing Falcon Foundry app for documented anti-patterns and fix the safe ones, like npm audit. TRIGGER when user asks to "audit my Foundry app", "check my app for problems", "review this Foundry app", "scan for anti-patterns", "why might this deploy fail", or runs `audit_app.py`. DO NOT TRIGGER for creating a new app (use development-workflow) or for debugging an error the user already has (use debugging-workflows).
-version: 1.6.0
-updated: 2026-10-28
+version: 1.7.0
+updated: 2026-10-30
 tags: [foundry, audit, lint, best-practices]
 author: CrowdStrike
 license: MIT

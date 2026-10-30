@@ -1,8 +1,8 @@
 ---
 name: app-upgrades
 description: Upgrade a Falcon Foundry app that was installed from a template to a newer version of that template, in place. TRIGGER when user asks to "upgrade an app", "update an app installed from a template", "pull the latest template into my app", "update a sample app installed in my CID to the latest version", or gives an app ID plus a newer template archive, directory, or GitHub repo. DO NOT TRIGGER for creating a new app (use development-workflow) or for deploying changes to an app the user develops locally (use development-workflow's deploy steps).
-version: 1.6.0
-updated: 2026-10-23
+version: 1.7.0
+updated: 2026-10-30
 tags: [foundry, templates, upgrade, deploy]
 author: CrowdStrike
 license: MIT
