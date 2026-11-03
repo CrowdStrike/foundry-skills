@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Function actions that never registered** — `debugging-workflows` covers an install that fails the same way across unrelated releases while deploy reports success. In the Falcon Fusion SOAR editor, a node calling the app's own function asks for a Store plugin or a subscription. The handler's `workflow_integration` never registered; recover by turning off `provision_on_install`, resetting the handler's integration `id`, and turning it back on, one release each. The consolidation checklist in `functions-development` now says to check every function node in the editor after deploying, and the jammed-release row quotes the `409` "Updating" state error.
+
 ## [1.7.0] - 2026-10-30
 
 ### Added

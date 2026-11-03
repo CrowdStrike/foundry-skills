@@ -10,6 +10,21 @@ When a Foundry app fails to install with no useful error message, isolate the pr
 
 > **Example:** Apps failed to install with no detail. API integration tested fine. Editing the workflow in the console revealed "unknown variable" on the Print data action — the CEL variable path was missing the `Custom_` prefix the platform adds to all API integration names. The install error gave no hint; the workflow editor showed it immediately.
 
+## A Function Action That Never Registered
+
+`foundry apps validate` passes and `deploy` reports success, yet install fails the same way across releases whose changes have nothing to do with it. In the workflow editor, a node that calls the app's own function (`functions.<name>.<handler>`) shows one of these, though no Store plugin or subscription is involved:
+
+- `Requires a plugin configuration. Add this via the CrowdStrike Store or select a different action.`
+- `missing required subscription to use action '<handler>' on node <node>`
+
+That handler's `workflow_integration` action is missing from the CID's action catalog. Deploy doesn't report it, `foundry apps logs` may show nothing, and redeploying the same `workflow_integration` `id` keeps it broken. A workflow with `provision_on_install: true` that calls the handler then fails every install. This was seen after consolidating functions, on handlers whose IDs changed. Other handlers with identical manifest entries resolved.
+
+Recover in three releases:
+
+1. Set `provision_on_install: false` on each workflow that calls the handler. Deploy and release. The app installs, with those workflows not created.
+2. In `manifest.yml`, set that handler's `workflow_integration` `id` to `""`. Deploy and release, and check that the editor now resolves the node.
+3. Set `provision_on_install: true` again. Deploy and release.
+
 ## Visual Debugging with Screenshots
 
 Claude Code can read images directly. When the Falcon console shows something unexpected — a blank page, an error modal, a disabled button — a screenshot is often the fastest way to diagnose the issue.
