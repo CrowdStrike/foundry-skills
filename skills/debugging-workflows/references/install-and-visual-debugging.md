@@ -22,7 +22,7 @@ That handler's `workflow_integration` action is missing from the CID's action ca
 Recover in three releases:
 
 1. Set `provision_on_install: false` on each workflow that calls the handler. Deploy and release. The app installs, with those workflows not created.
-2. In `manifest.yml`, set that handler's `workflow_integration` `id` to `""`. Deploy and release, and check that the editor now resolves the node.
+2. In `manifest.yml`, set that handler's `workflow_integration` `id` to `""`. Deploy and release. The deploy writes a new `id` back to `manifest.yml`, and workflows keep working because they call the handler by name (`functions.<name>.<handler>`), not by `id`. Check that the editor now resolves the node.
 3. Set `provision_on_install: true` again. Deploy and release.
 
 ## Visual Debugging with Screenshots
