@@ -29,7 +29,8 @@
 #
 #   1. Disables installed Foundry plugins where the assistant supports it, and the
 #      sibling Fusion plugin in Antigravity (whose own Foundry plugin is swapped
-#      for the working tree instead, see 3)
+#      for the working tree instead, see 3). Codex and Cursor have no `plugin
+#      disable`, so their installed copies are moved aside instead
 #   2. Moves this repo's symlinks out of ~/.agents/skills/
 #   3. Gives each assistant exactly ONE source pointing at the working tree. For
 #      Antigravity, which only loads plugins from ~/.gemini/config/plugins/, that
@@ -115,6 +116,12 @@ export AGY_SWAP_NAME="$AGY_NAME"
 export AGY_SWAP_REPO="$REPO"
 # shellcheck source=scripts/agy-plugin-swap.sh
 source "$REPO/scripts/agy-plugin-swap.sh"
+
+# Cursor loads --plugin-dir and its installed plugin cache together, and has no
+# `plugin disable`, so its installed Foundry and Fusion copies are moved aside for the
+# run (move-only, stashed next to the cache, restored on exit and after a killed run).
+# shellcheck source=scripts/cursor-plugin-stash.sh
+source "$REPO/scripts/cursor-plugin-stash.sh"
 
 # The real app-creation prompt, matching the README example and test-skill.sh.
 # It names no `foundry` commands, so an assistant with no skills loaded cannot fake
@@ -299,10 +306,11 @@ restore() {
   [ "$STASHED" -gt 0 ] && had=1
   [ -n "$CODEX_CACHE" ] && had=1
   [ "$AGY_SWAP_ACTIVE" -eq 1 ] && had=1
+  [ "$CURSOR_STASH_MOVED" -gt 0 ] && had=1
   [ "$had" -eq 0 ] && return 0
 
   head2 "Restoring your setup"
-  local p
+  local p cursor_moved="$CURSOR_STASH_MOVED"   # cursor_unstash resets it
   for p in ${DISABLED_CLAUDE[@]+"${DISABLED_CLAUDE[@]}"}; do
     claude plugin enable "$p" >/dev/null 2>&1 && vok "re-enabled claude plugin $p" || warn "could not re-enable claude plugin $p"
   done
@@ -318,6 +326,10 @@ restore() {
     mv "$CODEX_CACHE_STASH" "$CODEX_CACHE" && vok "restored Codex plugin cache"
     rm -f "$CODEX_CACHE_ORIGIN"
   fi
+  if [ "$CURSOR_STASH_MOVED" -gt 0 ]; then
+    if cursor_unstash; then vok "restored Cursor's installed plugins"
+    else warn "could not restore Cursor's installed plugins: $CURSOR_STASH_ERR"; fi
+  fi
   if [ "$STASHED" -gt 0 ] && [ -d "$STASH" ]; then
     local n
     for n in "$STASH"/*; do
@@ -327,7 +339,7 @@ restore() {
     done
     rmdir "$STASH" 2>/dev/null || true
   fi
-  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_COPILOT[@]} + ${#DISABLED_AGY[@]} ))
+  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_COPILOT[@]} + ${#DISABLED_AGY[@]} + cursor_moved ))
   printf '  %s✓%s  re-enabled %s%s%s plugin(s), restored %s%s%s symlink(s)\n' \
     "$GREEN" "$RESET" "$BOLD" "$plugins" "$RESET" "$BOLD" "$STASHED" "$RESET"
 }
@@ -374,6 +386,11 @@ recover_orphans() {
     warn "could not recover an Antigravity plugin left by an interrupted run: $AGY_SWAP_ERR"
   elif [ "$AGY_SWAP_RECOVERED" -eq 1 ]; then
     recovered=$((recovered+1)); vok "recovered Antigravity plugin $AGY_NAME"
+  fi
+  if ! cursor_recover; then
+    warn "could not recover Cursor plugins left by an interrupted run: $CURSOR_STASH_ERR"
+  elif [ "$CURSOR_STASH_RECOVERED" -eq 1 ]; then
+    recovered=$((recovered+1)); vok "recovered Cursor plugins"
   fi
   [ "$recovered" -gt 0 ] && warn "recovered $recovered item(s) left behind by an interrupted run"
   [ "$kept" -gt 0 ] && warn "$kept stashed symlink(s) left in ${STASH/#$HOME/\~} — something else holds their names"
@@ -480,6 +497,12 @@ isolate() {
     fi
   done
 
+  if cursor_stash "$AGY_NAME" "$AGY_SIBLING"; then
+    [ "$CURSOR_STASH_MOVED" -gt 0 ] && vok "moved Cursor's installed plugins aside ($CURSOR_STASH_MOVED)"
+  else
+    warn "could not move Cursor's installed plugins aside; its results will be ambiguous: $CURSOR_STASH_ERR"
+  fi
+
   # Symlinks in ~/.agents/skills pointing into THIS repo. These are live, so they
   # would double-load alongside --plugin-dir.
   if [ -d "$SKILL_HOME" ]; then
@@ -495,7 +518,7 @@ isolate() {
     [ "$STASHED" -eq 0 ] && rmdir "$STASH" 2>/dev/null || true
   fi
 
-  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_COPILOT[@]} + ${#DISABLED_AGY[@]} ))
+  local plugins=$(( ${#DISABLED_CLAUDE[@]} + ${#DISABLED_COPILOT[@]} + ${#DISABLED_AGY[@]} + CURSOR_STASH_MOVED ))
   if [ "$plugins" -eq 0 ] && [ "$STASHED" -eq 0 ]; then
     ok "nothing to isolate — no competing sources found"
   else
@@ -1018,7 +1041,14 @@ find_manifest() {   # bin
   [ -n "$MANIFEST_PATH" ] && return
   # Not where we put it. Look where an assistant has actually been known to wander,
   # then fall back to whatever path the transcript mentions.
-  MANIFEST_PATH=$(grep -oE '/[^ "]*/manifest\.yml' "$LOG_DIR/${bin}.log" 2>/dev/null | head -1)
+  # Try each manifest path the transcript mentions until one exists. The first mention
+  # can be a fragment or glob, and the repo's own templates are mentioned too, so skip
+  # anything inside the working tree.
+  local f
+  while IFS= read -r f; do
+    case "$f" in "$REPO"/*) continue ;; esac
+    [ -f "$f" ] && { MANIFEST_PATH="$f"; break; }
+  done < <(grep -oE '/[^ "]*/manifest\.yml' "$LOG_DIR/${bin}.log" 2>/dev/null | awk '!seen[$0]++')
   if [ -z "$MANIFEST_PATH" ]; then
     MANIFEST_PATH=$(find "$HOME/dev" -maxdepth 2 -name manifest.yml \
       -exec grep -l -- "-${bin}\$" {} + 2>/dev/null | head -1)
