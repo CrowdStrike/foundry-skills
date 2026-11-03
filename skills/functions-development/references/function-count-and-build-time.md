@@ -78,5 +78,6 @@ if __name__ == "__main__":
 2. **Audit the wiring.** Each workflow node must pass the right mode value and that mode's inputs. Watch nodes that call the same action and differ only by one input.
 3. **Check the contract.** Each consolidated function's `response_schema` covers every key its modes return.
 4. **Diff the output.** Move logic byte for byte, run old and new with the same inputs, and compare. A difference then points to wiring, not logic.
+5. **Open every changed workflow in the editor.** After deploying, check that each `functions.` node resolves. A handler whose `workflow_integration` didn't register still deploys successfully, then fails install; see the `debugging-workflows` skill's `references/install-and-visual-debugging.md`.
 
 Consolidate on a fresh install first. Redeploying a consolidated manifest onto an existing app that already has the old functions can fail on the update path even when a fresh install works.

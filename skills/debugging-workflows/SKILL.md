@@ -268,12 +268,12 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | Data not appearing after writes | Schema mismatch or missing error check | Verify field names/enums match schema exactly; check `result?.errors?.length` after writes |
 | Dialog white background in dark mode | Older falcon-shoelace or a custom panel (0.4.0 dialogs follow the theme) | Set `--sl-panel-background-color: var(--ground-floor)` on the element |
 | App install fails with no detail | Workflow CEL expression error | Test API integration in console, then inspect workflow editor for errors |
-| Releases stuck "In progress", never finish | A release whose install-time update failed (often a workflow data pill error deploy didn't catch), with later releases stalled behind it | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id under a new name to keep shipping |
+| Releases stuck "In progress", or `(409). app cannot be updated from an "Updating" state` | A release whose install-time update failed (often a workflow data pill error deploy didn't catch), with later releases stalled behind it | Stop retrying; open a CrowdStrike support ticket (app_id + deployment id + CID + region + time); cold-deploy a fresh app_id under a new name to keep shipping |
 | Console errors `deserializeSitemap`/`loadSitemapFromLegacy` + `/api2/uilogging 400` | Falcon console shell (`maverick.js`), not your app | Ignore; non-fatal (the console falls back to its default navigation). Nothing in the app causes or fixes it |
 
 ## Debugging App Install Failures
 
-When an app fails to install with no useful error, isolate by component in the console: test the API integration directly first, rule out static UI files, then open the workflow in Falcon Fusion SOAR — its editor surfaces CEL/variable errors the install API doesn't. Worked example + steps: [references/install-and-visual-debugging.md](references/install-and-visual-debugging.md).
+When an app fails to install with no useful error, isolate by component in the console: test the API integration directly first, rule out static UI files, then open the workflow in Falcon Fusion SOAR — its editor surfaces CEL/variable errors the install API doesn't. A node calling the app's own function that asks for a Store plugin or subscription means its `workflow_integration` never registered. Worked example + steps: [references/install-and-visual-debugging.md](references/install-and-visual-debugging.md).
 
 ## Visual Debugging with Screenshots
 
