@@ -16,7 +16,8 @@
 #
 # Uses claude --plugin-dir to load the plugin from either:
 #   RED:   a temp checkout of the baseline ref (default: main)
-#   GREEN: the local working tree
+#   GREEN: a git-archive snapshot of the local working tree (committed and
+#          uncommitted tracked changes), extracted the same way as RED
 # No cache manipulation required.
 #
 set -euo pipefail
@@ -100,7 +101,30 @@ cleanup_phase_apps() {
 BASELINE_SHA_FILE="$AB_RESULTS_DIR/baseline-main-sha"
 OPTIMIZED_JSON="$AB_RESULTS_DIR/optimized.json"
 MAIN_EXTRACT_DIR="$AB_RESULTS_DIR/main-branch"
+GREEN_EXTRACT_DIR="$AB_RESULTS_DIR/local-branch"
 mkdir -p "$AB_RESULTS_DIR"
+
+# GREEN is extracted the same way as RED rather than loaded from the working tree.
+# An A/A run in fusion-skills (identical skills on both sides) showed a working-tree
+# GREEN reading extra reference docs in 9 of 10 runs against 4 of 10 for the
+# extracted RED, and a snapshot GREEN brought it back to 5 of 10. The working tree
+# also carries a .venv, .git, and other files the archive doesn't. `git stash create`
+# snapshots uncommitted tracked changes without touching the working tree or the
+# stash list; untracked files can't be archived, so they're reported instead.
+extract_green() {
+  local snap
+  snap=$(git -C "$REPO_ROOT" stash create 2>/dev/null)
+  [ -n "$snap" ] || snap=HEAD
+  rm -rf "$GREEN_EXTRACT_DIR"
+  mkdir -p "$GREEN_EXTRACT_DIR"
+  git -C "$REPO_ROOT" archive "$snap" | tar -x -C "$GREEN_EXTRACT_DIR"
+  local untracked
+  untracked=$(git -C "$REPO_ROOT" ls-files --others --exclude-standard -- skills hooks use-cases scripts 2>/dev/null)
+  if [ -n "$untracked" ]; then
+    echo "WARNING: untracked files are not in the GREEN snapshot; commit or git add them to test them:"
+    printf '  %s\n' $untracked
+  fi
+}
 
 # Copy test-skill.sh and its schema to /tmp so it works regardless of branch
 cp "$REPO_ROOT/test-skill.sh" /tmp/test-skill-enhanced.sh
@@ -184,7 +208,7 @@ else
 fi
 echo "  Repo root:     $REPO_ROOT"
 echo "  Baseline ref:  $BASELINE_REF (${MAIN_EXTRACT_DIR:-N/A})"
-echo "  Local branch:  $REPO_ROOT"
+echo "  Local branch:  $REPO_ROOT (snapshot in $GREEN_EXTRACT_DIR)"
 if [ "$SKIP_RED" != "1" ]; then
   echo "  RED results:   $RED_DIR"
 fi
@@ -192,6 +216,7 @@ echo "  GREEN results: $GREEN_DIR"
 echo ""
 
 # ── Pre-flight: ensure local skills differ from main ─────────
+extract_green
 if [ "$NO_SKILL" != "1" ]; then
   # Need main extracted for diff check even when skipping RED
   if [ "$SKIP_RED" = "1" ] && [ ! -d "$MAIN_EXTRACT_DIR" ]; then
@@ -203,8 +228,8 @@ if [ "$NO_SKILL" != "1" ]; then
 
   PREFLIGHT_DIFF=0
   for dir in skills hooks use-cases; do
-    if [ -d "$MAIN_EXTRACT_DIR/$dir" ] || [ -d "$REPO_ROOT/$dir" ]; then
-      if ! diff -rq "$MAIN_EXTRACT_DIR/$dir" "$REPO_ROOT/$dir" >/dev/null 2>&1; then
+    if [ -d "$MAIN_EXTRACT_DIR/$dir" ] || [ -d "$GREEN_EXTRACT_DIR/$dir" ]; then
+      if ! diff -rq "$MAIN_EXTRACT_DIR/$dir" "$GREEN_EXTRACT_DIR/$dir" >/dev/null 2>&1; then
         PREFLIGHT_DIFF=1
         break
       fi
@@ -212,8 +237,8 @@ if [ "$NO_SKILL" != "1" ]; then
   done
   # Also check top-level files that affect plugin behavior
   for f in CLAUDE.md hooks.json; do
-    if [ -f "$MAIN_EXTRACT_DIR/$f" ] || [ -f "$REPO_ROOT/$f" ]; then
-      if ! diff -q "$MAIN_EXTRACT_DIR/$f" "$REPO_ROOT/$f" >/dev/null 2>&1; then
+    if [ -f "$MAIN_EXTRACT_DIR/$f" ] || [ -f "$GREEN_EXTRACT_DIR/$f" ]; then
+      if ! diff -q "$MAIN_EXTRACT_DIR/$f" "$GREEN_EXTRACT_DIR/$f" >/dev/null 2>&1; then
         PREFLIGHT_DIFF=1
         break
       fi
@@ -370,7 +395,7 @@ echo "========================================="
 echo ""
 
 /tmp/test-skill-enhanced.sh --save "$OPTIMIZED_JSON" --baseline "$BASELINE_JSON" --runs "$RUNS" --dir "$GREEN_DIR" \
-  --plugin-dir "$REPO_ROOT" --skip-plugin-manage
+  --plugin-dir "$GREEN_EXTRACT_DIR" --skip-plugin-manage
 
 echo ""
 echo "========================================="
