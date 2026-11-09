@@ -10,15 +10,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **Function actions that never registered** — when installs keep failing while deploy reports success, and the Falcon Fusion SOAR editor says a node calling the app's own function needs a Store plugin or a subscription, the handler's `workflow_integration` never registered. `debugging-workflows` gives a three-release recovery: turn off `provision_on_install`, reset the handler's integration `id` to `""`, then turn provisioning back on. `functions-development`'s consolidation checklist adds a step to check every function node in the editor after deploying.
 
-### Fixed
-
-- **`409` from a stuck release** — the jammed-release row in `debugging-workflows` now quotes the error users see, `(409). app cannot be updated from an "Updating" state`.
-- **OpenAI plugin directory upload** — the Codex plugin manifest now sets the support URL the directory requires.
-
-### Removed
-
-- **`npm install` `E401` pitfall** — `ui-development` no longer tells agents to change which package registry npm uses.
-
 ## [1.7.0] - 2026-10-30
 
 ### Added
