@@ -102,8 +102,15 @@ build_bundle() {
     [[ -z "$ref" ]] && { printf "${RED}✗${RESET} No tags found. Pass a ref: ./release.sh --bundle v1.5.0\n" >&2; return 1; }
     printf "${YELLOW}⚠${RESET} No ref given, using latest tag: %s\n" "$ref"
   fi
-  git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null \
-    || { printf "${RED}✗${RESET} Ref not found: %s\n" "$ref" >&2; return 1; }
+  # Publishing a GitHub release creates its tag on GitHub only, so fetch tags once
+  # before giving up on a ref this clone doesn't have yet.
+  if ! git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null; then
+    local remote
+    remote=$(git -C "$SCRIPT_DIR" remote -v | awk '/CrowdStrike\/foundry-skills/ {print $1; exit}')
+    [[ -n "$remote" ]] && git -C "$SCRIPT_DIR" fetch --quiet --tags "$remote" 2>/dev/null
+    git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null \
+      || { printf "${RED}✗${RESET} Ref not found: %s\n" "$ref" >&2; return 1; }
+  fi
 
   # Git refs commonly contain slashes; they must not become output directories.
   local version="${ref#v}"
