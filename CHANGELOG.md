@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **A UI's `dist/` isn't always gitignored** — `development-workflow` no longer calls the `dist/` that deploy uploads "gitignored". The Falcon Foundry samples commit their built `dist/` so they deploy without a build step. Building before a deploy still matters either way, because deploy ships `dist/` as it is.
+
 ## [1.7.1] - 2026-11-10
 
 ### Added
