@@ -1,5 +1,7 @@
 # Test dependencies for foundry-skills scripts.
 # Runtime deps (crowdstrike-falconpy, pyyaml) live in requirements.txt.
+# Dev tools are pinned exactly so Dependabot moves them through reviewable bumps.
 -r requirements.txt
-pytest
-pytest-cov
+pytest==9.2.0
+pytest-cov==7.1.0
+pylint==4.1.3
