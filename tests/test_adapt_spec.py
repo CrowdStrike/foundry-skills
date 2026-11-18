@@ -184,7 +184,7 @@ def test_adds_global_security_for_apikey_when_missing():
         }
     )
     spec.fix_auth(s)
-    assert "security" in s
+    assert s["security"] == [{"apiKey": []}]
 
 
 def test_apikey_in_authorization_header_kept_as_is():
@@ -827,7 +827,8 @@ def test_main_prints_all_change_sections(tmp_path, monkeypatch, capsys):
 def test_main_dry_run_writes_nothing(tmp_path, monkeypatch, capsys):
     """--dry-run reports changes but leaves the input file untouched."""
     p = tmp_path / "spec.json"
-    original = json.dumps(make_spec(), indent=2)
+    # A spec that needs a fix, so a write would change the file's text.
+    original = json.dumps(make_spec(servers=[{"url": "https://{host}/v1"}]), indent=2)
     p.write_text(original, encoding="utf-8")
     monkeypatch.setattr(
         "sys.argv", ["adapt_spec_for_foundry.py", str(p), "--dry-run", "--no-convert"]
