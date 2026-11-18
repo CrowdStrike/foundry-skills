@@ -37,9 +37,8 @@ class TestNGSIEMQueryRecipe:
     def test_search_all_repository_documented(self):
         """Must document 'search-all' as the required repository value."""
         content = _read_skill(self.SKILL)
-        assert "search-all" in content
-        # Must explain that specific repo names cause 403
-        assert "403" in content
+        assert re.search(r'repository="search-all".{0,200}specific repository name.{0,120}403', content, re.S), \
+            "must tie the 403 to passing a specific repository name instead of search-all"
 
     def test_start_search_method_shown(self):
         """Must show the NGSIEM start_search method."""
@@ -123,8 +122,9 @@ class TestFunctionSchemaRequirements:
     def test_wf_expose_alone_is_insufficient(self):
         """Must warn that --wf-expose does not generate schemas."""
         content = _read_skill(self.SKILL)
-        assert "--wf-expose" in content
-        assert "null" in content, "must state schema fields are null without the flags"
+        assert "Passing `--wf-expose` alone is not enough" in content
+        assert re.search(r"`--wf-expose`.{0,120}schema fields are still written as `null`", content, re.S), \
+            "must state schema fields are null with --wf-expose alone"
 
     def test_does_not_claim_manifest_edit_binds_schemas(self):
         """Must state that hand-editing the manifest does not bind schemas."""
@@ -234,8 +234,10 @@ class TestAIAgentsSkill:
         draft sourced from that doc and produced manifests the CLI rejects.
         """
         content = _read_skill(self.SKILL)
-        assert "ai:" in content
-        assert "knowledge_bases:" in content, "manifest key is knowledge_bases (underscore)"
+        assert re.search(r"^ai:\n(?:  .*\n|\s*\n)*?  agents:", content, re.M), "agents must be nested under ai:"
+        assert re.search(r"^ai:\n(?:  .*\n|\s*\n)*?  knowledge_bases:", content, re.M), \
+            "manifest key is knowledge_bases (underscore), nested under ai:"
+        assert not re.search(r"^(agents|knowledge_bases):", content, re.M), "no top-level agents/knowledge_bases keys"
         # The on-disk directory is hyphenated while the manifest key is not —
         # getting these backwards is the single easiest mistake to make here.
         assert "knowledge-bases/" in content, "on-disk dir is knowledge-bases (hyphen)"
@@ -330,7 +332,7 @@ class TestAIAgentsSkill:
         """
         content = _read_skill(self.SKILL)
         assert "narrow, explicit exception" in content
-        assert "id" in content and "path" in content
+        assert "protects the CLI-owned `id`, `path`, `entrypoint`" in content
 
     def test_model_left_empty_not_invented(self):
         """No invented model IDs — there is no client-side list."""
@@ -360,8 +362,7 @@ class TestAIAgentsSkill:
     def test_output_schema_only_for_json_with_schema(self):
         """json needs no schema; only json_with_schema does."""
         content = _read_skill(self.SKILL)
-        assert "json_with_schema" in content
-        assert "asymmetry" in content.lower()
+        assert "`output_format: json` needs **no** schema; only `json_with_schema` does" in content
 
     def test_schema_filenames_are_fixed(self):
         """The backend reads only input_schema.json / output_schema.json.
@@ -462,8 +463,9 @@ class TestAIAgentsSkill:
     def test_kb_reference_covers_svg_drop(self):
         """.svg KB files pass validation then vanish from the deploy bundle."""
         content = _read_skill(self.KB)
-        assert ".svg" in content
-        assert "25 MB" in content
+        assert "**Any path containing `svg` is ignored.**" in content
+        assert "silently dropped from the deployed bundle" in content
+        assert "**25 MB total package cap.**" in content
 
     def test_schema_reference_has_no_version_gate_claim(self):
         """Must state there is no manifest_version gate for ai artifacts."""
@@ -515,8 +517,9 @@ class TestAgentToolExposure:
     def test_api_integrations_documents_nested_agent_tools(self):
         """expose_to_agent must be nested under agent_tools, like the workflow key."""
         content = _read_skill(self.API)
-        assert "agent_tools" in content
-        assert "expose_to_agent" in content
+        assert re.search(r"^( +)agent_tools:\n(?:\1 +.*\n)*?\1 +expose_to_agent: true", content, re.M), \
+            "expose_to_agent must appear nested under agent_tools in the example"
+        assert "`expose_to_agent` must be nested under `agent_tools`" in content
 
     def test_api_tools_ref_is_not_a_name_based_alias(self):
         """A name-based API-integration tools entry fails deploy, so the skill warns against one."""
@@ -561,8 +564,8 @@ class TestCrossSkillConsistency:
         """Both must name the CLI flags as the binding mechanism."""
         for skill in (self.FUNCTIONS, self.WORKFLOWS):
             content = _read_skill(skill)
-            assert "--input-schema" in content or "--wf-expose" in content, \
-                f"{skill} should reference the creation-time flags"
+            assert "--input-schema" in content and "--wf-expose" in content, \
+                f"{skill} should reference both creation-time flags"
 
 
 # ── FalconPy Alerts.get_alerts_v2 keyword ───────────────────────────────────
