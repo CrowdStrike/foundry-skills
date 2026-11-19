@@ -205,7 +205,7 @@ python3 <skill-dir>/scripts/deploy_and_release.py --change-type Patch --change-l
 
 `<skill-dir>` is this `SKILL.md`'s directory, not the app workspace. The script (standard library only, no venv) runs `foundry apps deploy --no-prompt` once, polls `list-deployments` for the version deploy printed (release numbers differ), and releases that deployment ID. `--no-release` stops after the deploy. It prints the packaged `dist/` files, because **Deploy never builds a UI**: it ships `dist/` as it is.
 
-- **Exit 1:** the deploy, the deployment, or the release failed. A `Failed` deployment shows no reason in the CLI; read it in the console (**App manager > the app > "Show errors (N)"**).
+- **Exit 1:** the deploy, the deployment, or the release failed. On `Failed`, the script prints the failed artifacts from `foundry apps logs`; the cause is in the console (**App manager > the app > "Show errors (N)"**).
 - **Exit 3:** still in progress at the timeout. Don't deploy again (it duplicates); poll `foundry apps list-deployments`, then run the release command it printed.
 
 When re-deploying an existing app after a UI change, check that the new `dist/assets` files are listed first: `foundry apps deploy --diff-only --no-prompt`. While a deploy runs, `foundry apps validate` fails with `deployment is currently in progress`. Wait; it isn't a manifest error. Without the script, the manual steps are `foundry apps deploy --no-prompt --change-type Patch --change-log "..."`, then `foundry apps list-deployments` (no `sleep` before the first poll), then `foundry apps release --change-type Patch --deployment-id <id> --notes "..." --no-prompt`.

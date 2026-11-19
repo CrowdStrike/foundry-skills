@@ -87,7 +87,12 @@ def finish(args, runner, version):
               f"--notes \"...\" --no-prompt")
         return 3
     if "success" not in state.lower():
-        print("The CLI doesn't show why. Open the app in App manager and click \"Show errors\" "
+        code, logs = runner(["foundry", "apps", "logs", "--deployment-id", dep_id,
+                             "--level", "error", "--no-prompt"])
+        errors = [line.strip() for line in logs.splitlines() if " ERROR " in line]
+        if code == 0 and errors:
+            print("Failed artifacts (`foundry apps logs`):\n  " + "\n  ".join(errors))
+        print("For the cause, open the app in App manager and click \"Show errors\" "
               "for each failed capability.")
         return 1
     if args.no_release:
