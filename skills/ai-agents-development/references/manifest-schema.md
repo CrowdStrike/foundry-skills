@@ -77,10 +77,10 @@ Each `tools` entry is `<type>:<reference>`. Every agent tool has type `action`. 
 | Target | Entry | Platform tool ID it becomes |
 |--------|-------|-----------------------------|
 | App collection | `action:collections.<name>.<Operation>` (alias) | `mcp/gce/collections:<app id>:<hash>:<Operation>` |
-| Agent runtime collection | `action:mcp/gce/collections:collections:generic:<Operation>` | The same |
+| Agent runtime collection | `action:mcp/gce/collections:generic:<Operation>` | The same |
 | API integration | `action:mcp/gce/integration:<integration id>~<hash>` | The same |
 
-Verified on us-2 with CLI 2.1.2 (2026-10-21): an agent with all three deployed, and one invocation called the API-integration operation and then wrote the result with CreateObject, with no function involved. A later deploy that changed only the system prompt kept the tools. The collection alias also deployed and wrote records with CLI 2.1.1 (2026-10-14).
+Verified on us-2 with CLI 2.1.2 (2026-10-21): an agent with all three deployed, and one invocation called the API-integration operation and then wrote the result with CreateObject, with no function involved. A later deploy that changed only the system prompt kept the tools. The collection alias also deployed and wrote records with CLI 2.1.1 (2026-10-14). The generic-collection ID has a single `collections:`; with it doubled (`collections:collections:generic`), the tool registry answers `tool not found in platform` and the agent fails with `ARTIFACT_DISTRIBUTION_FAILED` (checked 2026-11-20).
 
 **API-integration tool IDs.** Exposing an operation (`agent_tools.expose_to_agent: true`) creates a tool record when the integration deploys, so the ID doesn't exist before the first deploy. `<integration id>` is the integration's `id` in `manifest.yml`. `<hash>` isn't derived from the operationId, path, or `agent_tools.name`; it stayed the same when the operation's summary and parameters changed. Find the ID after deploying:
 

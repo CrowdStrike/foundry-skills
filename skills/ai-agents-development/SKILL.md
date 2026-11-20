@@ -157,7 +157,7 @@ Each `tools` entry is `<type>:<reference>`. The artifact must be exposed on its 
 | Target | Entry |
 |--------|-------|
 | App collection | `action:collections.<collection_name>.<Operation>` |
-| Agent runtime collection | `action:mcp/gce/collections:collections:generic:<Operation>` |
+| Agent runtime collection | `action:mcp/gce/collections:generic:<Operation>` |
 | API integration | `action:mcp/gce/integration:<integration id>~<hash>` (its platform tool ID) |
 
 Any other form fails the whole deploy, usually with a bare `500`. A concrete `tools` entry (note the required `action:` prefix) looks like:
