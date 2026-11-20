@@ -344,7 +344,9 @@ class TestAIAgentsSkill:
         """All three tools reference shapes, with exact operation casing."""
         content = _read_skill(self.SKILL)
         assert "action:collections.<collection_name>.<Operation>" in content
-        assert "action:mcp/gce/collections:collections:generic:<Operation>" in content
+        assert "action:mcp/gce/collections:generic:<Operation>" in content
+        # The tool registry rejects the ID with `collections:` doubled.
+        assert "collections:collections:generic" not in content
         # API-integration tools are referenced by platform tool ID; a
         # name-based alias fails the whole deploy with a bare 500.
         assert "action:mcp/gce/integration:<integration id>~<hash>" in content

@@ -104,7 +104,7 @@ Valid operations, exact casing required: `CreateObject`, `GetObject`, `DeleteObj
 
 A collection exposed but not listed in `tools` is unreachable by the agent, and vice versa — neither case produces an error, just an agent that silently cannot use the data. `agent_tools_integration` is independent of `workflow_integration`; a collection can be exposed to agents, to Fusion, to both, or to neither.
 
-Agents can also use the generic collection, `action:mcp/gce/collections:collections:generic:<Operation>` — a scratch collection the platform creates per agent at runtime, needing no collection of your own. Use a named app collection when the data must outlive the agent or be readable by other capabilities. See `ai-agents-development`.
+Agents can also use the generic collection, `action:mcp/gce/collections:generic:<Operation>` — a scratch collection the platform creates per agent at runtime, needing no collection of your own. Use a named app collection when the data must outlive the agent or be readable by other capabilities. See `ai-agents-development`.
 
 ## Collection API Access
 
