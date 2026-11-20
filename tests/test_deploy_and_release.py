@@ -31,13 +31,22 @@ def table(rows):
     return "\n".join(lines)
 
 
+# Recorded from `foundry apps logs --deployment-id <id> --level error` (CLI 2.1.2, us-2).
+LOGS_OUT = """App Logs: 7f7c (last 24h, 1 records, oldest first)
+
+                     ERROR  deploy  One or more of the app's artifacts failed to distribute.  [artifact=score-agent(AI_AGENT) reason=ARTIFACT_DISTRIBUTION_FAILED fix=unclear version=v1.0.0-pre-release trace=0747a732-adc1-4813-aa79-625baf5e0c6d]
+"""
+
+
 class FakeCLI:
     """Replays deploy output, then one list-deployments table per poll."""
 
-    def __init__(self, polls, deploy=(0, DEPLOY_OUT), release=(0, "✅  Release in progress")):
+    def __init__(self, polls, deploy=(0, DEPLOY_OUT), release=(0, "✅  Release in progress"),
+                 logs=(0, LOGS_OUT)):
         self.polls = list(polls)
         self.deploy = deploy
         self.release = release
+        self.logs = logs
         self.calls = []
 
     def __call__(self, cmd):
@@ -49,6 +58,8 @@ class FakeCLI:
             return 0, self.polls.pop(0) if len(self.polls) > 1 else self.polls[0]
         if sub == "release":
             return self.release
+        if sub == "logs":
+            return self.logs
         raise AssertionError(cmd)
 
 
@@ -107,11 +118,31 @@ def test_no_release_stops_after_success(app_root):
     assert all(c[2] != "release" for c in cli.calls)
 
 
-def test_failed_deployment_points_to_console_and_skips_release(app_root, capsys):
+def test_failed_deployment_skips_release(app_root):
     cli = FakeCLI([table([("bbb", "v1.0.0-pre-release", "🔴 Failed")])])
     assert dr.main(["--change-log", "x"], runner=cli) == 1
     assert all(c[2] != "release" for c in cli.calls)
-    assert "Show errors" in capsys.readouterr().out
+
+
+def test_failed_deployment_prints_the_failed_artifact_from_its_logs(app_root, capsys):
+    cli = FakeCLI([table([("bbb", "v1.0.0-pre-release", "🔴 Failed")]),
+                   table([("aaa", "v0.9.0-pre-release", "🔴 Failed")])])
+    dr.main(["--change-log", "x"], runner=cli)
+    logs = next(c for c in cli.calls if c[2] == "logs")
+    assert logs[logs.index("--deployment-id") + 1] == "bbb"
+    out = capsys.readouterr().out
+    assert "artifact=score-agent(AI_AGENT)" in out
+    assert "trace=0747a732-adc1-4813-aa79-625baf5e0c6d" in out
+    assert "Show errors" in out, "logs give no cause, so still point to the console"
+
+
+def test_failed_deployment_still_points_to_console_when_logs_fail(app_root, capsys):
+    cli = FakeCLI([table([("bbb", "v1.0.0-pre-release", "🔴 Failed")])],
+                  logs=(1, "Error: Internal Server Error"))
+    assert dr.main(["--change-log", "x"], runner=cli) == 1
+    out = capsys.readouterr().out
+    assert "Show errors" in out
+    assert "Internal Server Error" not in out
 
 
 def test_deploy_error_returns_its_exit_code(app_root, capsys):

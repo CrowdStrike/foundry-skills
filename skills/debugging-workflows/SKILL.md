@@ -30,7 +30,7 @@ Deploy fails
 ├── Validation error → Check manifest YAML syntax, then deploy again
 ├── "Unknown error"  → Duplicate workflow name across apps in tenant
 ├── "no deployable artifacts found" → Diff is only manifest/logo/metadata; deploy needs an artifact change (function/collection/UI/agent). No --force; bundle it or put the logo in the first deploy
-├── "Failed" with no reason in the CLI → Falcon console: App manager > app > "Show errors (N)" (per capability)
+├── "Failed" with no reason in the CLI → foundry apps logs --deployment-id <id> --level error (artifact + trace ID); cause: App manager > app > "Show errors (N)"
 ├── validate says "deployment is currently in progress" → A deploy is still running; poll list-deployments, then retry
 ├── validate or deploy says "no changes detected" → No packaged file changed since the last deploy (still true right after a failed one). Change a file the deploy packages, not one in ignored:
 └── Silent failure   → Tenant may be missing required module (SKU) for requested scopes
@@ -254,7 +254,7 @@ The CI environment has no `~/.config/foundry/configuration.yml`. Set environment
 | `foundry ui run` fails on new app | Backend not deployed | Run `foundry apps deploy` first |
 | API calls return 403 | Insufficient OAuth scopes | Review manifest oauth section |
 | Deploy fails silently | Tenant missing required module (SKU) | Verify tenant has Falcon module for scopes |
-| Deployment `Failed`, CLI gives no reason | Reasons are console-only | App manager > app > "Show errors (N)" |
+| Deployment `Failed`, CLI gives no reason | `apps logs` names the artifact, not the cause | `foundry apps logs --deployment-id <id> --level error`, then App manager > app > "Show errors (N)" |
 | `deployment is currently in progress` from `validate` | A deploy is still running | Poll `foundry apps list-deployments` until it settles, then retry |
 | Local server won't start | Port conflicts | Free the port by stopping the process holding it (`lsof -i :<port>`); `ui run` and `functions run` have no port flag |
 | Auth works locally, fails in CI | No config file in CI | Set `FOUNDRY_API_CLIENT_ID` env vars |
